@@ -7,6 +7,8 @@ import { ConfigModule } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { EventsGateway } from './events/events.gateway';
 import { EventsModule } from './events/events.module';
+import { MailModule } from './mail/mail.module';
+import { MailService } from './mail/mail.service';
 import { MessagesModule } from './messages/messages.module';
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
@@ -30,6 +32,7 @@ import { envConfig } from './configs/env.config';
     AuthModule,
     SearchModule,
     EventsModule,
+    MailModule,
   ],
   controllers: [AppController],
   providers: [
@@ -39,6 +42,7 @@ import { envConfig } from './configs/env.config';
       provide: APP_GUARD,
       useClass: AccessTokenGuard,
     },
+    MailService,
   ],
 })
 export class AppModule {}

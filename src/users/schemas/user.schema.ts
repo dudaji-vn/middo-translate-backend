@@ -6,6 +6,8 @@ export type UserDocument = HydratedDocument<User>;
 export enum UserStatus {
   ACTIVE = 'active',
   BANNED = 'banned',
+  UN_SET_INFO = 'unset',
+  INACTIVE = 'inactive',
 }
 
 // @Schema({ _id: false })
@@ -22,7 +24,7 @@ export class User {
   @Prop({ type: String })
   bio: string;
 
-  @Prop({ type: String })
+  @Prop({ type: String, unique: true })
   email: string;
 
   @Prop({ type: String })
@@ -48,8 +50,13 @@ export class User {
     default: [],
   })
   followers: User[];
-  @Prop({ type: String, default: UserStatus.ACTIVE })
+  @Prop({ type: String, default: UserStatus.INACTIVE })
   status: string;
+  @Prop({ type: String })
+  verifyToken: string;
 }
 
+// add index for email
+
 export const UserSchema = SchemaFactory.createForClass(User);
+UserSchema.index({ email: 1 }, { unique: true });
