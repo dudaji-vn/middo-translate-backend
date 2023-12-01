@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 import { User, UserStatus } from './schemas/user.schema';
 import { FindParams } from 'src/common/types';
+import { SignUpDto } from 'src/auth/dtos/sign-up.dto';
 
 @Injectable()
 export class UsersService {
@@ -46,5 +47,19 @@ export class UsersService {
       throw new HttpException(`User ${id} not found`, 404);
     }
     return user;
+  }
+
+  async create(info: SignUpDto & { verifyToken: string }) {
+    const user = await this.userModel.create({
+      email: info.email,
+      password: info.password,
+      status: UserStatus.INACTIVE,
+      verifyToken: info.verifyToken,
+    });
+    return user;
+  }
+
+  async isEmailExist(email: string) {
+    return await this.userModel.exists({ email });
   }
 }
