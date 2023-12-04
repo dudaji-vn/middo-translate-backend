@@ -1,13 +1,16 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 
 import { AuthService } from './auth.service';
-import { JwtUserId, Public } from 'src/common/decorators';
+import { GetVerifyJwt, JwtUserId, Public } from 'src/common/decorators';
 import { UsersService } from 'src/users/users.service';
 import { Response } from 'src/common/types';
 import { User } from 'src/users/schemas/user.schema';
 import { Tokens } from './types';
 import { SignUpDto } from './dtos/sign-up.dto';
+import { ApiTags } from '@nestjs/swagger';
+import { VerifyTokenGuard } from './guards/verify-token.guard';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -33,17 +36,23 @@ export class AuthController {
   }
   @Public()
   @Post('sign-up')
-  async signUp(@Body() signUpDto: SignUpDto): Promise<
-    Response<{
-      message: string;
-    }>
-  > {
+  async signUp(@Body() signUpDto: SignUpDto): Promise<Response<null>> {
     await this.authService.signUp(signUpDto);
     return {
+      message: 'Check your email to activate your account',
+      data: null,
+    };
+  }
+  @Public()
+  @UseGuards(VerifyTokenGuard)
+  @Get('activate-account')
+  async activateAccount(
+    @GetVerifyJwt() { token, email }: { token: string; email: string },
+  ): Promise<Response<null>> {
+    await this.authService.activateAccount(token, email);
+    return {
       message: 'ok',
-      data: {
-        message: 'Check your email to activate your account',
-      },
+      data: null,
     };
   }
 

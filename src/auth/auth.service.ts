@@ -5,6 +5,7 @@ import { HttpException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from 'src/mail/mail.service';
 import { SignUpDto } from './dtos/sign-up.dto';
+import { UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { envConfig } from 'src/configs/env.config';
 
@@ -33,7 +34,7 @@ export class AuthService {
     return `${envConfig.app.url}/auth/verify?token=${token}`;
   }
 
-  async createVerifyToken(payload: { email: string }) {
+  async createVerifyToken(payload: { id: string }) {
     return this.jwtService.signAsync(payload, {
       secret: envConfig.jwt.verifyToken.secret,
       expiresIn: envConfig.jwt.verifyToken.expiresIn,
@@ -57,7 +58,7 @@ export class AuthService {
       throw new HttpException('Email already exist', 400);
     }
     const verifyToken = await this.createVerifyToken({
-      email: signUpDto.email,
+      id: signUpDto.email,
     });
     const hashPassword = await bcrypt.hash(signUpDto.password, 10);
     await this.usersService.create({
@@ -75,5 +76,20 @@ export class AuthService {
         verifyUrl: verifyUrl,
       },
     );
+  }
+
+  async activateAccount(token: string, email: string): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+    if (user.status !== UserStatus.PENDING) {
+      throw new HttpException('Account already activated', 409);
+    }
+    if (user.verifyToken !== token) {
+      throw new HttpException('Invalid token', 401);
+    }
+    await this.usersService.update(user._id, {
+      status: UserStatus.UN_SET_INFO,
+      verifyToken: '',
+    });
+    return;
   }
 }

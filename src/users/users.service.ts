@@ -4,6 +4,7 @@ import { Model, ObjectId } from 'mongoose';
 import { User, UserStatus } from './schemas/user.schema';
 import { FindParams } from 'src/common/types';
 import { SignUpDto } from 'src/auth/dtos/sign-up.dto';
+import { SetupInfoDto } from './dtos/setup-info.dto';
 
 @Injectable()
 export class UsersService {
@@ -49,6 +50,14 @@ export class UsersService {
     return user;
   }
 
+  async findByEmail(email: string) {
+    const user = await this.userModel.findOne({ email }).lean();
+    if (!user) {
+      throw new HttpException(`User ${email} not found`, 404);
+    }
+    return user;
+  }
+
   async create(info: SignUpDto & { verifyToken: string }) {
     const user = await this.userModel.create({
       email: info.email,
@@ -61,5 +70,25 @@ export class UsersService {
 
   async isEmailExist(email: string) {
     return await this.userModel.exists({ email });
+  }
+
+  async update(id: ObjectId | string, info: Partial<User>) {
+    const user = await this.userModel.findByIdAndUpdate(id, info, {
+      new: true,
+    });
+    if (!user) {
+      throw new HttpException(`User ${id} not found`, 404);
+    }
+    return user;
+  }
+
+  async setUpInfo(id: ObjectId, info: SetupInfoDto) {
+    const user = await this.userModel.findByIdAndUpdate(id, info, {
+      new: true,
+    });
+    if (!user) {
+      throw new HttpException(`User ${id} not found`, 404);
+    }
+    return user;
   }
 }
