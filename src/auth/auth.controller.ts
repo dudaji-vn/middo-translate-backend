@@ -16,6 +16,8 @@ import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
 import { VerifyTokenGuard } from './guards/verify-token.guard';
 import { Tokens } from './types';
+import { RefreshTokenGuard } from './guards/refresh-token.guard';
+import { GetJwtInfo } from 'src/common/decorators/get-jwt-info.decorator';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -24,6 +26,14 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
   ) {}
+  @Public()
+  @UseGuards(RefreshTokenGuard)
+  @Post('refresh')
+  refreshTokens(
+    @GetJwtInfo() { id, token }: { token: string; id: string },
+  ): Promise<Tokens> {
+    return this.authService.refreshTokens(id, token);
+  }
   @Get('remote-login')
   async remoteLogin(@JwtUserId() userId: string): Promise<
     Response<{

@@ -1,6 +1,6 @@
 import * as bcrypt from 'bcrypt';
 
-import { HttpException, Injectable } from '@nestjs/common';
+import { ForbiddenException, HttpException, Injectable } from '@nestjs/common';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -83,6 +83,12 @@ export class AuthService {
       accessToken,
       refreshToken,
     };
+  }
+
+  async refreshTokens(userId: string, refreshToken: string): Promise<Tokens> {
+    await this.usersService.findById(userId);
+    const tokens = await this.createTokens({ id: userId });
+    return tokens;
   }
 
   async signUp(signUpDto: SignUpDto): Promise<void> {
