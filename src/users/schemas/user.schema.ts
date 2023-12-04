@@ -20,8 +20,6 @@ export class User {
   _id: mongoose.Schema.Types.ObjectId;
   @Prop({ type: String })
   name: string;
-  @Prop({ type: String, unique: true })
-  username: string;
   @Prop({ type: String })
   bio: string;
 
