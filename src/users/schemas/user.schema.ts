@@ -11,8 +11,6 @@ export enum UserStatus {
   INACTIVE = 'inactive',
 }
 
-// @Schema({ _id: false })
-
 @Schema({
   timestamps: true,
 })

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Patch } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { JwtUserId, Public } from 'src/common/decorators';
 import { Response } from 'src/common/types';
@@ -17,7 +17,7 @@ export class UsersController {
       data: null,
     };
   }
-  @Post('setup')
+  @Patch('setup')
   async setup(
     @JwtUserId() userId: string,
     @Body() setupDto: SetupInfoDto,

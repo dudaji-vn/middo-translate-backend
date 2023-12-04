@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 
 import { AuthService } from './auth.service';
 import { GetVerifyJwt, JwtUserId, Public } from 'src/common/decorators';
@@ -10,6 +10,8 @@ import { SignUpDto } from './dtos/sign-up.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { VerifyTokenGuard } from './guards/verify-token.guard';
 import { SignInDto } from './dtos/sign-in.dto';
+import { plainToInstance } from 'class-transformer';
+import { UserResponseDto } from 'src/users/dto/user-response.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -52,12 +54,25 @@ export class AuthController {
   }
 
   @Public()
-  @Get('sign-in')
-  async SignIn(@Body() signInDto: SignInDto): Promise<Response<Tokens>> {
-    const tokens = await this.authService.signIn(signInDto);
+  @Post('sign-in')
+  async SignIn(@Body() signInDto: SignInDto): Promise<
+    Response<
+      Tokens & {
+        user: UserResponseDto;
+      }
+    >
+  > {
+    const res = await this.authService.signIn(signInDto);
+    const userResponse = plainToInstance(UserResponseDto, res.user, {
+      excludeExtraneousValues: true,
+    });
     return {
       message: 'ok',
-      data: tokens,
+      data: {
+        accessToken: res.accessToken,
+        refreshToken: res.refreshToken,
+        user: userResponse,
+      },
     };
   }
   @Public()
@@ -77,5 +92,40 @@ export class AuthController {
   async getProfile(@JwtUserId() userId: string): Promise<Response<User>> {
     const user = await this.usersService.getProfile(userId);
     return { message: 'ok', data: user };
+  }
+  @Public()
+  @Post('forgot-password')
+  async forgotPassword(@Body() { email }: { email: string }): Promise<
+    Response<{
+      message: string;
+    }>
+  > {
+    await this.authService.forgotPassword(email);
+    return {
+      message: 'ok',
+      data: {
+        message: 'Check your email to reset your password',
+      },
+    };
+  }
+
+  @Public()
+  @UseGuards(VerifyTokenGuard)
+  @Patch('reset-password')
+  async resetPassword(
+    @GetVerifyJwt() { token, email }: { token: string; email: string },
+    @Body() { password }: { password: string },
+  ): Promise<
+    Response<{
+      message: string;
+    }>
+  > {
+    await this.authService.resetPassword(token, email, password);
+    return {
+      message: 'ok',
+      data: {
+        message: 'Reset password successfully',
+      },
+    };
   }
 }

@@ -1,13 +1,13 @@
 import * as bcrypt from 'bcrypt';
 
 import { HttpException, Injectable } from '@nestjs/common';
+import { User, UserStatus } from 'src/users/schemas/user.schema';
 
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from 'src/mail/mail.service';
 import { SignInDto } from './dtos/sign-in.dto';
 import { SignUpDto } from './dtos/sign-up.dto';
 import { Tokens } from './types';
-import { UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { envConfig } from 'src/configs/env.config';
 
@@ -43,7 +43,11 @@ export class AuthService {
     });
   }
 
-  async signIn(signDto: SignInDto): Promise<Tokens> {
+  async signIn(signDto: SignInDto): Promise<
+    Tokens & {
+      user: User;
+    }
+  > {
     const user = await this.usersService.findByEmail(signDto.email, {
       notFoundMessage: 'Invalid email or password',
       notFoundCode: 401,
@@ -66,6 +70,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
+      user,
     };
   }
   async createTokens(payload: { id: string }) {
@@ -118,5 +123,42 @@ export class AuthService {
       verifyToken: '',
     });
     return;
+  }
+
+  async forgotPassword(email: string): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+    const verifyToken = await this.createVerifyToken({
+      id: user._id.toString(),
+    });
+    await this.usersService.update(user._id, {
+      verifyToken,
+    });
+    const resetPasswordUrl = `${envConfig.app.url}/auth/reset-password?token=${verifyToken}}`;
+
+    await this.mailService.sendMail(
+      email,
+      'Reset your password',
+      'forgot-password',
+      {
+        title: 'Reset your password!',
+        verifyUrl: resetPasswordUrl,
+      },
+    );
+  }
+
+  async resetPassword(
+    token: string,
+    email: string,
+    password: string,
+  ): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+    if (user.verifyToken !== token) {
+      throw new HttpException('Invalid token', 401);
+    }
+    const hashPassword = await bcrypt.hash(password, 10);
+    await this.usersService.update(user._id, {
+      password: hashPassword,
+      verifyToken: '',
+    });
   }
 }
