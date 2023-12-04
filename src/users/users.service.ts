@@ -5,6 +5,7 @@ import { SignUpDto } from 'src/auth/dtos/sign-up.dto';
 import { FindParams } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
 import { User, UserStatus } from './schemas/user.schema';
+import { generateAvatar } from 'src/common/utils';
 
 @Injectable()
 export class UsersService {
@@ -91,10 +92,12 @@ export class UsersService {
   }
 
   async setUpInfo(id: string, info: SetupInfoDto): Promise<User> {
+    if (!info.avatar) {
+      info.avatar = generateAvatar(info.name);
+    }
     const user = await this.userModel.findByIdAndUpdate(id, info, {
       new: true,
     });
-    console.log(user);
     if (!user) {
       throw new HttpException(`User ${id} not found`, 404);
     }

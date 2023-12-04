@@ -7,6 +7,11 @@ export class UserResponseDto {
   name: string;
   @Expose()
   language: string;
+  @Expose()
+  email: string;
+  @Expose()
+  avatar: string;
+
   @Exclude()
   password: string;
 
