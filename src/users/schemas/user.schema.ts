@@ -4,6 +4,7 @@ import mongoose, { HydratedDocument } from 'mongoose';
 export type UserDocument = HydratedDocument<User>;
 
 export enum UserStatus {
+  PENDING = 'pending',
   ACTIVE = 'active',
   BANNED = 'banned',
   UN_SET_INFO = 'unset',
@@ -50,13 +51,11 @@ export class User {
     default: [],
   })
   followers: User[];
-  @Prop({ type: String, default: UserStatus.INACTIVE })
+  @Prop({ type: String, default: UserStatus.PENDING })
   status: string;
   @Prop({ type: String })
   verifyToken: string;
 }
-
-// add index for email
 
 export const UserSchema = SchemaFactory.createForClass(User);
 UserSchema.index({ email: 1 }, { unique: true });
