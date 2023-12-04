@@ -5,7 +5,8 @@ import { Response } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from './users.service';
-
+import { ApiTags } from '@nestjs/swagger';
+@ApiTags('Users')
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
