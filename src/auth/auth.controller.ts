@@ -1,12 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Patch,
-  Post,
-  UseGuards,
-  Param,
-} from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 
 import { ApiTags } from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
@@ -18,6 +10,7 @@ import { UsersService } from 'src/users/users.service';
 import { AuthService } from './auth.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResendVerifyEmailDto } from './dto/resend-verify-email.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
@@ -100,8 +93,8 @@ export class AuthController {
   }
 
   @Public()
-  @Get('')
-  async resendVerifyEmail(@Param('email') email: string): Promise<
+  @Post('resend-verify-email')
+  async resendVerifyEmail(@Body() { email }: ResendVerifyEmailDto): Promise<
     Response<{
       message: string;
     }>
