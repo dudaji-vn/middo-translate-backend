@@ -1,7 +1,7 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
-import { SignUpDto } from 'src/auth/dtos/sign-up.dto';
+import { SignUpDto } from 'src/auth/dto/sign-up.dto';
 import { FindParams } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
 import { User, UserStatus } from './schemas/user.schema';
@@ -63,7 +63,7 @@ export class UsersService {
   ) {
     const user = await this.userModel.findOne({ email }).lean();
     if (!user) {
-      const message = options?.notFoundMessage || `User ${email} not found`;
+      const message = options?.notFoundMessage || `User not found`;
       const code = options?.notFoundCode || 404;
       throw new HttpException(message, code);
     }
@@ -98,9 +98,16 @@ export class UsersService {
     if (!info.avatar) {
       info.avatar = generateAvatar(info.name);
     }
-    const user = await this.userModel.findByIdAndUpdate(id, info, {
-      new: true,
-    });
+    const user = await this.userModel.findByIdAndUpdate(
+      id,
+      {
+        ...info,
+        status: UserStatus.ACTIVE,
+      },
+      {
+        new: true,
+      },
+    );
     if (!user) {
       throw new HttpException(`User ${id} not found`, 404);
     }

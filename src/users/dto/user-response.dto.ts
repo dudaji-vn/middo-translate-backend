@@ -1,5 +1,7 @@
 import { Exclude, Expose } from 'class-transformer';
 
+import { UserStatus } from '../schemas/user.schema';
+
 export class UserResponseDto {
   @Expose()
   _id: string;
@@ -11,6 +13,8 @@ export class UserResponseDto {
   email: string;
   @Expose()
   avatar: string;
+  @Expose()
+  status: UserStatus;
 
   @Exclude()
   password: string;

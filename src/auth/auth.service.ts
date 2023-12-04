@@ -3,10 +3,11 @@ import * as bcrypt from 'bcrypt';
 import { HttpException, Injectable } from '@nestjs/common';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from 'src/mail/mail.service';
-import { SignInDto } from './dtos/sign-in.dto';
-import { SignUpDto } from './dtos/sign-up.dto';
+import { SignInDto } from './dto/sign-in.dto';
+import { SignUpDto } from './dto/sign-up.dto';
 import { Tokens } from './types';
 import { UsersService } from 'src/users/users.service';
 import { envConfig } from 'src/configs/env.config';
@@ -128,7 +129,7 @@ export class AuthService {
   async forgotPassword(email: string): Promise<void> {
     const user = await this.usersService.findByEmail(email);
     const verifyToken = await this.createVerifyToken({
-      id: user._id.toString(),
+      id: user.email,
     });
     await this.usersService.update(user._id, {
       verifyToken,
@@ -138,7 +139,7 @@ export class AuthService {
     await this.mailService.sendMail(
       email,
       'Reset your password',
-      'forgot-password',
+      'reset-password',
       {
         title: 'Reset your password!',
         verifyUrl: resetPasswordUrl,
@@ -160,5 +161,48 @@ export class AuthService {
       password: hashPassword,
       verifyToken: '',
     });
+  }
+
+  async changePassword(
+    userId: string,
+    changePasswordDto: ChangePasswordDto,
+  ): Promise<void> {
+    const user = await this.usersService.findById(userId);
+    const { password, newPassword } = changePasswordDto;
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      throw new HttpException('Invalid password', 401);
+    }
+    const isChange = await bcrypt.compare(newPassword, user.password);
+    if (isChange) {
+      throw new HttpException('New password must be different', 400);
+    }
+    const hashPassword = await bcrypt.hash(newPassword, 10);
+    await this.usersService.update(userId, {
+      password: hashPassword,
+    });
+  }
+
+  async resendVerifyEmail(email: string): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+    if (user.status !== UserStatus.PENDING) {
+      throw new HttpException('Account already activated', 409);
+    }
+    const verifyToken = await this.createVerifyToken({
+      id: user.email,
+    });
+    await this.usersService.update(user._id, {
+      verifyToken,
+    });
+    const verifyUrl = this.createVerifyUrl(verifyToken);
+    await this.mailService.sendMail(
+      email,
+      'Email address verification',
+      'verify',
+      {
+        title: 'Verify your email address!',
+        verifyUrl: verifyUrl,
+      },
+    );
   }
 }

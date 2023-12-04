@@ -1,17 +1,28 @@
-import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  UseGuards,
+  Param,
+} from '@nestjs/common';
 
-import { AuthService } from './auth.service';
-import { GetVerifyJwt, JwtUserId, Public } from 'src/common/decorators';
-import { UsersService } from 'src/users/users.service';
-import { Response } from 'src/common/types';
-import { User } from 'src/users/schemas/user.schema';
-import { Tokens } from './types';
-import { SignUpDto } from './dtos/sign-up.dto';
 import { ApiTags } from '@nestjs/swagger';
-import { VerifyTokenGuard } from './guards/verify-token.guard';
-import { SignInDto } from './dtos/sign-in.dto';
 import { plainToInstance } from 'class-transformer';
+import { GetVerifyJwt, JwtUserId, Public } from 'src/common/decorators';
+import { Response } from 'src/common/types';
 import { UserResponseDto } from 'src/users/dto/user-response.dto';
+import { User } from 'src/users/schemas/user.schema';
+import { UsersService } from 'src/users/users.service';
+import { AuthService } from './auth.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { SignInDto } from './dto/sign-in.dto';
+import { SignUpDto } from './dto/sign-up.dto';
+import { VerifyTokenGuard } from './guards/verify-token.guard';
+import { Tokens } from './types';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -88,14 +99,31 @@ export class AuthController {
     };
   }
 
+  @Public()
+  @Get('')
+  async resendVerifyEmail(@Param('email') email: string): Promise<
+    Response<{
+      message: string;
+    }>
+  > {
+    await this.authService.resendVerifyEmail(email);
+    return {
+      message: 'ok',
+      data: {
+        message: 'Check your email to activate your account',
+      },
+    };
+  }
+
   @Get('me')
   async getProfile(@JwtUserId() userId: string): Promise<Response<User>> {
     const user = await this.usersService.getProfile(userId);
     return { message: 'ok', data: user };
   }
+
   @Public()
   @Post('forgot-password')
-  async forgotPassword(@Body() { email }: { email: string }): Promise<
+  async forgotPassword(@Body() { email }: ForgotPasswordDto): Promise<
     Response<{
       message: string;
     }>
@@ -111,10 +139,10 @@ export class AuthController {
 
   @Public()
   @UseGuards(VerifyTokenGuard)
-  @Patch('reset-password')
+  @Post('reset-password')
   async resetPassword(
     @GetVerifyJwt() { token, email }: { token: string; email: string },
-    @Body() { password }: { password: string },
+    @Body() { password }: ResetPasswordDto,
   ): Promise<
     Response<{
       message: string;
@@ -125,6 +153,24 @@ export class AuthController {
       message: 'ok',
       data: {
         message: 'Reset password successfully',
+      },
+    };
+  }
+
+  @Patch('change-password')
+  async changePassword(
+    @JwtUserId() userId: string,
+    @Body() changePassword: ChangePasswordDto,
+  ): Promise<
+    Response<{
+      message: string;
+    }>
+  > {
+    await this.authService.changePassword(userId, changePassword);
+    return {
+      message: 'ok',
+      data: {
+        message: 'Change password successfully',
       },
     };
   }
