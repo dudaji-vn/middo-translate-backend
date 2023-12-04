@@ -5,7 +5,7 @@ import { SignUpDto } from 'src/auth/dtos/sign-up.dto';
 import { FindParams } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
 import { User, UserStatus } from './schemas/user.schema';
-import { generateAvatar } from 'src/common/utils';
+import { generateAvatar, selectPopulateField } from 'src/common/utils';
 
 @Injectable()
 export class UsersService {
@@ -13,12 +13,15 @@ export class UsersService {
   async getProfile(id: string) {
     const user = await this.userModel
       .findById(id)
-      .select({
-        name: true,
-        username: true,
-        avatar: true,
-        email: true,
-      })
+      .select(
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
+      )
       .lean();
     if (!user) {
       throw new HttpException('User not found', 404);

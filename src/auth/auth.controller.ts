@@ -37,11 +37,17 @@ export class AuthController {
   }
   @Public()
   @Post('sign-up')
-  async signUp(@Body() signUpDto: SignUpDto): Promise<Response<null>> {
+  async signUp(@Body() signUpDto: SignUpDto): Promise<
+    Response<{
+      message: string;
+    }>
+  > {
     await this.authService.signUp(signUpDto);
     return {
       message: 'Check your email to activate your account',
-      data: null,
+      data: {
+        message: 'Check your email to activate your account',
+      },
     };
   }
 
