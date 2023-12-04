@@ -6,7 +6,7 @@ import { PassportStrategy } from '@nestjs/passport';
 import { envConfig } from 'src/configs/env.config';
 
 @Injectable()
-export class RefreshTokenStrategy extends PassportStrategy(
+export class VerifyTokenStrategy extends PassportStrategy(
   Strategy,
   'jwt-verify',
 ) {
@@ -14,7 +14,7 @@ export class RefreshTokenStrategy extends PassportStrategy(
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: envConfig.jwt.accessToken.secret,
+      secretOrKey: envConfig.jwt.verifyToken.secret,
     });
   }
 
