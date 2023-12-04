@@ -1,10 +1,10 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
-import { User, UserStatus } from './schemas/user.schema';
-import { FindParams } from 'src/common/types';
 import { SignUpDto } from 'src/auth/dtos/sign-up.dto';
-import { SetupInfoDto } from './dtos/setup-info.dto';
+import { FindParams } from 'src/common/types';
+import { SetupInfoDto } from './dto/setup-info.dto';
+import { User, UserStatus } from './schemas/user.schema';
 
 @Injectable()
 export class UsersService {
@@ -50,10 +50,18 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string) {
+  async findByEmail(
+    email: string,
+    options?: {
+      notFoundMessage?: string;
+      notFoundCode?: number;
+    },
+  ) {
     const user = await this.userModel.findOne({ email }).lean();
     if (!user) {
-      throw new HttpException(`User ${email} not found`, 404);
+      const message = options?.notFoundMessage || `User ${email} not found`;
+      const code = options?.notFoundCode || 404;
+      throw new HttpException(message, code);
     }
     return user;
   }
@@ -62,7 +70,7 @@ export class UsersService {
     const user = await this.userModel.create({
       email: info.email,
       password: info.password,
-      status: UserStatus.INACTIVE,
+      status: UserStatus.PENDING,
       verifyToken: info.verifyToken,
     });
     return user;
@@ -82,10 +90,11 @@ export class UsersService {
     return user;
   }
 
-  async setUpInfo(id: ObjectId, info: SetupInfoDto) {
+  async setUpInfo(id: string, info: SetupInfoDto): Promise<User> {
     const user = await this.userModel.findByIdAndUpdate(id, info, {
       new: true,
     });
+    console.log(user);
     if (!user) {
       throw new HttpException(`User ${id} not found`, 404);
     }

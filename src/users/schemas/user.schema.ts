@@ -55,6 +55,8 @@ export class User {
   status: string;
   @Prop({ type: String })
   verifyToken: string;
+  @Prop({ type: String })
+  language: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

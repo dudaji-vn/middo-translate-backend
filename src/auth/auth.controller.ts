@@ -9,6 +9,7 @@ import { Tokens } from './types';
 import { SignUpDto } from './dtos/sign-up.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { VerifyTokenGuard } from './guards/verify-token.guard';
+import { SignInDto } from './dtos/sign-in.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -41,6 +42,16 @@ export class AuthController {
     return {
       message: 'Check your email to activate your account',
       data: null,
+    };
+  }
+
+  @Public()
+  @Get('sign-in')
+  async SignIn(@Body() signInDto: SignInDto): Promise<Response<Tokens>> {
+    const tokens = await this.authService.signIn(signInDto);
+    return {
+      message: 'ok',
+      data: tokens,
     };
   }
   @Public()

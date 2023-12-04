@@ -4,7 +4,9 @@ import { HttpException, Injectable } from '@nestjs/common';
 
 import { JwtService } from '@nestjs/jwt';
 import { MailService } from 'src/mail/mail.service';
+import { SignInDto } from './dtos/sign-in.dto';
 import { SignUpDto } from './dtos/sign-up.dto';
+import { Tokens } from './types';
 import { UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { envConfig } from 'src/configs/env.config';
@@ -41,6 +43,31 @@ export class AuthService {
     });
   }
 
+  async signIn(signDto: SignInDto): Promise<Tokens> {
+    const user = await this.usersService.findByEmail(signDto.email, {
+      notFoundMessage: 'Invalid email or password',
+      notFoundCode: 401,
+    });
+
+    const isMatch = await bcrypt.compare(signDto.password, user.password);
+    if (!isMatch) {
+      throw new HttpException('Invalid email or password', 401);
+    }
+    if (user.status === UserStatus.PENDING) {
+      throw new HttpException('Account not activated', 401);
+    }
+
+    const accessToken = await this.createAccessToken({
+      id: user._id.toString(),
+    });
+    const refreshToken = await this.createRefreshToken({
+      id: user._id.toString(),
+    });
+    return {
+      accessToken,
+      refreshToken,
+    };
+  }
   async createTokens(payload: { id: string }) {
     const [accessToken, refreshToken] = await Promise.all([
       this.createAccessToken(payload),
