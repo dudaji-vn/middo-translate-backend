@@ -190,6 +190,10 @@ export class AuthService {
     if (user.verifyToken !== token) {
       throw new HttpException('Invalid token', 401);
     }
+    const isChange = await bcrypt.compare(password, user.password);
+    if (isChange) {
+      throw new HttpException('New password must be different', 400);
+    }
     const hashPassword = await bcrypt.hash(password, 10);
     await this.usersService.update(user._id, {
       password: hashPassword,
