@@ -1,19 +1,51 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  UseGuards,
+  Put,
+  Res,
+  Req,
+} from '@nestjs/common';
 
-import { AuthService } from './auth.service';
-import { JwtUserId, Public } from 'src/common/decorators';
-import { UsersService } from 'src/users/users.service';
+import { ApiTags } from '@nestjs/swagger';
+import { plainToInstance } from 'class-transformer';
+import { GetVerifyJwt, JwtUserId, Public } from 'src/common/decorators';
 import { Response } from 'src/common/types';
+import { UserResponseDto } from 'src/users/dto/user-response.dto';
 import { User } from 'src/users/schemas/user.schema';
+import { UsersService } from 'src/users/users.service';
+import { AuthService } from './auth.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResendVerifyEmailDto } from './dto/resend-verify-email.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
+import { SignInDto } from './dto/sign-in.dto';
+import { SignUpDto } from './dto/sign-up.dto';
+import { VerifyTokenGuard } from './guards/verify-token.guard';
 import { Tokens } from './types';
-import { SignUpDto } from './dtos/sign-up.dto';
+import { RefreshTokenGuard } from './guards/refresh-token.guard';
+import { GetJwtInfo } from 'src/common/decorators/get-jwt-info.decorator';
+import { GoogleOauthGuard } from './guards/google-oauth.guard';
+import { envConfig } from 'src/configs/env.config';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
   ) {}
+  @Public()
+  @UseGuards(RefreshTokenGuard)
+  @Post('refresh')
+  refreshTokens(
+    @GetJwtInfo() { id, token }: { token: string; id: string },
+  ): Promise<Tokens> {
+    return this.authService.refreshTokens(id, token);
+  }
   @Get('remote-login')
   async remoteLogin(@JwtUserId() userId: string): Promise<
     Response<{
@@ -40,6 +72,57 @@ export class AuthController {
   > {
     await this.authService.signUp(signUpDto);
     return {
+      message: 'Check your email to activate your account',
+      data: {
+        message: 'Check your email to activate your account',
+      },
+    };
+  }
+
+  @Public()
+  @Post('sign-in')
+  async SignIn(@Body() signInDto: SignInDto): Promise<
+    Response<
+      Tokens & {
+        user: UserResponseDto;
+      }
+    >
+  > {
+    const res = await this.authService.signIn(signInDto);
+    const userResponse = plainToInstance(UserResponseDto, res.user, {
+      excludeExtraneousValues: true,
+    });
+    return {
+      message: 'ok',
+      data: {
+        accessToken: res.accessToken,
+        refreshToken: res.refreshToken,
+        user: userResponse,
+      },
+    };
+  }
+  @Public()
+  @UseGuards(VerifyTokenGuard)
+  @Get('activate-account')
+  async activateAccount(
+    @GetVerifyJwt() { token, email }: { token: string; email: string },
+  ): Promise<Response<null>> {
+    await this.authService.activateAccount(token, email);
+    return {
+      message: 'ok',
+      data: null,
+    };
+  }
+
+  @Public()
+  @Post('resend-verify-email')
+  async resendVerifyEmail(@Body() { email }: ResendVerifyEmailDto): Promise<
+    Response<{
+      message: string;
+    }>
+  > {
+    await this.authService.resendVerifyEmail(email);
+    return {
       message: 'ok',
       data: {
         message: 'Check your email to activate your account',
@@ -51,5 +134,86 @@ export class AuthController {
   async getProfile(@JwtUserId() userId: string): Promise<Response<User>> {
     const user = await this.usersService.getProfile(userId);
     return { message: 'ok', data: user };
+  }
+
+  // GOOGLE
+
+  @Public()
+  @Get('google')
+  @UseGuards(GoogleOauthGuard)
+  async googleSignIn() {
+    return;
+  }
+
+  @Public()
+  @Get('google/callback')
+  @UseGuards(GoogleOauthGuard)
+  async googleSignInCallback(@Req() req: any, @Res() res: any) {
+    const user = req.user;
+    const tokens = await this.authService.createTokens({ id: user._id });
+    res.cookie('refresh_token', tokens.refreshToken, {
+      httpOnly: true,
+      path: '/auth/refresh',
+    });
+    res.cookie('access_token', tokens.accessToken, {
+      httpOnly: true,
+      path: '/',
+    });
+    res.redirect(envConfig.app.url + '/callback');
+  }
+
+  // PASSWORD
+  @Public()
+  @Post('forgot-password')
+  async forgotPassword(@Body() { email }: ForgotPasswordDto): Promise<
+    Response<{
+      message: string;
+    }>
+  > {
+    await this.authService.forgotPassword(email);
+    return {
+      message: 'ok',
+      data: {
+        message: 'Check your email to reset your password',
+      },
+    };
+  }
+
+  @Public()
+  @UseGuards(VerifyTokenGuard)
+  @Put('reset-password')
+  async resetPassword(
+    @GetVerifyJwt() { token, email }: { token: string; email: string },
+    @Body() { password }: ResetPasswordDto,
+  ): Promise<
+    Response<{
+      message: string;
+    }>
+  > {
+    await this.authService.resetPassword(token, email, password);
+    return {
+      message: 'ok',
+      data: {
+        message: 'Reset password successfully',
+      },
+    };
+  }
+
+  @Patch('change-password')
+  async changePassword(
+    @JwtUserId() userId: string,
+    @Body() changePassword: ChangePasswordDto,
+  ): Promise<
+    Response<{
+      message: string;
+    }>
+  > {
+    await this.authService.changePassword(userId, changePassword);
+    return {
+      message: 'ok',
+      data: {
+        message: 'Change password successfully',
+      },
+    };
   }
 }

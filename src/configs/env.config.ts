@@ -5,6 +5,7 @@ config();
 export const envConfig = {
   app: {
     url: process.env.APP_URL || 'http://localhost:3000',
+    serverUrl: process.env.SERVER_URL || 'http://localhost:8080',
   },
   database: {
     uri: process.env.DATABASE_URI || 'mongodb://localhost/nest',
@@ -30,5 +31,10 @@ export const envConfig = {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS,
     from: process.env.EMAIL_FROM,
+  },
+  google: {
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: `${process.env.SERVER_URL}/api/auth/google/callback`,
   },
 };

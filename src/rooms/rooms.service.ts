@@ -114,13 +114,7 @@ export class RoomsService {
       })
       .populate(
         selectPopulateField<Room>(['participants']),
-        selectPopulateField<User>([
-          '_id',
-          'name',
-          'avatar',
-          'email',
-          'username',
-        ]),
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'email']),
       );
 
     return room;
@@ -192,13 +186,7 @@ export class RoomsService {
       })
       .populate(
         selectPopulateField<Room>(['participants']),
-        selectPopulateField<User>([
-          '_id',
-          'name',
-          'avatar',
-          'email',
-          'username',
-        ]),
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'email']),
       );
     const pageInfo: CursorPaginationInfo = {
       endCursor: rooms[rooms.length - 1]?.newMessageAt?.toISOString(),
@@ -225,13 +213,7 @@ export class RoomsService {
       .limit(limit)
       .populate(
         selectPopulateField<Room>(['participants']),
-        selectPopulateField<User>([
-          '_id',
-          'name',
-          'avatar',
-          'email',
-          'username',
-        ]),
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'email']),
       )
       .populate({
         path: 'lastMessage',
@@ -249,13 +231,7 @@ export class RoomsService {
       .findById(id)
       .populate(
         selectPopulateField<Room>(['participants']),
-        selectPopulateField<User>([
-          '_id',
-          'name',
-          'avatar',
-          'email',
-          'username',
-        ]),
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'email']),
       );
     return room;
   }

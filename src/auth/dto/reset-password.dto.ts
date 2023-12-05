@@ -1,8 +1,10 @@
-import { IsEmail, IsString, Matches, MinLength } from 'class-validator';
+import { IsString, Matches, MinLength } from 'class-validator';
 
-export class SignUpDto {
-  @IsEmail()
-  email: string;
+import { ApiProperty } from '@nestjs/swagger';
+
+export class ResetPasswordDto {
+  @ApiProperty()
+  @ApiProperty()
   @IsString()
   @MinLength(8)
   @Matches(/((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, {
