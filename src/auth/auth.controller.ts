@@ -159,7 +159,7 @@ export class AuthController {
       httpOnly: true,
       path: '/',
     });
-    res.redirect(envConfig.app.url);
+    res.redirect(envConfig.app.url + '/callback');
   }
 
   // PASSWORD
