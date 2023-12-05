@@ -157,14 +157,17 @@ export class AuthService {
   }
 
   async forgotPassword(email: string): Promise<void> {
-    const user = await this.usersService.findByEmail(email);
+    const user = await this.usersService.findByEmail(email, {
+      notFoundMessage: 'Email not signed up',
+      notFoundCode: 404,
+    });
     const verifyToken = await this.createVerifyToken({
       id: user.email,
     });
     await this.usersService.update(user._id, {
       verifyToken,
     });
-    const resetPasswordUrl = `${envConfig.app.url}/auth/reset-password?token=${verifyToken}}`;
+    const resetPasswordUrl = `${envConfig.app.url}/auth/reset-password?token=${verifyToken}`;
 
     await this.mailService.sendMail(
       email,
