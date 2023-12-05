@@ -4,6 +4,7 @@ import { ApiProperty } from '@nestjs/swagger';
 
 export class SetupInfoDto {
   @ApiProperty()
+  @IsString()
   @IsOptional()
   avatar?: string;
   @ApiProperty()
