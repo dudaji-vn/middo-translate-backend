@@ -1,6 +1,6 @@
 import * as bcrypt from 'bcrypt';
 
-import { ForbiddenException, HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -91,6 +91,29 @@ export class AuthService {
     return tokens;
   }
 
+  async resendVerifyEmail(email: string): Promise<void> {
+    const user = await this.usersService.findByEmail(email);
+    if (user.status !== UserStatus.PENDING) {
+      throw new HttpException('Account already activated', 409);
+    }
+    const verifyToken = await this.createVerifyToken({
+      id: user.email,
+    });
+    await this.usersService.update(user._id, {
+      verifyToken,
+    });
+    const verifyUrl = this.createVerifyUrl(verifyToken);
+    await this.mailService.sendMail(
+      email,
+      'Email address verification',
+      'verify',
+      {
+        title: 'Verify your email address!',
+        verifyUrl: verifyUrl,
+      },
+    );
+  }
+
   async signUp(signUpDto: SignUpDto): Promise<void> {
     const isExist = await this.usersService.isEmailExist(signUpDto.email);
     if (isExist) {
@@ -103,6 +126,7 @@ export class AuthService {
     await this.usersService.create({
       email: signUpDto.email,
       password: hashPassword,
+      status: UserStatus.PENDING,
       verifyToken,
     });
     const verifyUrl = this.createVerifyUrl(verifyToken);
@@ -153,6 +177,7 @@ export class AuthService {
     );
   }
 
+  // PASSWORD
   async resetPassword(
     token: string,
     email: string,
@@ -189,26 +214,26 @@ export class AuthService {
     });
   }
 
-  async resendVerifyEmail(email: string): Promise<void> {
-    const user = await this.usersService.findByEmail(email);
-    if (user.status !== UserStatus.PENDING) {
-      throw new HttpException('Account already activated', 409);
+  async socialSignIn(profile: any): Promise<Tokens & { user: User }> {
+    let user = await this.usersService.findByEmail(profile.emails[0].value, {
+      ignoreNotFound: true,
+    });
+    if (!user) {
+      user = await this.usersService.create({
+        ...profile,
+        status: UserStatus.ACTIVE,
+      });
     }
-    const verifyToken = await this.createVerifyToken({
-      id: user.email,
+    const accessToken = await this.createAccessToken({
+      id: user._id.toString(),
     });
-    await this.usersService.update(user._id, {
-      verifyToken,
+    const refreshToken = await this.createRefreshToken({
+      id: user._id.toString(),
     });
-    const verifyUrl = this.createVerifyUrl(verifyToken);
-    await this.mailService.sendMail(
-      email,
-      'Email address verification',
-      'verify',
-      {
-        title: 'Verify your email address!',
-        verifyUrl: verifyUrl,
-      },
-    );
+    return {
+      accessToken,
+      refreshToken,
+      user,
+    };
   }
 }

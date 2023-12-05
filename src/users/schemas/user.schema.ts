@@ -11,6 +11,12 @@ export enum UserStatus {
   INACTIVE = 'inactive',
 }
 
+export enum Provider {
+  GOOGLE = 'google',
+  FACEBOOK = 'facebook',
+  LOCAL = 'local',
+}
+
 @Schema({
   timestamps: true,
 })
@@ -53,6 +59,8 @@ export class User {
   verifyToken: string;
   @Prop({ type: String })
   language: string;
+  @Prop({ type: String, default: Provider.LOCAL })
+  provider: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

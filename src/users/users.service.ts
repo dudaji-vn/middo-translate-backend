@@ -59,9 +59,13 @@ export class UsersService {
     options?: {
       notFoundMessage?: string;
       notFoundCode?: number;
+      ignoreNotFound?: boolean;
     },
   ) {
     const user = await this.userModel.findOne({ email }).lean();
+    if (!user && options?.ignoreNotFound) {
+      return {} as User;
+    }
     if (!user) {
       const message = options?.notFoundMessage || `User not found`;
       const code = options?.notFoundCode || 404;
@@ -70,13 +74,8 @@ export class UsersService {
     return user;
   }
 
-  async create(info: SignUpDto & { verifyToken: string }) {
-    const user = await this.userModel.create({
-      email: info.email,
-      password: info.password,
-      status: UserStatus.PENDING,
-      verifyToken: info.verifyToken,
-    });
+  async create(info: Partial<User>) {
+    const user = await this.userModel.create(info);
     return user;
   }
 

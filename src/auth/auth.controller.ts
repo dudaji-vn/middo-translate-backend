@@ -1,4 +1,14 @@
-import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Patch,
+  Post,
+  UseGuards,
+  Put,
+  Res,
+  Req,
+} from '@nestjs/common';
 
 import { ApiTags } from '@nestjs/swagger';
 import { plainToInstance } from 'class-transformer';
@@ -18,6 +28,8 @@ import { VerifyTokenGuard } from './guards/verify-token.guard';
 import { Tokens } from './types';
 import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import { GetJwtInfo } from 'src/common/decorators/get-jwt-info.decorator';
+import { GoogleOauthGuard } from './guards/google-oauth.guard';
+import { envConfig } from 'src/configs/env.config';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -124,6 +136,33 @@ export class AuthController {
     return { message: 'ok', data: user };
   }
 
+  // GOOGLE
+
+  @Public()
+  @Get('google')
+  @UseGuards(GoogleOauthGuard)
+  async googleSignIn() {
+    return;
+  }
+
+  @Public()
+  @Get('google/callback')
+  @UseGuards(GoogleOauthGuard)
+  async googleSignInCallback(@Req() req: any, @Res() res: any) {
+    const user = req.user;
+    const tokens = await this.authService.createTokens({ id: user._id });
+    res.cookie('refresh_token', tokens.refreshToken, {
+      httpOnly: true,
+      path: '/auth/refresh',
+    });
+    res.cookie('access_token', tokens.accessToken, {
+      httpOnly: true,
+      path: '/',
+    });
+    res.redirect(envConfig.app.url);
+  }
+
+  // PASSWORD
   @Public()
   @Post('forgot-password')
   async forgotPassword(@Body() { email }: ForgotPasswordDto): Promise<
@@ -142,7 +181,7 @@ export class AuthController {
 
   @Public()
   @UseGuards(VerifyTokenGuard)
-  @Post('reset-password')
+  @Put('reset-password')
   async resetPassword(
     @GetVerifyJwt() { token, email }: { token: string; email: string },
     @Body() { password }: ResetPasswordDto,
