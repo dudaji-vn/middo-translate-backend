@@ -42,6 +42,7 @@ export class UsersService {
         name: true,
         username: true,
         avatar: true,
+        email: true,
       })
       .lean();
     return users;

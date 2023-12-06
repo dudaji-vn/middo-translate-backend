@@ -121,15 +121,20 @@ export class RoomsService {
   }
 
   async findByIdAndUserId(id: string, userId: string, inCludeDeleted = false) {
+    console.log(id);
     let room = await this.roomModel.findOne({
       _id: id,
       participants: userId,
       ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
     });
     if (!room) {
-      room = await this.findByParticipantIds([id, userId]);
-      console.log(room);
+      room = await this.roomModel.findOne({
+        _id: id,
+        participants: [userId, id],
+        status: RoomStatus.DELETED,
+      });
     }
+
     if (!room) {
       room = new this.roomModel();
       try {
@@ -142,6 +147,7 @@ export class RoomsService {
         throw new NotFoundException('Room not found');
       }
     }
+    console.log(room);
     return await room.populate([
       {
         path: 'participants',
