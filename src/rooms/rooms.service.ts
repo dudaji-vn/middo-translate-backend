@@ -33,7 +33,11 @@ export class RoomsService {
       ),
     );
     const isGroup = participants.length > 2;
-    if (!isGroup && participants.length !== 2) {
+    if (
+      !isGroup &&
+      participants.length < 2 &&
+      participants[0]?._id?.toString() !== creatorId
+    ) {
       throw new BadRequestException('Participants must be 2 users');
     }
 
@@ -121,25 +125,27 @@ export class RoomsService {
   }
 
   async findByIdAndUserId(id: string, userId: string, inCludeDeleted = false) {
-    console.log(id);
+    console.log('room id', id, userId);
     let room = await this.roomModel.findOne({
       _id: id,
       participants: userId,
       ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
     });
-    if (!room) {
-      room = await this.roomModel.findOne({
-        _id: id,
-        participants: [userId, id],
-        status: RoomStatus.DELETED,
-      });
-    }
 
     if (!room) {
+      const participantIds = [...new Set([userId, id])];
+      room = await this.roomModel.findOne({
+        participants: participantIds,
+        status: RoomStatus.ACTIVE,
+      });
+    }
+    if (!room) {
+      console.log('create new room');
+      const participantIds = [...new Set([userId, id])];
       room = new this.roomModel();
       try {
         const participants = await Promise.all(
-          [userId, id].map((id) => this.usersService.findById(id)),
+          participantIds.map((id) => this.usersService.findById(id)),
         );
         room.participants = participants;
         room.status = RoomStatus.TEMPORARY;
@@ -147,7 +153,7 @@ export class RoomsService {
         throw new NotFoundException('Room not found');
       }
     }
-    console.log(room);
+    console.log('room', room);
     return await room.populate([
       {
         path: 'participants',
