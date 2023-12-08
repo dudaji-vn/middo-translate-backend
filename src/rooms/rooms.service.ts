@@ -135,12 +135,14 @@ export class RoomsService {
     if (!room) {
       const participantIds = [...new Set([userId, id])];
       room = await this.roomModel.findOne({
-        participants: participantIds,
-        status: RoomStatus.ACTIVE,
+        participants: {
+          $all: participantIds,
+          $size: participantIds.length,
+        },
+        ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
       });
     }
     if (!room) {
-      console.log('create new room');
       const participantIds = [...new Set([userId, id])];
       room = new this.roomModel();
       try {
@@ -153,7 +155,7 @@ export class RoomsService {
         throw new NotFoundException('Room not found');
       }
     }
-    console.log('room', room);
+
     return await room.populate([
       {
         path: 'participants',
