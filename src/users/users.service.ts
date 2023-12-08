@@ -83,7 +83,8 @@ export class UsersService {
   }
 
   async isEmailExist(email: string) {
-    return await this.userModel.exists({ email });
+    const res = await this.userModel.exists({ email });
+    return !!res;
   }
 
   async update(id: ObjectId | string, info: Partial<User>) {
