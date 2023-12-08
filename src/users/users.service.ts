@@ -1,11 +1,13 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
-import { SignUpDto } from 'src/auth/dto/sign-up.dto';
 import { FindParams } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
 import { User, UserStatus } from './schemas/user.schema';
 import { generateAvatar, selectPopulateField } from 'src/common/utils';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { ChangePasswpodDto } from './dto/change-password.dto';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class UsersService {
@@ -112,5 +114,44 @@ export class UsersService {
       throw new HttpException(`User ${id} not found`, 404);
     }
     return user;
+  }
+
+  async updateUserInfo(id: string, info: UpdateUserDto): Promise<User> {
+    try {
+      const user = await this.userModel.findByIdAndUpdate(
+        id,
+        {
+          ...info,
+        },
+        {
+          new: true,
+        },
+      );
+      if (!user) {
+        throw new HttpException(`Please re-login and try again later!`, 404);
+      }
+      return user;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  async changePassword(id: string, info: ChangePasswpodDto): Promise<void> {
+    try {
+      const user = await this.userModel.findById(id).lean();
+      if (!user) {
+        throw new HttpException('Please re-login and try again later!', 404);
+      }
+      const isMatch = await bcrypt.compare(info.currentPassword, user.password);
+      if (!isMatch) {
+        throw new HttpException(`Your current password is incorrect`, 400);
+      }
+      const newPassword = await bcrypt.hash(info.newPassword, 10);
+      await this.userModel.findByIdAndUpdate(id, {
+        password: newPassword,
+      });
+    } catch (error) {
+      throw error;
+    }
   }
 }
