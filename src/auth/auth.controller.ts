@@ -153,13 +153,15 @@ export class AuthController {
     const tokens = await this.authService.createTokens({ id: user._id });
     res.cookie('refresh_token', tokens.refreshToken, {
       httpOnly: true,
-      path: '/auth/refresh',
+      path: '/',
+      sameSite: true,
     });
     res.cookie('access_token', tokens.accessToken, {
       httpOnly: true,
       path: '/',
+      sameSite: true,
     });
-    res.redirect(envConfig.app.url + '/callback');
+    res.redirect(envConfig.app.url + '/');
   }
 
   // PASSWORD
