@@ -154,14 +154,15 @@ export class AuthController {
     res.cookie('refresh_token', tokens.refreshToken, {
       httpOnly: true,
       path: '/',
-      sameSite: true,
     });
     res.cookie('access_token', tokens.accessToken, {
       httpOnly: true,
       path: '/',
-      sameSite: true,
     });
-    res.redirect(envConfig.app.url + '/');
+    res.redirect(
+      envConfig.app.url +
+        `/api/callback?access_token=${tokens.accessToken}&refresh_token=${tokens.refreshToken}`,
+    );
   }
 
   // PASSWORD
@@ -215,6 +216,24 @@ export class AuthController {
       message: 'ok',
       data: {
         message: 'Change password successfully',
+      },
+    };
+  }
+  // check email exist
+  @Public()
+  @Post('check-email')
+  async checkEmail(@Body() { email }: { email: string }): Promise<
+    Response<{
+      isExist: boolean;
+      message: string;
+    }>
+  > {
+    const isExist = await this.usersService.isEmailExist(email);
+    return {
+      message: 'ok',
+      data: {
+        isExist,
+        message: isExist ? 'Email is exist' : 'Email is not exist',
       },
     };
   }
