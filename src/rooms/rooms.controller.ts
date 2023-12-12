@@ -6,7 +6,7 @@ import { CreateRoomDto } from './dtos';
 import { RoomsService } from './rooms.service';
 import { Room } from './schemas/room.schema';
 import { MessagesService } from 'src/messages/messages.service';
-import { Message } from 'src/messages/schemas/messages.schema';
+import { Message, MessageType } from 'src/messages/schemas/messages.schema';
 
 @Controller('rooms')
 export class RoomsController {
@@ -20,6 +20,18 @@ export class RoomsController {
     @JwtUserId() userId: string,
   ): Promise<Response<Room>> {
     const room = await this.roomsService.createRoom(createRoomDto, userId);
+    if (room.isGroup) {
+      this.messagesService.create(
+        {
+          clientTempId: '',
+          content: 'created group',
+          type: MessageType.NOTIFICATION,
+          roomId: room._id.toString(),
+          media: [],
+        },
+        userId,
+      );
+    }
     return { data: room, message: 'Room created' };
   }
   @Get()
@@ -70,7 +82,20 @@ export class RoomsController {
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
   ): Promise<Response<null>> {
-    await this.roomsService.leaveRoom(id, userId);
+    const room = await this.roomsService.leaveRoom(id, userId);
+    if (room.isGroup) {
+      this.messagesService.create(
+        {
+          clientTempId: '',
+          content: 'left group',
+          type: MessageType.NOTIFICATION,
+          roomId: room._id.toString(),
+          media: [],
+        },
+        userId,
+        true,
+      );
+    }
     return { message: 'Room leaved', data: null };
   }
 }

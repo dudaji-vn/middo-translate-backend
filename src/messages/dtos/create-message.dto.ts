@@ -1,10 +1,13 @@
+import { Media, MessageType } from '../schemas/messages.schema';
+
 import { IsMongoId } from 'class-validator';
-import { Media } from '../schemas/messages.schema';
 
 export class CreateMessageDto {
   content?: string;
+  contentEnglish?: string;
   media: Media[];
   @IsMongoId()
   roomId: string;
   clientTempId: string;
+  type?: MessageType;
 }
