@@ -1,9 +1,9 @@
+import { Provider, UserStatus } from 'src/users/schemas/user.schema';
 import { Strategy, VerifyCallback } from 'passport-google-oauth2';
 
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Profile } from 'passport';
-import { UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { envConfig } from 'src/configs/env.config';
 
@@ -21,7 +21,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   async validate(
     _accessToken: string,
     _refreshToken: string,
-    profile: Profile,
+    profile: Profile & { language: string },
     done: VerifyCallback,
   ): Promise<any> {
     const { name, emails, photos } = profile;
@@ -39,7 +39,9 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         name: name?.givenName + ' ' + name?.familyName,
         email,
         avatar: photos?.[0]?.value,
-        status: UserStatus.UN_SET_INFO,
+        status: UserStatus.ACTIVE,
+        language: profile?.language || 'en',
+        provider: Provider.GOOGLE,
       });
       done(null, newUser);
       return;
