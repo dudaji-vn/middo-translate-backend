@@ -37,4 +37,10 @@ export const envConfig = {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: `${process.env.SERVER_URL}/api/auth/google/callback`,
   },
+
+  password: {
+    RegExp: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/,
+    errorMessage:
+      'At least 8 characters, contain one capital, not allowed special character',
+  },
 };

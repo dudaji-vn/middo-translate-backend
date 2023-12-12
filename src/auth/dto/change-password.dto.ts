@@ -1,6 +1,7 @@
 import { IsString, Matches, MinLength } from 'class-validator';
 
 import { ApiProperty } from '@nestjs/swagger';
+import { envConfig } from 'src/configs/env.config';
 
 export class ChangePasswordDto {
   @ApiProperty()
@@ -8,9 +9,8 @@ export class ChangePasswordDto {
   password: string;
   @IsString()
   @MinLength(8)
-  @Matches(/((?=.*\d)|(?=.*\W+))(?![.\n])(?=.*[A-Z])(?=.*[a-z]).*$/, {
-    message:
-      'password too weak, must contain at least 1 uppercase letter, 1 lowercase letter, and 1 number or special character',
+  @Matches(envConfig.password.RegExp, {
+    message: envConfig.password.errorMessage,
   })
   newPassword: string;
 }
