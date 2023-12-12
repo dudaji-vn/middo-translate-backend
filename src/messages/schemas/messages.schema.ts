@@ -46,6 +46,9 @@ export class Message {
   @Prop({ type: String })
   content: string;
 
+  @Prop({ type: String })
+  contentEnglish: string;
+
   @Prop({ type: String, index: true, default: MessageType.TEXT })
   type: MessageType;
 

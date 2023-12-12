@@ -19,6 +19,8 @@ import { UsersService } from 'src/users/users.service';
 import { CreateRoomDto } from './dtos';
 import { Room, RoomStatus } from './schemas/room.schema';
 import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
+
+const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
 export class RoomsService {
   constructor(
@@ -113,12 +115,18 @@ export class RoomsService {
         path: 'lastMessage',
         populate: {
           path: 'sender',
-          select: '_id name avatar email username',
+          select: userSelectFieldsString,
         },
       })
       .populate(
         selectPopulateField<Room>(['participants']),
-        selectPopulateField<User>(['_id', 'name', 'avatar', 'email']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
       );
 
     return room;
@@ -159,13 +167,13 @@ export class RoomsService {
     return await room.populate([
       {
         path: 'participants',
-        select: '_id name avatar email username',
+        select: userSelectFieldsString,
       },
       {
         path: 'lastMessage',
         populate: {
           path: 'sender',
-          select: '_id name avatar email username',
+          select: userSelectFieldsString,
         },
       },
     ]);
@@ -195,12 +203,18 @@ export class RoomsService {
         path: 'lastMessage',
         populate: {
           path: 'sender',
-          select: '_id name avatar email username',
+          select: userSelectFieldsString,
         },
       })
       .populate(
         selectPopulateField<Room>(['participants']),
-        selectPopulateField<User>(['_id', 'name', 'avatar', 'email']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
       );
     const pageInfo: CursorPaginationInfo = {
       endCursor: rooms[rooms.length - 1]?.newMessageAt?.toISOString(),
@@ -227,13 +241,19 @@ export class RoomsService {
       .limit(limit)
       .populate(
         selectPopulateField<Room>(['participants']),
-        selectPopulateField<User>(['_id', 'name', 'avatar', 'email']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
       )
       .populate({
         path: 'lastMessage',
         populate: {
           path: 'sender',
-          select: '_id name avatar email username',
+          select: userSelectFieldsString,
         },
       })
       .lean();
@@ -245,7 +265,13 @@ export class RoomsService {
       .findById(id)
       .populate(
         selectPopulateField<Room>(['participants']),
-        selectPopulateField<User>(['_id', 'name', 'avatar', 'email']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
       );
     return room;
   }

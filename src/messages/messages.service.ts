@@ -1,20 +1,20 @@
 import { Injectable } from '@nestjs/common';
-import { Message, MessageType } from './schemas/messages.schema';
-import { FilterQuery, Model } from 'mongoose';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
-import { CreateMessageDto } from './dtos';
-import { UsersService } from 'src/users/users.service';
-import { RoomsService } from 'src/rooms/rooms.service';
+import { FilterQuery, Model } from 'mongoose';
 import {
   CursorPaginationInfo,
   ListQueryParamsCursor,
   Pagination,
 } from 'src/common/types';
-import { User } from 'src/users/schemas/user.schema';
 import { selectPopulateField } from 'src/common/utils';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { socketConfig } from 'src/configs/socket.config';
 import { NewMessagePayload } from 'src/events/types/message-payload.type';
+import { RoomsService } from 'src/rooms/rooms.service';
+import { User } from 'src/users/schemas/user.schema';
+import { UsersService } from 'src/users/users.service';
+import { CreateMessageDto } from './dtos';
+import { Message, MessageType } from './schemas/messages.schema';
 import { convertMessageRemoved } from './utils/convert-message-removed';
 
 @Injectable()
@@ -29,19 +29,28 @@ export class MessagesService {
   async create(
     createMessageDto: CreateMessageDto,
     senderId: string,
+    allowSendIfNotParticipant = false,
   ): Promise<Message> {
     const user = await this.usersService.findById(senderId);
-    const room = await this.roomsService.findByIdAndUserId(
-      createMessageDto.roomId,
-      user._id.toString(),
-    );
+    let room: any;
+    if (allowSendIfNotParticipant) {
+      room = await this.roomsService.findById(createMessageDto.roomId);
+    } else {
+      room = await this.roomsService.findByIdAndUserId(
+        createMessageDto.roomId,
+        user._id.toString(),
+      );
+    }
     const createdMessage = new this.messageModel();
     createdMessage.sender = user;
     createdMessage.content = createMessageDto.content || '';
+    createdMessage.contentEnglish = createMessageDto.contentEnglish || '';
     createdMessage.media = createMessageDto.media || [];
+    createdMessage.type = createMessageDto.type || MessageType.TEXT;
     if (createdMessage.media.length > 0) {
       createdMessage.type = MessageType.MEDIA;
     }
+
     createdMessage.room = room;
     createdMessage.readBy = [user._id];
     createdMessage.deliveredTo = [user._id];
@@ -49,7 +58,7 @@ export class MessagesService {
 
     const newMessageWithSender = await newMessage.populate(
       'sender',
-      selectPopulateField<User>(['_id', 'name', 'avatar']),
+      selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
     );
     const socketPayload: NewMessagePayload = {
       roomId: String(room._id),
@@ -81,7 +90,10 @@ export class MessagesService {
       .find(query)
       .sort({ _id: -1 })
       .limit(limit)
-      .populate('sender', selectPopulateField<User>(['_id', 'name', 'avatar']));
+      .populate(
+        'sender',
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+      );
     return {
       items: messages.map((message) => {
         return convertMessageRemoved(message, userId) as Message;
@@ -101,7 +113,10 @@ export class MessagesService {
   ): Promise<Message> {
     const message = await this.messageModel
       .findById(messageId)
-      .populate('sender', selectPopulateField<User>(['_id', 'name', 'avatar']));
+      .populate(
+        'sender',
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+      );
 
     if (!message) {
       throw new Error('Message not found');
