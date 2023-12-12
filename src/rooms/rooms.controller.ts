@@ -24,7 +24,7 @@ export class RoomsController {
       this.messagesService.create(
         {
           clientTempId: '',
-          content: 'created group',
+          content: 'has created group',
           type: MessageType.NOTIFICATION,
           roomId: room._id.toString(),
           media: [],
