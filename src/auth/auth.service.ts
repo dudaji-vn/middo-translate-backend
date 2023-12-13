@@ -34,7 +34,7 @@ export class AuthService {
   }
 
   createVerifyUrl(token: string) {
-    return `${envConfig.app.url}/auth/verify?token=${token}`;
+    return `${envConfig.app.url}/verify?token=${token}`;
   }
 
   async createVerifyToken(payload: { id: string }) {
@@ -167,7 +167,7 @@ export class AuthService {
     await this.usersService.update(user._id, {
       verifyToken,
     });
-    const resetPasswordUrl = `${envConfig.app.url}/auth/reset-password?token=${verifyToken}`;
+    const resetPasswordUrl = `${envConfig.app.url}/reset-password?token=${verifyToken}`;
 
     await this.mailService.sendMail(
       email,
