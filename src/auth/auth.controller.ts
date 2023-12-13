@@ -88,10 +88,12 @@ export class AuthController {
       }
     >
   > {
+    console.log('run controller', signInDto);
     const res = await this.authService.signIn(signInDto);
     const userResponse = plainToInstance(UserResponseDto, res.user, {
       excludeExtraneousValues: true,
     });
+    console.log('run controller final', userResponse);
     return {
       message: 'ok',
       data: {
