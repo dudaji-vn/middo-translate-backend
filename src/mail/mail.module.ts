@@ -17,7 +17,7 @@ import { join } from 'path';
         },
       },
       defaults: {
-        from: `"Dudaji" <${envConfig.mail.from}>`,
+        from: `"${envConfig.mail.name}" <${envConfig.mail.from}>`,
       },
       template: {
         dir: join(__dirname, './templates'),
