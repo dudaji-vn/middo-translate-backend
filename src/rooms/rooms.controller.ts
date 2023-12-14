@@ -47,10 +47,6 @@ export class RoomsController {
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
   ): Promise<Response<Room>> {
-    console.log(
-      '🚀 ~ file: rooms.controller.ts:38 ~ RoomsController ~ id:',
-      id,
-    );
     const room = await this.roomsService.findByIdAndUserId(id, userId);
     return { data: room, message: 'Room found' };
   }

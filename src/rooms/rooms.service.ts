@@ -56,6 +56,8 @@ export class RoomsService {
     newRoom.participants = isGroup ? [...new Set(participants)] : participants;
     newRoom.name = createRoomDto.name || '';
     newRoom.isGroup = isGroup;
+    newRoom.admin = participants.find((p) => p._id.toString() === creatorId)!;
+
     const room = await this.roomModel.create(newRoom);
     return room;
   }
@@ -127,6 +129,16 @@ export class RoomsService {
           'email',
           'language',
         ]),
+      )
+      .populate(
+        selectPopulateField<Room>(['admin']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
       );
 
     return room;
@@ -176,6 +188,10 @@ export class RoomsService {
           select: userSelectFieldsString,
         },
       },
+      {
+        path: 'admin',
+        select: userSelectFieldsString,
+      },
     ]);
   }
 
@@ -208,6 +224,16 @@ export class RoomsService {
       })
       .populate(
         selectPopulateField<Room>(['participants']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
+      )
+      .populate(
+        selectPopulateField<Room>(['admin']),
         selectPopulateField<User>([
           '_id',
           'name',
@@ -256,6 +282,16 @@ export class RoomsService {
           select: userSelectFieldsString,
         },
       })
+      .populate(
+        selectPopulateField<Room>(['admin']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
+      )
       .lean();
     return rooms;
   }
@@ -265,6 +301,16 @@ export class RoomsService {
       .findById(id)
       .populate(
         selectPopulateField<Room>(['participants']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
+      )
+      .populate(
+        selectPopulateField<Room>(['admin']),
         selectPopulateField<User>([
           '_id',
           'name',
