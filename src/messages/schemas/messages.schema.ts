@@ -33,6 +33,8 @@ export type Media = {
   url: string;
   name: string;
   size: number;
+  width?: number;
+  height?: number;
 };
 
 @Schema({
