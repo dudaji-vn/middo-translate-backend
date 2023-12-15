@@ -13,8 +13,8 @@ import { NewMessagePayload } from 'src/events/types/message-payload.type';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import { CreateMessageDto } from './dtos';
-import { Message, MessageType } from './schemas/messages.schema';
+import { CreateMessageDto } from './dto';
+import { MediaTypes, Message, MessageType } from './schemas/messages.schema';
 import { convertMessageRemoved } from './utils/convert-message-removed';
 
 @Injectable()
@@ -84,6 +84,7 @@ export class MessagesService {
     const query: FilterQuery<Message> = {
       room: room._id,
       _id: { $lt: cursor },
+      deleteFor: { $nin: [userId] },
     };
 
     const messages = await this.messageModel
@@ -147,5 +148,95 @@ export class MessagesService {
       message: convertMessageRemoved(message, userId),
     });
     return message;
+  }
+
+  async createSystemMessage(
+    roomId: string,
+    content: string,
+    senderId: string,
+  ): Promise<Message> {
+    const message = await this.create(
+      {
+        roomId,
+        content,
+        type: MessageType.NOTIFICATION,
+        clientTempId: '',
+        media: [],
+        contentEnglish: '',
+      },
+      senderId,
+      true,
+    );
+    return message;
+  }
+
+  async findMediaWithPagination(
+    roomId: string,
+    userId: string,
+    params: ListQueryParamsCursor,
+  ): Promise<Pagination<Message, CursorPaginationInfo>> {
+    const { cursor = new this.messageModel()._id, limit = 10 } = params;
+
+    const room = await this.roomsService.findByIdAndUserId(roomId, userId);
+    const query: FilterQuery<Message> = {
+      room: room._id,
+      _id: { $lt: cursor },
+      type: MessageType.MEDIA,
+      'media.type': { $in: [MediaTypes.IMAGE, MediaTypes.VIDEO] },
+      removedFor: { $nin: [userId] },
+      deleteFor: { $nin: [userId] },
+    };
+
+    const messages = await this.messageModel
+      .find(query)
+      .sort({ _id: -1 })
+      .limit(limit);
+    return {
+      items: messages,
+      pageInfo: {
+        endCursor:
+          messages.length > 0 ? String(messages[messages.length - 1]._id) : '',
+        hasNextPage: messages.length === limit,
+      },
+    };
+  }
+
+  async findFilesWithPagination(
+    roomId: string,
+    userId: string,
+    params: ListQueryParamsCursor,
+  ): Promise<Pagination<Message, CursorPaginationInfo>> {
+    const { cursor = new this.messageModel()._id, limit = 10 } = params;
+
+    const room = await this.roomsService.findByIdAndUserId(roomId, userId);
+    const query: FilterQuery<Message> = {
+      room: room._id,
+      _id: { $lt: cursor },
+      type: MessageType.MEDIA,
+      'media.type': { $in: [MediaTypes.DOCUMENT] },
+      removedFor: { $nin: [userId] },
+      deleteFor: { $nin: [userId] },
+    };
+
+    const messages = await this.messageModel
+      .find(query)
+      .sort({ _id: -1 })
+      .limit(limit);
+    return {
+      items: messages,
+      pageInfo: {
+        endCursor:
+          messages.length > 0 ? String(messages[messages.length - 1]._id) : '',
+        hasNextPage: messages.length === limit,
+      },
+    };
+  }
+
+  async deleteAllMessagesInRoom(roomId: string, userId: string): Promise<void> {
+    const room = await this.roomsService.findByIdAndUserId(roomId, userId);
+    await this.messageModel.updateMany(
+      { room: room._id },
+      { $push: { deleteFor: userId } },
+    );
   }
 }

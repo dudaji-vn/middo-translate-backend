@@ -50,7 +50,15 @@ export class UsersService {
     return users;
   }
   async findById(id: ObjectId | string) {
-    const user = await this.userModel.findById(id).lean();
+    const user = await this.userModel
+      .findById(id)
+      .select({
+        name: true,
+        username: true,
+        avatar: true,
+        email: true,
+      })
+      .lean();
     if (!user) {
       throw new HttpException(`User ${id} not found`, 404);
     }

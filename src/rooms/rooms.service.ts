@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  ForbiddenException,
+  HttpException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -14,11 +16,12 @@ import {
 import { selectPopulateField } from 'src/common/utils';
 import { socketConfig } from 'src/configs/socket.config';
 import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
+import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
 import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import { CreateRoomDto } from './dtos';
+import { CreateRoomDto } from './dto';
+import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
-import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -56,7 +59,8 @@ export class RoomsService {
     newRoom.participants = isGroup ? [...new Set(participants)] : participants;
     newRoom.name = createRoomDto.name || '';
     newRoom.isGroup = isGroup;
-    newRoom.admin = participants.find((p) => p._id.toString() === creatorId)!;
+    newRoom.admin =
+      participants.find((p) => p._id.toString() === creatorId) || ({} as User);
 
     const room = await this.roomModel.create(newRoom);
     return room;
@@ -76,7 +80,7 @@ export class RoomsService {
     return room;
   }
   async leaveRoom(id: string, userId: string) {
-    const room = await this.findByIdAndUserId(id, userId);
+    const room = await this.findGroupByIdAndUserId(id, userId);
     if (!room.isGroup) {
       throw new Error('Cannot leave room not group');
     }
@@ -86,6 +90,10 @@ export class RoomsService {
     room.participants = room.participants.filter(
       (p) => String(p._id) !== userId,
     );
+    const isAdmin = room.admin._id.toString() === userId;
+    if (isAdmin && room.participants.length > 0) {
+      room.admin = room.participants[0];
+    }
     await room.save();
     this.eventEmitter.emit(socketConfig.events.room.leave, {
       roomId: room._id,
@@ -323,16 +331,140 @@ export class RoomsService {
   }
 
   async updateRoom(roomId: string, data: Partial<Room>) {
-    const room = await this.findById(roomId);
-
-    await this.roomModel.updateOne({ _id: roomId }, data);
+    const updatedRoom = await this.roomModel
+      .findByIdAndUpdate(
+        roomId,
+        {
+          ...data,
+          newMessageAt: new Date().toISOString(),
+        },
+        {
+          new: true,
+        },
+      )
+      .populate(
+        selectPopulateField<Room>(['participants']),
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+      );
+    if (!updatedRoom) {
+      throw new Error('Room not found');
+    }
     const updatePayload: UpdateRoomPayload = {
       roomId,
       data,
-      participants: room?.participants.map((p) => p._id) || [],
+      participants: updatedRoom?.participants.map((p) => p._id) || [],
     };
     this.eventEmitter.emit(socketConfig.events.room.update, {
       ...updatePayload,
     });
+    return updatedRoom;
+  }
+
+  async findGroupByIdAndUserId(roomId: string, userId: string) {
+    const room = await this.roomModel
+      .findOne({
+        _id: roomId,
+        participants: userId,
+        isGroup: true,
+      })
+      .populate(
+        selectPopulateField<Room>(['admin']),
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+      );
+
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+
+    return room;
+  }
+  async findGroupByIdAndUserIdWithAdminRole(roomId: string, userId: string) {
+    const room = await this.roomModel
+      .findOne({
+        _id: roomId,
+        participants: userId,
+        isGroup: true,
+        admin: userId,
+      })
+      .populate(
+        selectPopulateField<Room>(['admin']),
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+      );
+
+    return room;
+  }
+
+  async updateRoomInfo(roomId: string, data: UpdateRoomDto, userId: string) {
+    const room = await this.findGroupByIdAndUserId(roomId, userId);
+    if (!room) {
+      throw new Error('Room not found');
+    }
+    const newRoom = await this.updateRoom(roomId, data);
+    return newRoom;
+  }
+
+  async addParticipants(roomId: string, userIds: string[], userId: string) {
+    const room = await this.findGroupByIdAndUserId(roomId, userId);
+
+    if (!room) {
+      throw new Error('Room not found');
+    }
+
+    const participants = await Promise.all(
+      userIds.map((id) => this.usersService.findById(id)),
+    );
+    room.participants = [...new Set([...room.participants, ...participants])];
+
+    await room.save();
+
+    this.eventEmitter.emit(socketConfig.events.room.update, {
+      roomId,
+      participants: room.participants.map((p) => p._id),
+      data: {
+        participants: room.participants,
+      },
+    });
+    return await room.populate([
+      {
+        path: 'participants',
+        select: userSelectFieldsString,
+      },
+      {
+        path: 'admin',
+        select: userSelectFieldsString,
+      },
+    ]);
+  }
+
+  async removeParticipant(
+    roomId: string,
+    userId: string,
+    removeUserId: string,
+  ) {
+    const room = await this.findGroupByIdAndUserIdWithAdminRole(roomId, userId);
+    if (!room) {
+      throw new ForbiddenException('You are not admin');
+    }
+    room.participants = room.participants.filter(
+      (p) => String(p._id) !== removeUserId,
+    );
+    await room.save();
+    this.eventEmitter.emit(socketConfig.events.room.update, {
+      roomId,
+      participants: room.participants.map((p) => p._id),
+      data: {
+        participants: room.participants,
+      },
+    });
+    return room.populate([
+      {
+        path: 'participants',
+        select: userSelectFieldsString,
+      },
+      {
+        path: 'admin',
+        select: userSelectFieldsString,
+      },
+    ]);
   }
 }
