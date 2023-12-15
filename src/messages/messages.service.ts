@@ -239,4 +239,43 @@ export class MessagesService {
       { $push: { deleteFor: userId } },
     );
   }
+
+  async getCloudCount(
+    roomId: string,
+    userId: string,
+  ): Promise<{
+    count: number;
+    mediaCount: number;
+    fileCount: number;
+  }> {
+    const room = await this.roomsService.findByIdAndUserId(roomId, userId);
+    const query: FilterQuery<Message> = {
+      room: room._id,
+      type: MessageType.MEDIA,
+      removedFor: { $nin: [userId] },
+      deleteFor: { $nin: [userId] },
+    };
+    const messages = await this.messageModel.find(query).select('media');
+    let count = 0;
+    messages.forEach((message) => {
+      count += message.media.length;
+    });
+    let mediaCount = 0;
+    let fileCount = 0;
+    messages.forEach((message) => {
+      if (
+        message.media[0].type === MediaTypes.IMAGE ||
+        message.media[0].type === MediaTypes.VIDEO
+      ) {
+        mediaCount += message.media.length;
+      } else if (message.media[0].type === MediaTypes.DOCUMENT) {
+        fileCount += message.media.length;
+      }
+    });
+    return {
+      count,
+      mediaCount,
+      fileCount,
+    };
+  }
 }

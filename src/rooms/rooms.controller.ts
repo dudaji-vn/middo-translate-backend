@@ -77,6 +77,24 @@ export class RoomsController {
     return { data, message: 'Room found' };
   }
 
+  @Get(':id/cloud/count')
+  async getCloudCount(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ): Promise<
+    Response<{
+      count: number;
+      mediaCount: number;
+      fileCount: number;
+    }>
+  > {
+    const data = await this.messagesService.getCloudCount(id, userId);
+    return {
+      data: data,
+      message: 'Found',
+    };
+  }
+
   @Get(':id/media')
   async getMedia(
     @ParamObjectId('id') id: string,
