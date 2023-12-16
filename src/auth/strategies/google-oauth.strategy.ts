@@ -34,6 +34,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     const user = await this.usersService.findByEmail(email, {
       ignoreNotFound: true,
     });
+
+    // case update
     if (!user?._id) {
       const newUser = await this.usersService.create({
         name: name?.givenName + ' ' + name?.familyName,

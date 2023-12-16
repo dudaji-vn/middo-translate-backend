@@ -33,6 +33,8 @@ export type Media = {
   url: string;
   name: string;
   size: number;
+  width?: number;
+  height?: number;
 };
 
 @Schema({
@@ -73,6 +75,12 @@ export class Message {
     default: [],
   })
   removedFor: ObjectId[] | string[];
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    default: [],
+  })
+  deleteFor: ObjectId[] | string[];
+
   @Prop({ type: String, default: MessageStatus.SENT })
   status: MessageStatus;
 }

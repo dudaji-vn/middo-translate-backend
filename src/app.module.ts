@@ -17,6 +17,7 @@ import { RoomsModule } from './rooms/rooms.module';
 import { SearchModule } from './search/search.module';
 import { UsersModule } from './users/users.module';
 import { envConfig } from './configs/env.config';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { envConfig } from './configs/env.config';
     SearchModule,
     EventsModule,
     MailModule,
+    StorageModule,
   ],
   controllers: [AppController],
   providers: [

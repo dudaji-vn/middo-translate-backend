@@ -1,10 +1,10 @@
 import { Body, Controller, Post, Delete, Query } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { JwtUserId, ParamObjectId } from 'src/common/decorators';
-import { CreateMessageDto } from './dtos';
+import { CreateMessageDto } from './dto';
 import { Message } from './schemas/messages.schema';
 import { Response } from 'src/common/types';
-import { RemoveParamsMessageDto } from './dtos/remove-params-message.dto';
+import { RemoveParamsMessageDto } from './dto/remove-params-message.dto';
 
 @Controller('messages')
 export class MessagesController {
