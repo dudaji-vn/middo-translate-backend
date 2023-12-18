@@ -89,7 +89,7 @@ export class RoomsService {
     room.participants = room.participants.filter(
       (p) => String(p._id) !== userId,
     );
-    const isAdmin = room.admin._id.toString() === userId;
+    const isAdmin = room.admin?._id.toString() === userId;
     if (isAdmin && room.participants.length > 0) {
       room.admin = room.participants[0];
     }
