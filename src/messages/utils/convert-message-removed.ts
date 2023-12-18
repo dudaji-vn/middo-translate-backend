@@ -17,6 +17,7 @@ export function convertMessageRemoved(
     message.media = [];
     message.type = MessageType.TEXT;
     message.status = MessageStatus.REMOVED;
+    message.contentEnglish = 'This message was removed';
   }
   return message;
 }
