@@ -51,7 +51,12 @@ export class Message {
   @Prop({ type: String })
   contentEnglish: string;
 
-  @Prop({ type: String, index: true, default: MessageType.TEXT })
+  @Prop({
+    type: String,
+    index: true,
+    enum: MediaTypes,
+    default: MessageType.TEXT,
+  })
   type: MessageType;
 
   @Prop({ type: Array, default: [] })
@@ -81,7 +86,7 @@ export class Message {
   })
   deleteFor: ObjectId[] | string[];
 
-  @Prop({ type: String, default: MessageStatus.SENT })
+  @Prop({ type: String, enum: MessageStatus, default: MessageStatus.SENT })
   status: MessageStatus;
 }
 

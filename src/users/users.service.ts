@@ -6,7 +6,7 @@ import { SetupInfoDto } from './dto/setup-info.dto';
 import { User, UserStatus } from './schemas/user.schema';
 import { generateAvatar, selectPopulateField } from 'src/common/utils';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ChangePasswpodDto } from './dto/change-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -22,6 +22,7 @@ export class UsersService {
           'avatar',
           'email',
           'language',
+          'status',
         ]),
       )
       .lean();
@@ -145,7 +146,7 @@ export class UsersService {
     }
   }
 
-  async changePassword(id: string, info: ChangePasswpodDto): Promise<void> {
+  async changePassword(id: string, info: ChangePasswordDto): Promise<void> {
     try {
       const user = await this.userModel.findById(id).lean();
       if (!user) {

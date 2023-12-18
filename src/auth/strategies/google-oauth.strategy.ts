@@ -4,6 +4,7 @@ import { Strategy, VerifyCallback } from 'passport-google-oauth2';
 import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Profile } from 'passport';
+import { SUPPORTED_LANGUAGES } from 'src/configs/language';
 import { UsersService } from 'src/users/users.service';
 import { envConfig } from 'src/configs/env.config';
 
@@ -21,12 +22,14 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   async validate(
     _accessToken: string,
     _refreshToken: string,
-    profile: Profile & { language: string },
+    profile: Profile & {
+      language: string;
+    },
     done: VerifyCallback,
   ): Promise<any> {
-    const { name, emails, photos } = profile;
+    const { emails, photos } = profile;
     const email = emails?.[0]?.value;
-    console.log(profile);
+
     if (!email) {
       done(null, false);
       return;
@@ -35,14 +38,15 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       ignoreNotFound: true,
     });
 
-    // case update
+    const language = getLanguage(profile?.language);
+
     if (!user?._id) {
       const newUser = await this.usersService.create({
-        name: name?.givenName + ' ' + name?.familyName,
+        name: profile.displayName,
         email,
         avatar: photos?.[0]?.value,
         status: UserStatus.ACTIVE,
-        language: profile?.language || 'en',
+        language: language,
         provider: Provider.GOOGLE,
       });
       done(null, newUser);
@@ -51,3 +55,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     done(null, user);
   }
 }
+
+const getLanguage = (languageCode: string) => {
+  const isSupported = SUPPORTED_LANGUAGES.find(
+    (language) => language.code === languageCode,
+  );
+  if (isSupported) {
+    return languageCode;
+  }
+  return 'en';
+};

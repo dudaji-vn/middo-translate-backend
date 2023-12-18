@@ -7,7 +7,7 @@ import { UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from './users.service';
 import { ApiTags } from '@nestjs/swagger';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ChangePasswpodDto } from './dto/change-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @ApiTags('Users')
 @Controller('users')
@@ -53,7 +53,7 @@ export class UsersController {
   @Patch('change-password')
   async changePassword(
     @JwtUserId() userId: string,
-    @Body() changePasswordDto: ChangePasswpodDto,
+    @Body() changePasswordDto: ChangePasswordDto,
   ): Promise<Response<null>> {
     await this.usersService.changePassword(userId, changePasswordDto);
     return {

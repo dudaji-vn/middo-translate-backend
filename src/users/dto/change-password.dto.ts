@@ -1,8 +1,7 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { IsString } from 'class-validator';
 
-import { ApiProperty } from '@nestjs/swagger';
-
-export class ChangePasswpodDto {
+export class ChangePasswordDto {
   @ApiProperty()
   @IsString()
   readonly currentPassword: string;
