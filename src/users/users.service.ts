@@ -37,6 +37,7 @@ export class UsersService {
         $or: [
           { name: { $regex: q, $options: 'i' } },
           { username: { $regex: q, $options: 'i' } },
+          { email: { $regex: q, $options: 'i' } },
         ],
         status: UserStatus.ACTIVE,
       })
