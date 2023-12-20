@@ -57,6 +57,9 @@ export class RoomsService {
     const newRoom = new this.roomModel(createRoomDto);
     newRoom.participants = isGroup ? [...new Set(participants)] : participants;
     newRoom.name = createRoomDto.name || '';
+    if (newRoom.name) {
+      newRoom.isSetName = true;
+    }
     newRoom.isGroup = isGroup;
     newRoom.admin =
       participants.find((p) => p._id.toString() === creatorId) || ({} as User);
@@ -407,7 +410,10 @@ export class RoomsService {
     if (!room) {
       throw new Error('Room not found');
     }
-    const newRoom = await this.updateRoom(roomId, data);
+    const newRoom = await this.updateRoom(roomId, {
+      ...data,
+      isSetName: data.name ? true : false,
+    });
     return newRoom;
   }
 

@@ -48,6 +48,9 @@ export class Room {
 
   @Prop({ type: Date, default: Date.now, index: true })
   newMessageAt: Date;
+
+  @Prop({ type: Boolean, default: false })
+  isSetName: boolean;
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);
