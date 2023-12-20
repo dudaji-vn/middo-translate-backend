@@ -137,9 +137,7 @@ export class RoomsController {
     if (updateRoomDto.name) {
       this.messagesService.createSystemMessage(
         id,
-        `change room name to <strong
-        style="color: #3d88ed;"
-        >${updateRoomDto.name}</strong>`,
+        `change group name to ${updateRoomDto.name}`,
         userId,
       );
     }
@@ -147,7 +145,7 @@ export class RoomsController {
     if (updateRoomDto.avatar) {
       this.messagesService.createSystemMessage(
         id,
-        `change room avatar`,
+        `change group avatar`,
         userId,
       );
     }
