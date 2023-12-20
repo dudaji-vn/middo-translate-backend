@@ -62,7 +62,16 @@ export class RoomsService {
       participants.find((p) => p._id.toString() === creatorId) || ({} as User);
 
     const room = await this.roomModel.create(newRoom);
-    return room;
+    return await room.populate([
+      {
+        path: 'participants',
+        select: userSelectFieldsString,
+      },
+      {
+        path: 'admin',
+        select: userSelectFieldsString,
+      },
+    ]);
   }
 
   async deleteRoom(id: string, userId: string) {
