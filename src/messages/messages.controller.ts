@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Delete, Query } from '@nestjs/common';
+import { Body, Controller, Post, Delete, Query, Patch } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { JwtUserId, ParamObjectId } from 'src/common/decorators';
 import { CreateMessageDto } from './dto';
@@ -34,6 +34,15 @@ export class MessagesController {
     return {
       data: null,
       message: 'Message deleted',
+    };
+  }
+
+  @Patch(':id/seen')
+  async seenMessage(@ParamObjectId() id: string, @JwtUserId() userId: string) {
+    await this.messagesService.seenMessage(id, userId);
+    return {
+      data: null,
+      message: 'Message seen',
     };
   }
 }

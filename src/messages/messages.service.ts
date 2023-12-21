@@ -278,4 +278,31 @@ export class MessagesService {
       fileCount,
     };
   }
+
+  async seenMessage(id: string, userId: string): Promise<void> {
+    const message = await this.messageModel
+      .findByIdAndUpdate(
+        id,
+        {
+          $addToSet: { readBy: userId },
+        },
+        { new: true },
+      )
+      .populate(
+        'sender',
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+      );
+
+    if (!message) {
+      throw new Error('Message not found');
+    }
+
+    this.eventEmitter.emit(socketConfig.events.message.update, {
+      roomId: String(message?.room),
+      message: message,
+    });
+    this.roomsService.updateRoom(String(message?.room), {
+      lastMessage: message,
+    });
+  }
 }
