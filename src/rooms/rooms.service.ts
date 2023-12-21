@@ -215,10 +215,12 @@ export class RoomsService {
   }
 
   async findWithCursorPaginate(
-    queryParams: ListQueryParamsCursor,
+    queryParams: ListQueryParamsCursor & {
+      type?: 'all' | 'group' | 'individual';
+    },
     userId: string,
   ): Promise<Pagination<Room, CursorPaginationInfo>> {
-    const { limit = 10, cursor } = queryParams;
+    const { limit = 10, cursor, type } = queryParams;
 
     const query: FilterQuery<Room> = {
       newMessageAt: {
@@ -228,6 +230,8 @@ export class RoomsService {
       status: {
         $ne: RoomStatus.DELETED,
       },
+      ...(type === 'group' ? { isGroup: true } : {}),
+      ...(type === 'individual' ? { isGroup: false } : {}),
     };
 
     const rooms = await this.roomModel
