@@ -18,6 +18,7 @@ import { SearchModule } from './search/search.module';
 import { UsersModule } from './users/users.module';
 import { envConfig } from './configs/env.config';
 import { StorageModule } from './storage/storage.module';
+import { RecommendationModule } from './recommendation/recommendation.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { StorageModule } from './storage/storage.module';
     EventsModule,
     MailModule,
     StorageModule,
+    RecommendationModule,
   ],
   controllers: [AppController],
   providers: [
