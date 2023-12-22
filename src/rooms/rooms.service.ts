@@ -485,4 +485,17 @@ export class RoomsService {
       },
     ]);
   }
+
+  async findRecentChatRooms(userId: string) {
+    const rooms = await this.roomModel
+      .find({
+        participants: userId,
+        isGroup: false,
+        status: RoomStatus.ACTIVE,
+      })
+      .sort({ newMessageAt: -1 })
+      .limit(5)
+      .populate('participants');
+    return rooms;
+  }
 }
