@@ -94,6 +94,7 @@ export class EventsGateway
   }
   @OnEvent(socketConfig.events.message.update)
   async handleUpdateMessage({ roomId, message }: NewMessagePayload) {
+    console.log('handleUpdateMessage', roomId, message);
     this.server.to(roomId).emit(socketConfig.events.message.update, message);
   }
   @OnEvent(socketConfig.events.message.remove)

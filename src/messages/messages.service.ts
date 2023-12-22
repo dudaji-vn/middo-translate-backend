@@ -16,6 +16,7 @@ import { UsersService } from 'src/users/users.service';
 import { CreateMessageDto } from './dto';
 import { MediaTypes, Message, MessageType } from './schemas/messages.schema';
 import { convertMessageRemoved } from './utils/convert-message-removed';
+import { Room } from 'src/rooms/schemas/room.schema';
 
 @Injectable()
 export class MessagesService {
@@ -60,6 +61,7 @@ export class MessagesService {
       'sender',
       selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
     );
+
     const socketPayload: NewMessagePayload = {
       roomId: String(room._id),
       message: newMessageWithSender,
@@ -277,5 +279,32 @@ export class MessagesService {
       mediaCount,
       fileCount,
     };
+  }
+
+  async seenMessage(id: string, userId: string): Promise<void> {
+    const message = await this.messageModel
+      .findByIdAndUpdate(
+        id,
+        {
+          $addToSet: { readBy: userId },
+        },
+        { new: true },
+      )
+      .populate(
+        'sender',
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+      );
+
+    if (!message) {
+      throw new Error('Message not found');
+    }
+
+    this.eventEmitter.emit(socketConfig.events.message.update, {
+      roomId: String(message?.room),
+      message: message,
+    });
+    this.roomsService.updateRoom(String(message?.room), {
+      lastMessage: message,
+    });
   }
 }
