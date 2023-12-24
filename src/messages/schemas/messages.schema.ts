@@ -19,6 +19,7 @@ export enum MessageType {
   CALL = 'call',
   MEDIA = 'media',
   NOTIFICATION = 'notification',
+  ACTION = 'action',
 }
 
 export enum MediaTypes {
@@ -87,6 +88,11 @@ export class Message {
 
   @Prop({ type: String, default: MessageStatus.SENT })
   status: MessageStatus;
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    default: [],
+  })
+  targetUsers: User[];
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

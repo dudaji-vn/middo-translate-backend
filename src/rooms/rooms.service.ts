@@ -164,7 +164,6 @@ export class RoomsService {
   }
 
   async findByIdAndUserId(id: string, userId: string, inCludeDeleted = false) {
-    console.log('room id', id, userId);
     let room = await this.roomModel.findOne({
       _id: id,
       participants: userId,
@@ -240,10 +239,16 @@ export class RoomsService {
       .limit(limit)
       .populate({
         path: 'lastMessage',
-        populate: {
-          path: 'sender',
-          select: userSelectFieldsString,
-        },
+        populate: [
+          {
+            path: 'targetUsers',
+            select: userSelectFieldsString,
+          },
+          {
+            path: 'sender',
+            select: userSelectFieldsString,
+          },
+        ],
       })
       .populate(
         selectPopulateField<Room>(['participants']),
@@ -300,10 +305,16 @@ export class RoomsService {
       )
       .populate({
         path: 'lastMessage',
-        populate: {
-          path: 'sender',
-          select: userSelectFieldsString,
-        },
+        populate: [
+          {
+            path: 'targetUsers',
+            select: userSelectFieldsString,
+          },
+          {
+            path: 'sender',
+            select: userSelectFieldsString,
+          },
+        ],
       })
       .populate(
         selectPopulateField<Room>(['admin']),
