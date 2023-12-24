@@ -16,7 +16,6 @@ import { UsersService } from 'src/users/users.service';
 import { CreateMessageDto } from './dto';
 import { MediaTypes, Message, MessageType } from './schemas/messages.schema';
 import { convertMessageRemoved } from './utils/convert-message-removed';
-import { Room } from 'src/rooms/schemas/room.schema';
 
 @Injectable()
 export class MessagesService {
@@ -52,15 +51,40 @@ export class MessagesService {
       createdMessage.type = MessageType.MEDIA;
     }
 
+    if (
+      createMessageDto?.targetUserIds &&
+      createMessageDto.targetUserIds.length > 0
+    ) {
+      createdMessage.targetUsers = await this.usersService.findManyByIds(
+        createMessageDto.targetUserIds,
+      );
+    }
+
     createdMessage.room = room;
     createdMessage.readBy = [user._id];
     createdMessage.deliveredTo = [user._id];
     const newMessage = await createdMessage.save();
 
-    const newMessageWithSender = await newMessage.populate(
-      'sender',
-      selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
-    );
+    const newMessageWithSender = await newMessage.populate([
+      {
+        path: 'sender',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'language',
+        ]),
+      },
+      {
+        path: 'targetUsers',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'language',
+        ]),
+      },
+    ]);
 
     const socketPayload: NewMessagePayload = {
       roomId: String(room._id),
@@ -95,6 +119,10 @@ export class MessagesService {
       .limit(limit)
       .populate(
         'sender',
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+      )
+      .populate(
+        'targetUsers',
         selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
       );
     return {
@@ -142,9 +170,11 @@ export class MessagesService {
       message.removedFor = room.participants.map((p) => p._id);
     }
     await message.save();
-    this.roomsService.updateRoom(String(room._id), {
-      lastMessage: message,
-    });
+    if (room.lastMessage?._id.toString() === message._id.toString()) {
+      this.roomsService.updateRoom(String(room._id), {
+        lastMessage: message,
+      });
+    }
     this.eventEmitter.emit(socketConfig.events.message.remove, {
       roomId: String(room._id),
       message: convertMessageRemoved(message, userId),
@@ -165,6 +195,38 @@ export class MessagesService {
         clientTempId: '',
         media: [],
         contentEnglish: '',
+      },
+      senderId,
+      true,
+    );
+    return message;
+  }
+  async createActionMessage(
+    roomId: string,
+    senderId: string,
+    targetUserIds: string[],
+    action: 'addToGroup' | 'removeFromGroup',
+  ): Promise<Message> {
+    let content = '';
+    switch (action) {
+      case 'addToGroup':
+        content = 'added';
+        break;
+      case 'removeFromGroup':
+        content = 'removed';
+        break;
+      default:
+        break;
+    }
+    const message = await this.create(
+      {
+        roomId,
+        content,
+        type: MessageType.ACTION,
+        clientTempId: '',
+        media: [],
+        contentEnglish: '',
+        targetUserIds,
       },
       senderId,
       true,
@@ -303,8 +365,10 @@ export class MessagesService {
       roomId: String(message?.room),
       message: message,
     });
-    this.roomsService.updateRoom(String(message?.room), {
-      lastMessage: message,
-    });
+    if (message.room.lastMessage?._id.toString() === message._id.toString()) {
+      this.roomsService.updateRoom(String(message.room._id), {
+        lastMessage: message,
+      });
+    }
   }
 }

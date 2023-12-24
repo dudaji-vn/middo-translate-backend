@@ -152,7 +152,7 @@ export class RoomsController {
     return { data: room, message: 'Room updated' };
   }
 
-  @Post(':id/members/add')
+  @Post(':id/members')
   async addParticipants(
     @ParamObjectId('id') id: string,
     @Body('participants') participants: string[],
@@ -163,29 +163,31 @@ export class RoomsController {
       participants,
       userId,
     );
-    this.messagesService.createSystemMessage(
+    this.messagesService.createActionMessage(
       id,
-      `add new members to group`,
       userId,
+      participants,
+      'addToGroup',
     );
     return { data: room, message: 'Room updated' };
   }
 
-  @Delete(':id/members/remove')
+  @Delete(':id/members')
   async removeParticipant(
     @ParamObjectId('id') id: string,
-    @Body('userId') userId: string,
+    @Body('userId') userTargetId: string,
     @JwtUserId() currentUserId: string,
   ): Promise<Response<Room>> {
     const room = await this.roomsService.removeParticipant(
       id,
       currentUserId,
-      userId,
+      userTargetId,
     );
-    this.messagesService.createSystemMessage(
+    this.messagesService.createActionMessage(
       id,
-      `remove member from group`,
       currentUserId,
+      [userTargetId],
+      'removeFromGroup',
     );
     return { data: room, message: 'Room updated' };
   }

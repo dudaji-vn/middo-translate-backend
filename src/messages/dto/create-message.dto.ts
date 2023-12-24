@@ -10,4 +10,5 @@ export class CreateMessageDto {
   roomId: string;
   clientTempId: string;
   type?: MessageType;
+  targetUserIds?: string[];
 }

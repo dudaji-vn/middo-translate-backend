@@ -67,6 +67,23 @@ export class UsersService {
     return user;
   }
 
+  async findManyByIds(ids: ObjectId[] | string[]) {
+    const users = await this.userModel
+      .find({
+        _id: {
+          $in: ids,
+        },
+      })
+      .select({
+        name: true,
+        username: true,
+        avatar: true,
+        email: true,
+      })
+      .lean();
+    return users;
+  }
+
   async findByEmail(
     email: string,
     options?: {
