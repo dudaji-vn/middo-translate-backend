@@ -74,6 +74,9 @@ export class RoomsController {
         userId,
         query,
       );
+    console.log(
+      data.items.forEach((item) => console.log(item.readBy, item.content)),
+    );
     return { data, message: 'Room found' };
   }
 

@@ -75,7 +75,7 @@ export class EventsGateway
 
   @OnEvent(socketConfig.events.message.new)
   async handleNewMessage({ roomId, message, clientTempId }: NewMessagePayload) {
-    console.log('handleNewMessage 🙂', roomId, message, clientTempId);
+    console.log('handleNewMessage', roomId, message);
     this.server.to(roomId).emit(socketConfig.events.message.new, {
       message,
       clientTempId,
@@ -83,7 +83,6 @@ export class EventsGateway
   }
   @OnEvent(socketConfig.events.room.update)
   async handleUpdateRoom({ data, participants, roomId }: UpdateRoomPayload) {
-    // console.log('handleUpdateRoom', roomId, data, participants);
     const socketIds = participants
       .map((p) => this.clients[p.toString()]?.socketIds || [])
       .flat();

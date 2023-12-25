@@ -104,7 +104,10 @@ export class MessagesService {
     userId: string,
     params: ListQueryParamsCursor,
   ): Promise<Pagination<Message, CursorPaginationInfo>> {
-    const { cursor = new this.messageModel()._id, limit = 10 } = params;
+    let { cursor = new this.messageModel()._id, limit = 10 } = params;
+
+    if (!cursor) cursor = new this.messageModel()._id;
+    if (!limit) limit = 10;
 
     const room = await this.roomsService.findByIdAndUserId(roomId, userId);
     const query: FilterQuery<Message> = {
@@ -125,6 +128,7 @@ export class MessagesService {
         'targetUsers',
         selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
       );
+
     return {
       items: messages.map((message) => {
         return convertMessageRemoved(message, userId) as Message;
@@ -344,6 +348,7 @@ export class MessagesService {
   }
 
   async seenMessage(id: string, userId: string): Promise<void> {
+    console.log('seenMessage', id, userId);
     const message = await this.messageModel
       .findByIdAndUpdate(
         id,
