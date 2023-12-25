@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
 import { FilterQuery, Model } from 'mongoose';
@@ -365,7 +365,11 @@ export class MessagesService {
       roomId: String(message?.room),
       message: message,
     });
-    if (message.room.lastMessage?._id.toString() === message._id.toString()) {
+    const room = await this.roomsService.findById(message.room._id.toString());
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+    if (room.lastMessage?._id.toString() === message._id.toString()) {
       this.roomsService.updateRoom(String(message.room._id), {
         lastMessage: message,
       });

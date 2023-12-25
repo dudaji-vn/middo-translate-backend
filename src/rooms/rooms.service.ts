@@ -21,6 +21,7 @@ import { UsersService } from 'src/users/users.service';
 import { CreateRoomDto } from './dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
+import { Message } from 'src/messages/schemas/messages.schema';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -351,6 +352,16 @@ export class RoomsService {
           'avatar',
           'email',
           'language',
+        ]),
+      )
+      .populate(
+        selectPopulateField<Room>(['lastMessage']),
+        selectPopulateField<Message>([
+          '_id',
+          'content',
+          'type',
+          'targetUsers',
+          'sender',
         ]),
       );
     return room;
