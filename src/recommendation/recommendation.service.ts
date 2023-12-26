@@ -15,12 +15,14 @@ export class RecommendationService {
       throw new Error('User not found');
     }
     const rooms = await this.roomSerVice.findRecentChatRooms(userId);
-
-    const users = rooms.map((room) => {
+    const users: User[] = [];
+    rooms.map((room) => {
       const participants = room.participants.filter(
         (participant) => participant._id.toString() !== userId,
       );
-      return participants[0];
+      if (participants.length > 0) {
+        users.push(participants[0]);
+      }
     });
 
     return users;
