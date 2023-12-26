@@ -382,6 +382,10 @@ export class RoomsService {
       .populate(
         selectPopulateField<Room>(['participants']),
         selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+      )
+      .populate(
+        selectPopulateField<Room>(['admin']),
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
       );
     if (!updatedRoom) {
       throw new Error('Room not found');
