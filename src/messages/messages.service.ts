@@ -179,10 +179,12 @@ export class MessagesService {
         lastMessage: message,
       });
     }
+
     this.eventEmitter.emit(socketConfig.events.message.remove, {
       roomId: String(room._id),
       message: convertMessageRemoved(message, userId),
     });
+
     return message;
   }
 
@@ -348,7 +350,6 @@ export class MessagesService {
   }
 
   async seenMessage(id: string, userId: string): Promise<void> {
-    console.log('seenMessage', id, userId);
     const message = await this.messageModel
       .findByIdAndUpdate(
         id,
@@ -368,7 +369,10 @@ export class MessagesService {
 
     this.eventEmitter.emit(socketConfig.events.message.update, {
       roomId: String(message?.room),
-      message: message,
+      message: {
+        _id: message._id,
+        readBy: message.readBy,
+      },
     });
     const room = await this.roomsService.findById(message.room._id.toString());
     if (!room) {
