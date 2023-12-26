@@ -129,7 +129,7 @@ export class RoomsController {
     @Body() updateRoomDto: UpdateRoomDto,
     @JwtUserId() userId: string,
   ): Promise<Response<Room>> {
-    const room = await this.roomsService.updateRoomInfo(
+    const { room, isRemoveName } = await this.roomsService.updateRoomInfo(
       id,
       updateRoomDto,
       userId,
@@ -138,6 +138,14 @@ export class RoomsController {
       this.messagesService.createSystemMessage(
         id,
         `change group name to ${updateRoomDto.name}`,
+        userId,
+      );
+    }
+
+    if (isRemoveName) {
+      this.messagesService.createSystemMessage(
+        id,
+        `removed group name`,
         userId,
       );
     }
