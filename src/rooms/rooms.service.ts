@@ -444,7 +444,10 @@ export class RoomsService {
       ...data,
       isSetName: data.name ? true : false,
     });
-    return newRoom;
+    return {
+      room: newRoom,
+      isRemoveName: room.name && !data.name,
+    };
   }
 
   async addParticipants(roomId: string, userIds: string[], userId: string) {
