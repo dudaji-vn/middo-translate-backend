@@ -373,7 +373,6 @@ export class RoomsService {
         roomId,
         {
           ...data,
-          newMessageAt: new Date().toISOString(),
         },
         {
           new: true,
