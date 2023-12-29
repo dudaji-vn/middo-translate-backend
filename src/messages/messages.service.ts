@@ -175,7 +175,9 @@ export class MessagesService {
     }
     await message.save();
     if (room.lastMessage?._id.toString() === message._id.toString()) {
-      this.roomsService.updateRoom(String(room._id), {});
+      this.roomsService.updateRoom(String(room._id), {
+        lastMessage: message,
+      });
     }
 
     this.eventEmitter.emit(socketConfig.events.message.remove, {
@@ -377,7 +379,9 @@ export class MessagesService {
       throw new NotFoundException('Room not found');
     }
     if (room.lastMessage?._id.toString() === message._id.toString()) {
-      this.roomsService.updateRoom(String(message.room._id), {});
+      this.roomsService.updateRoom(String(message.room._id), {
+        lastMessage: message,
+      });
     }
   }
 }
