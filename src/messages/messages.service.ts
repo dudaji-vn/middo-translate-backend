@@ -46,6 +46,7 @@ export class MessagesService {
     createdMessage.content = createMessageDto.content || '';
     createdMessage.contentEnglish = createMessageDto.contentEnglish || '';
     createdMessage.media = createMessageDto.media || [];
+    createdMessage.language = createMessageDto.language || '';
     createdMessage.type = createMessageDto.type || MessageType.TEXT;
     if (createdMessage.media.length > 0) {
       createdMessage.type = MessageType.MEDIA;

@@ -11,4 +11,5 @@ export class CreateMessageDto {
   clientTempId: string;
   type?: MessageType;
   targetUserIds?: string[];
+  language?: string;
 }
