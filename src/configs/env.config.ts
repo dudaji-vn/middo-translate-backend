@@ -44,4 +44,12 @@ export const envConfig = {
     errorMessage:
       'At least 8 characters, contain one capital, not allowed special character',
   },
+
+  firebase: {
+    credentials: {
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL as string,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY as string,
+      projectId: process.env.FIREBASE_PROJECT_ID as string,
+    },
+  },
 };
