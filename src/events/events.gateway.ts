@@ -204,6 +204,16 @@ export class EventsGateway
         userInThisRoom,
       );
   }
+  // Request get share screen
+  @SubscribeMessage(socketConfig.events.call.request_get_share_screen)
+  handleRequestGetShareScreen(@ConnectedSocket() client: Socket) {
+    const roomId = this.socketToRoom[client.id];
+    this.server
+      .to(roomId)
+      .emit(socketConfig.events.call.request_get_share_screen, {
+        userId: client.id,
+      });
+  }
   // Stop share screen
   @SubscribeMessage(socketConfig.events.call.stop_share_screen)
   handleStopShareScreen(@ConnectedSocket() client: Socket) {

@@ -32,6 +32,7 @@ export const socketConfig = {
       accept_join_room: 'call.accept_join_room',
       reject_join_room: 'call.reject_join_room',
       answered_join_room: 'call.answered_join_room',
+      request_get_share_screen: 'call.request_get_share_screen',
     },
   },
 };
