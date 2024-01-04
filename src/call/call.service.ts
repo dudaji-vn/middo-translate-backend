@@ -54,7 +54,7 @@ export class CallService {
 
       const newCallObj = await this.callModel.create(newCall);
       return {
-        status: true,
+        status: STATUS.JOIN_SUCCESS,
         slug: newCallObj.slug,
       };
     } catch (error) {
@@ -83,6 +83,22 @@ export class CallService {
       return { status: STATUS.JOIN_SUCCESS, call };
     } catch (error) {
       return { status: 'SERVER_ERROR' };
+    }
+  }
+  async endCall(roomId: string) {
+    try {
+      if (!roomId) return;
+      const call = await this.callModel.findOne({
+        slug: roomId,
+        endTime: null,
+      });
+      if (!call) {
+        return;
+      }
+      call.endTime = new Date();
+      await call.save();
+    } catch (error) {
+      return;
     }
   }
 }

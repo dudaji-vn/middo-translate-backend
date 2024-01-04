@@ -13,6 +13,7 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { socketConfig } from 'src/configs/socket.config';
 import { NewMessagePayload } from './types/message-payload.type';
 import { UpdateRoomPayload } from './types/room-payload.type';
+import { CallService } from 'src/call/call.service';
 
 @WebSocketGateway({ cors: '*' })
 export class EventsGateway
@@ -29,6 +30,7 @@ export class EventsGateway
       socketIds: string[];
     };
   } = {};
+  constructor(private callService: CallService) {}
   afterInit(server: Server) {
     // console.log('socket ', server?.engine?.clientsCount);
     // console.log('socket ', server?.engine?.clientsCount);
@@ -129,7 +131,6 @@ export class EventsGateway
     @MessageBody()
     { roomId, user }: { roomId: string; user: any },
   ) {
-    console.log('handleJoinCall', roomId, user.name, '--', client.id);
     if (this.usersCall[roomId]) {
       this.usersCall[roomId].push({ id: client.id, user });
     } else {
@@ -266,10 +267,7 @@ export class EventsGateway
       userId,
     });
   }
-
-  // Leave call event
-  @SubscribeMessage(socketConfig.events.call.leave)
-  handleLeaveCall(@ConnectedSocket() client: Socket) {
+  private leaveCall(client: Socket) {
     const roomId = this.socketToRoom[client.id];
     let room = this.usersCall[roomId];
     if (room) {
@@ -278,18 +276,22 @@ export class EventsGateway
     }
     client.leave(roomId);
     this.server.emit(socketConfig.events.call.leave, client.id);
+    delete this.socketToRoom[client.id];
+    if (!room || room?.length === 0) {
+      console.log('Room Empty', roomId);
+      delete this.usersCall[roomId];
+      this.callService.endCall(roomId);
+    }
+  }
+  // Leave call event
+  @SubscribeMessage(socketConfig.events.call.leave)
+  handleLeaveCall(@ConnectedSocket() client: Socket) {
+    this.leaveCall(client);
   }
 
   // User disconnect
   handleDisconnect(@ConnectedSocket() client: Socket) {
-    const roomId = this.socketToRoom[client.id];
-    let room = this.usersCall[roomId];
-    if (room) {
-      room = room.filter((user: any) => user.id !== client.id);
-      this.usersCall[roomId] = room;
-    }
-    client.leave(roomId);
-    this.server.emit(socketConfig.events.call.leave, client.id);
+    this.leaveCall(client);
   }
   // End events for call
 }
