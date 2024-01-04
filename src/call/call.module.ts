@@ -3,18 +3,17 @@ import { CallController } from './call.controller';
 import { Module, forwardRef } from '@nestjs/common';
 import { UsersModule } from 'src/users/users.module';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Room, RoomSchema } from 'src/rooms/schemas/room.schema';
-import { CallGateway } from './call.gateway';
-import { ConfigModule } from '@nestjs/config';
+import { Call, CallSchema } from './schemas/call.schema';
+import { RoomsModule } from 'src/rooms/rooms.module';
 
 @Module({
-    imports: [
-        MongooseModule.forFeature([{ name: Room.name, schema: RoomSchema }]),
-        UsersModule,
-        ConfigModule.forRoot({ isGlobal: true }),
-    ],
-    providers: [CallService, CallGateway],
-    controllers: [CallController],
-    exports: [CallService],
+  imports: [
+    MongooseModule.forFeature([{ name: Call.name, schema: CallSchema }]),
+    UsersModule,
+    forwardRef(() => RoomsModule),
+  ],
+  providers: [CallService],
+  controllers: [CallController],
+  exports: [CallService],
 })
 export class CallModule {}

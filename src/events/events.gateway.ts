@@ -121,40 +121,8 @@ export class EventsGateway
   }
 
   // Events for call
-  // private activeSockets: {
-  //   roomId: string;
-  //   id: string;
-  //   peerId: string;
-  //   user: any;
-  // }[] = [];
-  // @SubscribeMessage(socketConfig.events.call.join)
-  // handleJoinCall(
-  //   @ConnectedSocket() client: Socket,
-  //   @MessageBody()
-  //   { peerId, roomId, user }: { peerId: string; roomId: string; user: any },
-  // ) {
-  //   client.join(roomId);
-  //   this.activeSockets.push({ roomId, id: client.id, peerId, user });
-  //   this.server.to(roomId).emit(socketConfig.events.call.join, {
-  //     peerId,
-  //     user,
-  //   });
-  //   // client.emit(socketConfig.events.call.list_participant, this.activeSockets);
-  // }
-  // public handleDisconnect(@ConnectedSocket() client: Socket): void {
-  //   const peerUserId = this.activeSockets.find(
-  //     (s) => s.id === client.id,
-  //   )?.peerId;
-  //   this.activeSockets = this.activeSockets.filter(
-  //     (socket) => socket.id !== client.id,
-  //   );
-  //   this.server.emit(socketConfig.events.call.leave, peerUserId);
-  // }
-
-  //
   private usersCall: Record<string, any> = {};
   private socketToRoom: Record<string, any> = {};
-  private rooms: { id: string; startedAt: Date }[] = [];
   @SubscribeMessage(socketConfig.events.call.join)
   handleJoinCall(
     @ConnectedSocket() client: Socket,
@@ -166,17 +134,14 @@ export class EventsGateway
       this.usersCall[roomId].push({ id: client.id, user });
     } else {
       this.usersCall[roomId] = [{ id: client.id, user }];
-      this.rooms.push({ id: roomId, startedAt: new Date() });
     }
     this.socketToRoom[client.id] = roomId;
     const userInThisRoom = this.usersCall[roomId].filter(
       (user: any) => user.id !== client.id,
     );
     client.join(roomId);
-    const room = this.rooms.find((r) => r.id == roomId);
     this.server.to(client.id).emit(socketConfig.events.call.list_participant, {
       users: userInThisRoom,
-      room,
     });
   }
   // Send signal event
@@ -222,23 +187,6 @@ export class EventsGateway
       });
   }
 
-  // Leave call event
-  @SubscribeMessage(socketConfig.events.call.leave)
-  handleLeaveCall(@ConnectedSocket() client: Socket) {
-    const roomId = this.socketToRoom[client.id];
-    let room = this.usersCall[roomId];
-    if (room) {
-      room = room.filter((user: any) => user.id !== client.id);
-      this.usersCall[roomId] = room;
-    }
-    client.leave(roomId);
-    const numUser = this.usersCall[roomId]?.length || 0;
-    if (numUser === 0) {
-      this.rooms = this.rooms.filter((r) => r.id !== roomId);
-    }
-    this.server.emit(socketConfig.events.call.leave, client.id);
-  }
-
   // SHARE_SCREEN
   @SubscribeMessage(socketConfig.events.call.share_screen)
   handleShareScreen(
@@ -264,7 +212,65 @@ export class EventsGateway
       userId: client.id,
     });
   }
+  // Request Join Room
+  @SubscribeMessage(socketConfig.events.call.request_join_room)
+  handleRequestJoinRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: { roomId: string; user: any },
+  ) {
+    const roomId = payload.roomId;
+    const user = payload.user;
+    this.server.to(roomId).emit(socketConfig.events.call.request_join_room, {
+      user,
+      socketId: client.id,
+    });
+  }
+  // Accept Join Room
+  @SubscribeMessage(socketConfig.events.call.accept_join_room)
+  handleAcceptJoinRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: { userId: string; roomInfo: any },
+  ) {
+    const roomId = this.socketToRoom[client.id];
+    const userId = payload.userId;
+    this.server.to(userId).emit(socketConfig.events.call.accept_join_room, {
+      roomInfo: payload.roomInfo,
+    });
+    this.server.to(roomId).emit(socketConfig.events.call.answered_join_room, {
+      userId,
+    });
+  }
+  // Reject Join Room
+  @SubscribeMessage(socketConfig.events.call.reject_join_room)
+  handleRejectJoinRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: { userId: string },
+  ) {
+    const roomId = this.socketToRoom[client.id];
+    const userId = payload.userId;
+    this.server.to(userId).emit(socketConfig.events.call.reject_join_room);
+    this.server.to(roomId).emit(socketConfig.events.call.answered_join_room, {
+      userId,
+    });
+  }
 
+  // Leave call event
+  @SubscribeMessage(socketConfig.events.call.leave)
+  handleLeaveCall(@ConnectedSocket() client: Socket) {
+    const roomId = this.socketToRoom[client.id];
+    let room = this.usersCall[roomId];
+    if (room) {
+      room = room.filter((user: any) => user.id !== client.id);
+      this.usersCall[roomId] = room;
+    }
+    client.leave(roomId);
+    this.server.emit(socketConfig.events.call.leave, client.id);
+  }
+
+  // User disconnect
   handleDisconnect(@ConnectedSocket() client: Socket) {
     const roomId = this.socketToRoom[client.id];
     let room = this.usersCall[roomId];
@@ -273,10 +279,6 @@ export class EventsGateway
       this.usersCall[roomId] = room;
     }
     client.leave(roomId);
-    const numUser = this.usersCall[roomId]?.length || 0;
-    if (numUser === 0) {
-      this.rooms = this.rooms.filter((r) => r.id !== roomId);
-    }
     this.server.emit(socketConfig.events.call.leave, client.id);
   }
   // End events for call

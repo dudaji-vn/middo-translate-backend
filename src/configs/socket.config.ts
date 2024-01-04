@@ -28,6 +28,10 @@ export const socketConfig = {
       answer_share_screen: 'call.answer_share_screen',
       icecandidate: 'call.ice_candidate',
       list_participant_need_add_screen: 'call.list_participant_need_add_screen',
+      request_join_room: 'call.request_join_room',
+      accept_join_room: 'call.accept_join_room',
+      reject_join_room: 'call.reject_join_room',
+      answered_join_room: 'call.answered_join_room',
     },
   },
 };
