@@ -19,7 +19,9 @@ import { UsersModule } from './users/users.module';
 import { envConfig } from './configs/env.config';
 import { StorageModule } from './storage/storage.module';
 import { RecommendationModule } from './recommendation/recommendation.module';
+import { CallModule } from './call/call.module';
 import { NotificationModule } from './notification/notification.module';
+
 
 @Module({
   imports: [
@@ -38,6 +40,7 @@ import { NotificationModule } from './notification/notification.module';
     MailModule,
     StorageModule,
     RecommendationModule,
+    CallModule,
     NotificationModule,
   ],
   controllers: [AppController],
