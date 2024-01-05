@@ -15,7 +15,6 @@ import { envConfig } from 'src/configs/env.config';
     MongooseModule.forFeature([
       { name: Notification.name, schema: NotificationSchema },
     ]),
-
     FirebaseModule.forRoot({
       googleApplicationCredential: {
         clientEmail: envConfig.firebase.credentials.clientEmail,
