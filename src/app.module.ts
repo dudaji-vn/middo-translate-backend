@@ -20,6 +20,8 @@ import { envConfig } from './configs/env.config';
 import { StorageModule } from './storage/storage.module';
 import { RecommendationModule } from './recommendation/recommendation.module';
 import { CallModule } from './call/call.module';
+import { NotificationModule } from './notification/notification.module';
+
 
 @Module({
   imports: [
@@ -39,6 +41,7 @@ import { CallModule } from './call/call.module';
     StorageModule,
     RecommendationModule,
     CallModule,
+    NotificationModule,
   ],
   controllers: [AppController],
   providers: [

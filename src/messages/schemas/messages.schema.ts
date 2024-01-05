@@ -93,6 +93,8 @@ export class Message {
     default: [],
   })
   targetUsers: User[];
+  @Prop({ type: String })
+  language: string;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

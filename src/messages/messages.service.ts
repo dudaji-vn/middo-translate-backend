@@ -16,12 +16,14 @@ import { UsersService } from 'src/users/users.service';
 import { CreateMessageDto } from './dto';
 import { MediaTypes, Message, MessageType } from './schemas/messages.schema';
 import { convertMessageRemoved } from './utils/convert-message-removed';
+import { NotificationService } from 'src/notification/notification.service';
 
 @Injectable()
 export class MessagesService {
   constructor(
     private readonly usersService: UsersService,
     private readonly roomsService: RoomsService,
+    private readonly notificationService: NotificationService,
     private readonly eventEmitter: EventEmitter2,
     @InjectModel(Message.name) private messageModel: Model<Message>,
   ) {}
@@ -46,6 +48,7 @@ export class MessagesService {
     createdMessage.content = createMessageDto.content || '';
     createdMessage.contentEnglish = createMessageDto.contentEnglish || '';
     createdMessage.media = createMessageDto.media || [];
+    createdMessage.language = createMessageDto.language || '';
     createdMessage.type = createMessageDto.type || MessageType.TEXT;
     if (createdMessage.media.length > 0) {
       createdMessage.type = MessageType.MEDIA;
@@ -96,7 +99,36 @@ export class MessagesService {
       newMessageAt: new Date(),
     });
     this.eventEmitter.emit(socketConfig.events.message.new, socketPayload);
+    this.sendMessageNotification(newMessageWithSender);
     return newMessageWithSender;
+  }
+
+  async sendMessageNotification(message: Message) {
+    let title = 'New message';
+    let body = '';
+    const room = await this.roomsService.findById(message.room._id.toString());
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+    if (room.isGroup) {
+      title += ` in ${room.name !== '' ? room.name : 'your group'}`;
+      body = message.sender.name + ': ';
+    } else {
+      title += ' from ' + message.sender.name;
+    }
+
+    if (message.type === MessageType.MEDIA) {
+      body += 'sent attachment';
+    }
+    if (message.type === MessageType.TEXT) {
+      body += message.content;
+    }
+
+    this.notificationService.sendNotification(
+      [message.sender._id.toString()],
+      title,
+      body,
+    );
   }
 
   async findMessagesByRoomIdWithCursorPaginate(
@@ -175,7 +207,9 @@ export class MessagesService {
     }
     await message.save();
     if (room.lastMessage?._id.toString() === message._id.toString()) {
-      this.roomsService.updateRoom(String(room._id), {});
+      this.roomsService.updateRoom(String(room._id), {
+        lastMessage: message,
+      });
     }
 
     this.eventEmitter.emit(socketConfig.events.message.remove, {
@@ -377,7 +411,9 @@ export class MessagesService {
       throw new NotFoundException('Room not found');
     }
     if (room.lastMessage?._id.toString() === message._id.toString()) {
-      this.roomsService.updateRoom(String(message.room._id), {});
+      this.roomsService.updateRoom(String(message.room._id), {
+        lastMessage: message,
+      });
     }
   }
 }
