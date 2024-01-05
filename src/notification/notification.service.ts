@@ -1,17 +1,17 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import * as firebase from 'firebase-admin';
+// import * as firebase from 'firebase-admin';
 import { Notification } from './schemas/notifications.schema';
 import { envConfig } from 'src/configs/env.config';
 
-firebase.initializeApp({
-  credential: firebase.credential.cert({
-    clientEmail: envConfig.firebase.credentials.clientEmail,
-    privateKey: envConfig.firebase.credentials.privateKey.replace(/\\n/g, '\n'),
-    projectId: envConfig.firebase.credentials.projectId,
-  }),
-});
+// firebase.initializeApp({
+//   credential: firebase.credential.cert({
+//     clientEmail: envConfig.firebase.credentials.clientEmail,
+//     privateKey: envConfig.firebase.credentials.privateKey.replace(/\\n/g, '\n'),
+//     projectId: envConfig.firebase.credentials.projectId,
+//   }),
+// });
 @Injectable()
 export class NotificationService {
   constructor(
@@ -33,14 +33,14 @@ export class NotificationService {
     console.log(tokens);
 
     try {
-      const response = await firebase.messaging().sendEachForMulticast({
-        tokens,
-        notification: {
-          title,
-          body,
-        },
-      });
-      console.log(response);
+      // const response = await firebase.messaging().sendEachForMulticast({
+      //   tokens,
+      //   notification: {
+      //     title,
+      //     body,
+      //   },
+      // });
+      // console.log(response);
     } catch (error) {
       console.log(error);
     }
