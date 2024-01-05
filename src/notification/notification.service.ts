@@ -2,14 +2,13 @@ import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Notification } from './schemas/notifications.schema';
-import { InjectFirebaseAdmin, FirebaseAdmin } from 'nestjs-firebase';
+import { messaging } from 'firebase-admin';
 
 @Injectable()
 export class NotificationService {
   constructor(
     @InjectModel(Notification.name)
     private notificationModel: Model<Notification>,
-    @InjectFirebaseAdmin() private readonly firebase: FirebaseAdmin,
   ) {}
   async sendNotification(userIds: string[], title: string, body: string) {
     const notifications = await this.notificationModel.find({
@@ -24,7 +23,7 @@ export class NotificationService {
     }, [] as string[]);
 
     try {
-      const response = await this.firebase.messaging.sendEachForMulticast({
+      const response = await messaging().sendEachForMulticast({
         tokens,
         notification: {
           title,
