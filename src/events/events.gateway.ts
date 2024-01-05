@@ -158,7 +158,6 @@ export class EventsGateway
       isShareScreen: boolean;
     },
   ) {
-    console.log('User send Signal', payload.user.name, '--', payload.id);
     this.server.to(payload.id).emit(socketConfig.events.call.user_joined, {
       signal: payload.signal,
       callerId: payload.callerId,
@@ -267,6 +266,39 @@ export class EventsGateway
       userId,
     });
   }
+  // Start doodle
+  @SubscribeMessage(socketConfig.events.call.start_doodle)
+  handleStartDoodle(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: { image_url: string },
+  ) {
+    const roomId = this.socketToRoom[client.id];
+    console.log('handleStartDoodle', roomId);
+    this.server.to(roomId).emit(socketConfig.events.call.start_doodle, payload);
+  }
+
+  // End doodle
+  @SubscribeMessage(socketConfig.events.call.end_doodle)
+  handleEndDoodle(@ConnectedSocket() client: Socket) {
+    const roomId = this.socketToRoom[client.id];
+    this.server.to(roomId).emit(socketConfig.events.call.end_doodle);
+  }
+
+  // Draw doodle
+  @SubscribeMessage(socketConfig.events.call.draw_doodle)
+  handleDrawDoodle(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: any,
+  ) {
+    const roomId = this.socketToRoom[client.id];
+    this.server.to(roomId).emit(socketConfig.events.call.draw_doodle, {
+      path: payload,
+      userId: client.id,
+    });
+  }
+
   private leaveCall(client: Socket) {
     const roomId = this.socketToRoom[client.id];
     let room = this.usersCall[roomId];
@@ -278,7 +310,6 @@ export class EventsGateway
     this.server.emit(socketConfig.events.call.leave, client.id);
     delete this.socketToRoom[client.id];
     if (!room || room?.length === 0) {
-      console.log('Room Empty', roomId);
       delete this.usersCall[roomId];
       this.callService.endCall(roomId);
     }
