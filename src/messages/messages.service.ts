@@ -16,7 +16,7 @@ import { UsersService } from 'src/users/users.service';
 import { CreateMessageDto } from './dto';
 import { MediaTypes, Message, MessageType } from './schemas/messages.schema';
 import { convertMessageRemoved } from './utils/convert-message-removed';
-import { NotificationService } from 'src/notification/notification.service';
+import { NotificationService } from 'src/notifications/notifications.service';
 import { envConfig } from 'src/configs/env.config';
 
 @Injectable()
@@ -134,14 +134,21 @@ export class MessagesService {
         break;
     }
 
-    const targetUserIds = room.participants.reduce((acc, participant) => {
+    let targetUserIds = room.participants.reduce((acc, participant) => {
       if (participant._id.toString() !== message.sender._id.toString()) {
         acc.push(participant._id.toString());
       }
       return acc;
     }, [] as string[]);
 
-    this.notificationService.sendNotification(targetUserIds, title, body);
+    const userIgnoredNotification =
+      await this.notificationService.getUsersIgnoringRoom(room._id.toString());
+
+    targetUserIds = targetUserIds.filter(
+      (id) => !userIgnoredNotification.includes(id),
+    );
+    const link = `${envConfig.app.url}/talk/${room._id}`;
+    this.notificationService.sendNotification(targetUserIds, title, body, link);
   }
 
   async findMessagesByRoomIdWithCursorPaginate(

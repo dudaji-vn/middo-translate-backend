@@ -1,8 +1,10 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
-import { NotificationService } from './notification.service';
+import { NotificationService } from './notifications.service';
 import { JwtUserId } from 'src/common/decorators';
 import { SubscribeDto } from './dto/subscribe.dto';
 import { CheckSubscribedDto } from './dto/check-subscribed.dto';
+import { Response } from 'src/common/types';
+import { ToggleRoomNotificationDto } from './dto/toogle-room-notification';
 
 @Controller('notifications')
 export class NotificationController {
@@ -45,5 +47,17 @@ export class NotificationController {
       data: isSubscribed,
       message: 'Check subscribed successfully',
     };
+  }
+
+  @Post('room/toggle')
+  async toggleNotification(
+    @Body() toggleRoomNotificationDto: ToggleRoomNotificationDto,
+    @JwtUserId() userId: string,
+  ): Promise<Response<null>> {
+    await this.notificationService.toggleNotification(
+      toggleRoomNotificationDto.roomId,
+      userId,
+    );
+    return { message: 'Notification toggled', data: null };
   }
 }
