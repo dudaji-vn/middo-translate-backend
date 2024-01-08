@@ -17,6 +17,7 @@ import { CreateMessageDto } from './dto';
 import { MediaTypes, Message, MessageType } from './schemas/messages.schema';
 import { convertMessageRemoved } from './utils/convert-message-removed';
 import { NotificationService } from 'src/notification/notification.service';
+import { envConfig } from 'src/configs/env.config';
 
 @Injectable()
 export class MessagesService {
@@ -104,31 +105,43 @@ export class MessagesService {
   }
 
   async sendMessageNotification(message: Message) {
-    let title = 'New message';
-    let body = '';
+    const title = envConfig.app.name;
+    let body = message.sender.name;
     const room = await this.roomsService.findById(message.room._id.toString());
     if (!room) {
       throw new NotFoundException('Room not found');
     }
-    if (room.isGroup) {
-      title += ` in ${room.name !== '' ? room.name : 'your group'}`;
-      body = message.sender.name + ': ';
-    } else {
-      title += ' from ' + message.sender.name;
+
+    switch (message.type) {
+      case MessageType.TEXT:
+        if (room.isGroup) {
+          body += ` sent message in ${
+            room.name !== '' ? room.name : 'your group'
+          }`;
+        }
+        body += `: ${message.content}`;
+        break;
+      case MessageType.MEDIA:
+        body += ' sent media';
+        break;
+      case MessageType.NOTIFICATION:
+        body += ` ${message.content}`;
+        break;
+      case MessageType.ACTION:
+        body = ` ${message.content}`;
+        break;
+      default:
+        break;
     }
 
-    if (message.type === MessageType.MEDIA) {
-      body += 'sent attachment';
-    }
-    if (message.type === MessageType.TEXT) {
-      body += message.content;
-    }
+    const targetUserIds = room.participants.reduce((acc, participant) => {
+      if (participant._id.toString() !== message.sender._id.toString()) {
+        acc.push(participant._id.toString());
+      }
+      return acc;
+    }, [] as string[]);
 
-    this.notificationService.sendNotification(
-      [message.sender._id.toString()],
-      title,
-      body,
-    );
+    this.notificationService.sendNotification(targetUserIds, title, body);
   }
 
   async findMessagesByRoomIdWithCursorPaginate(
