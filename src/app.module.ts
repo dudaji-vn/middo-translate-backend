@@ -13,7 +13,7 @@ import { MailService } from './mail/mail.service';
 import { MessagesModule } from './messages/messages.module';
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { NotificationModule } from './notification/notification.module';
+import { NotificationModule } from './notifications/notifications.module';
 import { PassportModule } from '@nestjs/passport';
 import { RecommendationModule } from './recommendation/recommendation.module';
 import { RoomsModule } from './rooms/rooms.module';
