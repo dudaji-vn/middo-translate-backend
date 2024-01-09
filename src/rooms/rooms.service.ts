@@ -68,7 +68,7 @@ export class RoomsService {
       participants.find((p) => p._id.toString() === creatorId) || ({} as User);
 
     const room = await this.roomModel.create(newRoom);
-    return await room.populate([
+    const responseRoom = await room.populate([
       {
         path: 'participants',
         select: userSelectFieldsString,
@@ -78,6 +78,8 @@ export class RoomsService {
         select: userSelectFieldsString,
       },
     ]);
+    this.eventEmitter.emit(socketConfig.events.room.new, room);
+    return responseRoom;
   }
 
   async deleteRoom(id: string, userId: string) {
