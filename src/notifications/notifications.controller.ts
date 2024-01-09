@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Post } from '@nestjs/common';
 import { NotificationService } from './notifications.service';
-import { JwtUserId } from 'src/common/decorators';
+import { JwtUserId, ParamObjectId } from 'src/common/decorators';
 import { SubscribeDto } from './dto/subscribe.dto';
 import { CheckSubscribedDto } from './dto/check-subscribed.dto';
 import { Response } from 'src/common/types';
@@ -59,5 +59,25 @@ export class NotificationController {
       userId,
     );
     return { message: 'Notification toggled', data: null };
+  }
+  @Post('room/:roomId/check')
+  async checkRoomNotification(
+    @ParamObjectId('roomId') roomId: string,
+    @JwtUserId() userId: string,
+  ): Promise<
+    Response<{
+      isMuted: boolean;
+    }>
+  > {
+    const isMuted = await this.notificationService.checkIsUserIgnoringRoom(
+      roomId,
+      userId,
+    );
+    return {
+      message: 'Notification toggled',
+      data: {
+        isMuted,
+      },
+    };
   }
 }

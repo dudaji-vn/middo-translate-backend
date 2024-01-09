@@ -22,6 +22,7 @@ import { CreateRoomDto } from './dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
 import { Message } from 'src/messages/schemas/messages.schema';
+import { NotificationService } from 'src/notifications/notifications.service';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -29,6 +30,7 @@ export class RoomsService {
   constructor(
     private readonly usersService: UsersService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly notificationService: NotificationService,
     @InjectModel(Room.name) private readonly roomModel: Model<Room>,
   ) {}
   async createRoom(createRoomDto: CreateRoomDto, creatorId: string) {
@@ -275,7 +277,6 @@ export class RoomsService {
       endCursor: rooms[rooms.length - 1]?.newMessageAt?.toISOString(),
       hasNextPage: rooms.length === limit,
     };
-
     return {
       items: rooms.map((room) => ({
         ...room.toObject(),

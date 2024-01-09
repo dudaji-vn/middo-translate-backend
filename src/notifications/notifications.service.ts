@@ -37,6 +37,7 @@ export class NotificationService {
         data: {
           title,
           body,
+          url: link || envConfig.app.url,
         },
         webpush: {
           fcmOptions: {
@@ -127,5 +128,13 @@ export class NotificationService {
       room: roomId,
     });
     return notification.map((n) => n.user._id.toString()) || [];
+  }
+
+  async checkIsUserIgnoringRoom(roomId: string, userId: string) {
+    const notification = await this.roomNotificationModel.exists({
+      room: roomId,
+      user: userId,
+    });
+    return !!notification;
   }
 }
