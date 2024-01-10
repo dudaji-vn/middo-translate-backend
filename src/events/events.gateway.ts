@@ -14,8 +14,12 @@ import { socketConfig } from 'src/configs/socket.config';
 import { NewMessagePayload } from './types/message-payload.type';
 import { UpdateRoomPayload } from './types/room-payload.type';
 import { CallService } from 'src/call/call.service';
+import Meeting from './interface/meeting.interface';
 
-@WebSocketGateway({ cors: '*' })
+@WebSocketGateway({
+  cors: '*',
+  maxHttpBufferSize: 100000000,
+})
 export class EventsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
@@ -123,32 +127,33 @@ export class EventsGateway
   }
 
   // Events for call
-  private usersCall: Record<string, any> = {};
+  private meetings: Record<string, Meeting> = {};
   private socketToRoom: Record<string, any> = {};
+
+  // Handle join call event
   @SubscribeMessage(socketConfig.events.call.join)
   handleJoinCall(
     @ConnectedSocket() client: Socket,
-    @MessageBody()
-    { roomId, user }: { roomId: string; user: any },
+    @MessageBody() { roomId, user }: { roomId: string; user: any },
   ) {
-    if (this.usersCall[roomId]) {
-      this.usersCall[roomId].push({ id: client.id, user });
+    if (this.meetings[roomId]) {
+      this.meetings[roomId].participants.push({ id: client.id, user });
     } else {
-      this.usersCall[roomId] = [{ id: client.id, user }];
+      this.meetings[roomId] = { participants: [{ id: client.id, user }] };
     }
     this.socketToRoom[client.id] = roomId;
-    const userInThisRoom = this.usersCall[roomId].filter(
+    const userInThisRoom = this.meetings[roomId].participants.filter(
       (user: any) => user.id !== client.id,
     );
     client.join(roomId);
     this.server.to(client.id).emit(socketConfig.events.call.list_participant, {
       users: userInThisRoom,
+      doodleImage: this.meetings[roomId].doodleImage,
     });
   }
   // Send signal event
   @SubscribeMessage(socketConfig.events.call.send_signal)
   sendSignal(
-    @ConnectedSocket() client: Socket,
     @MessageBody()
     payload: {
       id: string;
@@ -191,17 +196,16 @@ export class EventsGateway
   @SubscribeMessage(socketConfig.events.call.share_screen)
   handleShareScreen(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { roomId: string },
+    @MessageBody() roomId: string,
   ) {
-    const roomId = payload.roomId;
-    const userInThisRoom = this.usersCall[roomId].filter(
+    const userInRoom = this.meetings[roomId].participants.filter(
       (user: any) => user.id !== client.id,
     );
     this.server
       .to(client.id)
       .emit(
         socketConfig.events.call.list_participant_need_add_screen,
-        userInThisRoom,
+        userInRoom,
       );
   }
   // Request get share screen
@@ -210,17 +214,15 @@ export class EventsGateway
     const roomId = this.socketToRoom[client.id];
     this.server
       .to(roomId)
-      .emit(socketConfig.events.call.request_get_share_screen, {
-        userId: client.id,
-      });
+      .emit(socketConfig.events.call.request_get_share_screen, client.id);
   }
   // Stop share screen
   @SubscribeMessage(socketConfig.events.call.stop_share_screen)
   handleStopShareScreen(@ConnectedSocket() client: Socket) {
     const roomId = this.socketToRoom[client.id];
-    this.server.to(roomId).emit(socketConfig.events.call.stop_share_screen, {
-      userId: client.id,
-    });
+    this.server
+      .to(roomId)
+      .emit(socketConfig.events.call.stop_share_screen, client.id);
   }
   // Request Join Room
   @SubscribeMessage(socketConfig.events.call.request_join_room)
@@ -241,77 +243,103 @@ export class EventsGateway
   handleAcceptJoinRoom(
     @ConnectedSocket() client: Socket,
     @MessageBody()
-    payload: { userId: string; roomInfo: any },
+    payload: { socketId: string; roomInfo: any },
   ) {
     const roomId = this.socketToRoom[client.id];
-    const userId = payload.userId;
-    this.server.to(userId).emit(socketConfig.events.call.accept_join_room, {
+    const socketId = payload.socketId;
+    this.server.to(socketId).emit(socketConfig.events.call.accept_join_room, {
       roomInfo: payload.roomInfo,
     });
-    this.server.to(roomId).emit(socketConfig.events.call.answered_join_room, {
-      userId,
-    });
+    this.server
+      .to(roomId)
+      .emit(socketConfig.events.call.answered_join_room, socketId);
   }
   // Reject Join Room
   @SubscribeMessage(socketConfig.events.call.reject_join_room)
   handleRejectJoinRoom(
     @ConnectedSocket() client: Socket,
     @MessageBody()
-    payload: { userId: string },
+    payload: { socketId: string },
   ) {
     const roomId = this.socketToRoom[client.id];
-    const userId = payload.userId;
-    this.server.to(userId).emit(socketConfig.events.call.reject_join_room);
-    this.server.to(roomId).emit(socketConfig.events.call.answered_join_room, {
-      userId,
-    });
+    const socketId = payload.socketId;
+    this.server.to(socketId).emit(socketConfig.events.call.reject_join_room);
+    this.server
+      .to(roomId)
+      .emit(socketConfig.events.call.answered_join_room, socketId);
   }
   // Start doodle
   @SubscribeMessage(socketConfig.events.call.start_doodle)
   handleStartDoodle(
     @ConnectedSocket() client: Socket,
-    @MessageBody()
-    payload: { image_url: string },
+    @MessageBody() payload: { image_url: string; name: string },
   ) {
     const roomId = this.socketToRoom[client.id];
-    console.log('handleStartDoodle', roomId);
-    this.server.to(roomId).emit(socketConfig.events.call.start_doodle, payload);
+    this.meetings[roomId].doodleImage = payload.image_url;
+    this.meetings[roomId].doodleData = [];
+    this.server.to(roomId).emit(socketConfig.events.call.start_doodle, {
+      image_url: payload.image_url,
+      name: payload.name,
+    });
   }
-
   // End doodle
   @SubscribeMessage(socketConfig.events.call.end_doodle)
-  handleEndDoodle(@ConnectedSocket() client: Socket) {
+  handleEndDoodle(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() name: string,
+  ) {
     const roomId = this.socketToRoom[client.id];
-    this.server.to(roomId).emit(socketConfig.events.call.end_doodle);
+    delete this.meetings[roomId].doodleImage;
+    delete this.meetings[roomId].doodleData;
+    this.server.to(roomId).emit(socketConfig.events.call.end_doodle, name);
   }
-
   // Draw doodle
   @SubscribeMessage(socketConfig.events.call.draw_doodle)
   handleDrawDoodle(
     @ConnectedSocket() client: Socket,
     @MessageBody()
-    payload: any,
+    payload: { path: any; isEraser: boolean; width: number; height: string },
   ) {
     const roomId = this.socketToRoom[client.id];
+    this.meetings[roomId].doodleData?.push({
+      path: payload.path,
+      isEraser: payload.isEraser,
+      width: payload.width,
+      height: payload.height,
+      userId: client.id,
+    });
     this.server.to(roomId).emit(socketConfig.events.call.draw_doodle, {
-      path: payload,
+      path: payload.path,
+      isEraser: payload.isEraser,
+      width: payload.width,
+      height: payload.height,
       userId: client.id,
     });
   }
-
+  // Request get old doodle data
+  @SubscribeMessage(socketConfig.events.call.request_get_old_doodle_data)
+  handleRequestGetOldDoodleData(@ConnectedSocket() client: Socket) {
+    const roomId = this.socketToRoom[client.id];
+    const doodleData = this.meetings[roomId].doodleData;
+    this.server
+      .to(client.id)
+      .emit(socketConfig.events.call.request_get_old_doodle_data, doodleData);
+  }
   private leaveCall(client: Socket) {
     const roomId = this.socketToRoom[client.id];
-    let room = this.usersCall[roomId];
-    if (room) {
-      room = room.filter((user: any) => user.id !== client.id);
-      this.usersCall[roomId] = room;
+    const meeting = this.meetings[roomId];
+    if (meeting) {
+      meeting.participants = meeting.participants.filter(
+        (user: any) => user.id !== client.id,
+      );
+      this.meetings[roomId] = meeting;
     }
     client.leave(roomId);
     this.server.emit(socketConfig.events.call.leave, client.id);
     delete this.socketToRoom[client.id];
-    if (!room || room?.length === 0) {
-      delete this.usersCall[roomId];
-      this.callService.endCall(roomId);
+    if (meeting?.participants.length === 0) {
+      delete this.meetings[roomId];
+      // this.callService.endCall(roomId);
     }
   }
   // Leave call event
