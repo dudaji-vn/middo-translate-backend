@@ -339,7 +339,7 @@ export class EventsGateway
     delete this.socketToRoom[client.id];
     if (meeting?.participants.length === 0) {
       delete this.meetings[roomId];
-      // this.callService.endCall(roomId);
+      this.callService.endCall(roomId);
     }
   }
   // Leave call event
