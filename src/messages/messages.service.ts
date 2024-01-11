@@ -14,7 +14,12 @@ import { RoomsService } from 'src/rooms/rooms.service';
 import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { CreateMessageDto } from './dto';
-import { MediaTypes, Message, MessageType } from './schemas/messages.schema';
+import {
+  MediaTypes,
+  Message,
+  MessageType,
+  Reaction,
+} from './schemas/messages.schema';
 import { convertMessageRemoved } from './utils/convert-message-removed';
 
 @Injectable()
@@ -100,7 +105,7 @@ export class MessagesService {
     return newMessageWithSender;
   }
 
-  async findMessagesByRoomIdWithCursorPaginate(
+  async findByRoomIdWithCursorPaginate(
     roomId: string,
     userId: string,
     params: ListQueryParamsCursor,
@@ -127,6 +132,10 @@ export class MessagesService {
       )
       .populate(
         'targetUsers',
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+      )
+      .populate(
+        'reactions.user',
         selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
       );
 
@@ -189,7 +198,7 @@ export class MessagesService {
     return message;
   }
 
-  async createSystemMessage(
+  async createSystem(
     roomId: string,
     content: string,
     senderId: string,
@@ -208,7 +217,7 @@ export class MessagesService {
     );
     return message;
   }
-  async createActionMessage(
+  async createAction(
     roomId: string,
     senderId: string,
     targetUserIds: string[],
@@ -303,7 +312,7 @@ export class MessagesService {
     };
   }
 
-  async deleteAllMessagesInRoom(roomId: string, userId: string): Promise<void> {
+  async deleteAllInRoom(roomId: string, userId: string): Promise<void> {
     const room = await this.roomsService.findByIdAndUserId(roomId, userId);
     await this.messageModel.updateMany(
       { room: room._id },
@@ -350,7 +359,7 @@ export class MessagesService {
     };
   }
 
-  async seenMessage(id: string, userId: string): Promise<void> {
+  async seen(id: string, userId: string): Promise<void> {
     const message = await this.messageModel
       .findByIdAndUpdate(
         id,
@@ -384,5 +393,54 @@ export class MessagesService {
         lastMessage: message,
       });
     }
+  }
+
+  async react(id: string, userId: string, emoji: string) {
+    const message = await this.messageModel
+      .findById(id)
+      .populate(
+        'reactions.user',
+        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+      );
+    if (!message) {
+      throw new Error('Message not found');
+    }
+    const reactions = message.reactions;
+
+    // 3 cases here
+    // 1. user already reacted
+    // 2. user not reacted with same reaction
+    // 3. user reacted with another reaction
+    const user = await this.usersService.findById(userId);
+    const reaction = reactions.find((r) => r.user._id.toString() === userId);
+    if (reaction) {
+      // case 1
+      if (reaction.emoji === emoji) {
+        // case 1
+        message.reactions = reactions.filter(
+          (r) => r.user._id.toString() !== userId,
+        );
+      } else {
+        // case 3
+        reaction.emoji = emoji;
+      }
+    } else {
+      // case 2
+      const newReaction: Reaction = {
+        user,
+        emoji,
+      } as Reaction;
+      newReaction.user = user;
+      newReaction.emoji = emoji;
+      message.reactions.push(newReaction);
+    }
+    await message.save();
+    this.eventEmitter.emit(socketConfig.events.message.update, {
+      roomId: String(message?.room),
+      message: {
+        _id: message._id,
+        reactions: message.reactions,
+      },
+    });
   }
 }
