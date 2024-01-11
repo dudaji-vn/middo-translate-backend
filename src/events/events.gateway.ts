@@ -148,7 +148,7 @@ export class EventsGateway
     client.join(roomId);
     this.server.to(client.id).emit(socketConfig.events.call.list_participant, {
       users: userInThisRoom,
-      doodleImage: this.meetings[roomId].doodleImage,
+      doodleImage: this.meetings[roomId]?.doodle?.image,
     });
   }
   // Send signal event
@@ -275,8 +275,11 @@ export class EventsGateway
     @MessageBody() payload: { image_url: string; name: string },
   ) {
     const roomId = this.socketToRoom[client.id];
-    this.meetings[roomId].doodleImage = payload.image_url;
-    this.meetings[roomId].doodleData = [];
+    this.meetings[roomId].doodle = {
+      image: payload.image_url,
+      data: [],
+      socketId: client.id,
+    };
     this.server.to(roomId).emit(socketConfig.events.call.start_doodle, {
       image_url: payload.image_url,
       name: payload.name,
@@ -289,8 +292,7 @@ export class EventsGateway
     @MessageBody() name: string,
   ) {
     const roomId = this.socketToRoom[client.id];
-    delete this.meetings[roomId].doodleImage;
-    delete this.meetings[roomId].doodleData;
+    delete this.meetings[roomId].doodle;
     this.server.to(roomId).emit(socketConfig.events.call.end_doodle, name);
   }
   // Draw doodle
@@ -301,7 +303,7 @@ export class EventsGateway
     payload: { path: any; isEraser: boolean; width: number; height: string },
   ) {
     const roomId = this.socketToRoom[client.id];
-    this.meetings[roomId].doodleData?.push({
+    this.meetings[roomId].doodle?.data.push({
       path: payload.path,
       isEraser: payload.isEraser,
       width: payload.width,
@@ -320,7 +322,7 @@ export class EventsGateway
   @SubscribeMessage(socketConfig.events.call.request_get_old_doodle_data)
   handleRequestGetOldDoodleData(@ConnectedSocket() client: Socket) {
     const roomId = this.socketToRoom[client.id];
-    const doodleData = this.meetings[roomId].doodleData;
+    const doodleData = this.meetings[roomId].doodle?.data || [];
     this.server
       .to(client.id)
       .emit(socketConfig.events.call.request_get_old_doodle_data, doodleData);
@@ -328,14 +330,27 @@ export class EventsGateway
   private leaveCall(client: Socket) {
     const roomId = this.socketToRoom[client.id];
     const meeting = this.meetings[roomId];
-    if (meeting) {
-      meeting.participants = meeting.participants.filter(
-        (user: any) => user.id !== client.id,
-      );
-      this.meetings[roomId] = meeting;
+    if (!meeting) return;
+    // Stop doodle if this user start doodle
+    if (meeting?.doodle?.socketId === client.id) {
+      delete this.meetings[roomId].doodle;
+      const nameOfUser = meeting.participants.find(
+        (user: any) => user.id === client.id,
+      )?.user?.name;
+      this.server
+        .to(roomId)
+        .emit(socketConfig.events.call.end_doodle, nameOfUser);
     }
+
+    meeting.participants = meeting.participants.filter(
+      (user: any) => user.id !== client.id,
+    );
+    this.meetings[roomId] = meeting;
+    // Leave room
     client.leave(roomId);
     this.server.emit(socketConfig.events.call.leave, client.id);
+
+    // Check if room is empty then delete room
     delete this.socketToRoom[client.id];
     if (meeting?.participants.length === 0) {
       delete this.meetings[roomId];

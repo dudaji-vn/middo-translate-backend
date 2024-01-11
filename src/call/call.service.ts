@@ -30,7 +30,7 @@ export class CallService {
       if (call) {
         return {
           status: STATUS.JOIN_SUCCESS,
-          room: room,
+          room: call,
         };
       }
       let roomName = '';
@@ -51,6 +51,7 @@ export class CallService {
         room: newCallObj,
       };
     } catch (error) {
+      console.log(error);
       return { status: 'SERVER_ERROR' };
     }
   }

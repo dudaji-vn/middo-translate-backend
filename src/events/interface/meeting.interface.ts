@@ -1,5 +1,8 @@
 export default interface Meeting {
   participants: any[];
-  doodleImage?: string;
-  doodleData?: any[];
+  doodle?: {
+    image: string;
+    data: any[];
+    socketId: string;
+  };
 }
