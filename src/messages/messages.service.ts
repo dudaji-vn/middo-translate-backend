@@ -21,12 +21,15 @@ import {
   Reaction,
 } from './schemas/messages.schema';
 import { convertMessageRemoved } from './utils/convert-message-removed';
+import { NotificationService } from 'src/notifications/notifications.service';
+import { envConfig } from 'src/configs/env.config';
 
 @Injectable()
 export class MessagesService {
   constructor(
     private readonly usersService: UsersService,
     private readonly roomsService: RoomsService,
+    private readonly notificationService: NotificationService,
     private readonly eventEmitter: EventEmitter2,
     @InjectModel(Message.name) private messageModel: Model<Message>,
   ) {}
@@ -102,7 +105,55 @@ export class MessagesService {
       newMessageAt: new Date(),
     });
     this.eventEmitter.emit(socketConfig.events.message.new, socketPayload);
+    this.sendMessageNotification(newMessageWithSender);
     return newMessageWithSender;
+  }
+
+  async sendMessageNotification(message: Message) {
+    const title = envConfig.app.name;
+    let body = message.sender.name;
+    const room = await this.roomsService.findById(message.room._id.toString());
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+
+    switch (message.type) {
+      case MessageType.TEXT:
+        if (room.isGroup) {
+          body += ` sent message in ${
+            room.name !== '' ? room.name : 'your group'
+          }`;
+        }
+        body += `: ${message.content}`;
+        break;
+      case MessageType.MEDIA:
+        body += ' sent media';
+        break;
+      case MessageType.NOTIFICATION:
+        body += ` ${message.content}`;
+        break;
+      case MessageType.ACTION:
+        body = ` ${message.content}`;
+        break;
+      default:
+        break;
+    }
+
+    let targetUserIds = room.participants.reduce((acc, participant) => {
+      if (participant._id.toString() !== message.sender._id.toString()) {
+        acc.push(participant._id.toString());
+      }
+      return acc;
+    }, [] as string[]);
+
+    const userIgnoredNotification =
+      await this.notificationService.getUsersIgnoringRoom(room._id.toString());
+
+    targetUserIds = targetUserIds.filter(
+      (id) => !userIgnoredNotification.includes(id),
+    );
+    const link = `${envConfig.app.url}/talk/${room._id}`;
+    this.notificationService.sendNotification(targetUserIds, title, body, link);
   }
 
   async findByRoomIdWithCursorPaginate(

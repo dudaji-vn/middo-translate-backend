@@ -1,4 +1,5 @@
 import * as compression from 'compression';
+import * as firebase from 'firebase-admin';
 import * as passport from 'passport';
 
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -25,6 +26,16 @@ async function bootstrap() {
     origin: '*',
   });
   app.use(passport.initialize());
+  firebase.initializeApp({
+    credential: firebase.credential.cert({
+      clientEmail: envConfig.firebase.credentials.clientEmail,
+      privateKey: envConfig.firebase.credentials.privateKey.replace(
+        /\\n/g,
+        '\n',
+      ),
+      projectId: envConfig.firebase.credentials.projectId,
+    }),
+  });
   const config = new DocumentBuilder()
     .setTitle('Cats example')
     .setDescription('The cats API description')

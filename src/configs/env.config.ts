@@ -4,8 +4,9 @@ config();
 
 export const envConfig = {
   app: {
-    url: process.env.APP_URL || 'http://localhost:3000',
+    url: process.env.CLIENT_URL || 'http://localhost:3000',
     serverUrl: process.env.SERVER_URL || 'http://localhost:8080',
+    name: process.env.APP_NAME || 'Nest',
   },
   database: {
     uri: process.env.DATABASE_URI || 'mongodb://localhost/nest',
@@ -43,5 +44,13 @@ export const envConfig = {
     RegExp: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/,
     errorMessage:
       'At least 8 characters, contain one capital, not allowed special character',
+  },
+
+  firebase: {
+    credentials: {
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL as string,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY as string,
+      projectId: process.env.FIREBASE_PROJECT_ID as string,
+    },
   },
 };
