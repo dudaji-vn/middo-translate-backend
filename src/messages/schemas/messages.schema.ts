@@ -1,8 +1,19 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { HydratedDocument, ObjectId } from 'mongoose';
+import mongoose, { Document, HydratedDocument, ObjectId } from 'mongoose';
 
 import { Room } from 'src/rooms/schemas/room.schema';
 import { User } from 'src/users/schemas/user.schema';
+
+@Schema({ _id: false }) // _id: false because this is a subdocument
+export class Reaction extends Document {
+  @Prop({ required: true })
+  emoji: string;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: User.name })
+  user: User;
+}
+
+export const ReactionSchema = SchemaFactory.createForClass(Reaction);
 
 export type MessageDocument = HydratedDocument<Message>;
 
@@ -95,6 +106,9 @@ export class Message {
   targetUsers: User[];
   @Prop({ type: String })
   language: string;
+
+  @Prop({ type: [ReactionSchema], default: [] })
+  reactions: Reaction[];
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

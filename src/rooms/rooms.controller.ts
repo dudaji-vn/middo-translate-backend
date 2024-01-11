@@ -68,12 +68,11 @@ export class RoomsController {
     @JwtUserId() userId: string,
     @Query() query: ListQueryParamsCursorDto,
   ): Promise<Response<Pagination<Message, CursorPaginationInfo>>> {
-    const data =
-      await this.messagesService.findMessagesByRoomIdWithCursorPaginate(
-        id,
-        userId,
-        query,
-      );
+    const data = await this.messagesService.findByRoomIdWithCursorPaginate(
+      id,
+      userId,
+      query,
+    );
     return { data, message: 'Room found' };
   }
 
@@ -135,7 +134,7 @@ export class RoomsController {
       userId,
     );
     if (updateRoomDto.name) {
-      this.messagesService.createSystemMessage(
+      this.messagesService.createSystem(
         id,
         `change group name to ${updateRoomDto.name}`,
         userId,
@@ -143,19 +142,11 @@ export class RoomsController {
     }
 
     if (isRemoveName) {
-      this.messagesService.createSystemMessage(
-        id,
-        `removed group name`,
-        userId,
-      );
+      this.messagesService.createSystem(id, `removed group name`, userId);
     }
 
     if (updateRoomDto.avatar) {
-      this.messagesService.createSystemMessage(
-        id,
-        `change group avatar`,
-        userId,
-      );
+      this.messagesService.createSystem(id, `change group avatar`, userId);
     }
     return { data: room, message: 'Room updated' };
   }
@@ -171,12 +162,7 @@ export class RoomsController {
       participants,
       userId,
     );
-    this.messagesService.createActionMessage(
-      id,
-      userId,
-      participants,
-      'addToGroup',
-    );
+    this.messagesService.createAction(id, userId, participants, 'addToGroup');
     return { data: room, message: 'Room updated' };
   }
 
@@ -191,7 +177,7 @@ export class RoomsController {
       currentUserId,
       userTargetId,
     );
-    this.messagesService.createActionMessage(
+    this.messagesService.createAction(
       id,
       currentUserId,
       [userTargetId],
@@ -235,7 +221,7 @@ export class RoomsController {
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
   ): Promise<Response<null>> {
-    await this.messagesService.deleteAllMessagesInRoom(id, userId);
+    await this.messagesService.deleteAllInRoom(id, userId);
     return { message: 'Messages deleted', data: null };
   }
 }
