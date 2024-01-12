@@ -389,15 +389,15 @@ export class EventsGateway
     delete this.socketToRoom[client.id];
     if (meeting?.participants.length === 0) {
       const room = this.meetings[roomId]?.room;
-      const participants = room.participants.filter((p: any) =>
+      const participants = room?.participants?.filter((p: any) =>
         p._id.toString(),
       );
       const socketIds = participants
-        .map((p: any) => this.clients[p.toString()]?.socketIds || [])
+        ?.map((p: any) => this.clients[p.toString()]?.socketIds || [])
         .flat();
       this.server
         .to(socketIds)
-        .emit(socketConfig.events.call.meeting_end, room._id);
+        .emit(socketConfig.events.call.meeting_end, room?._id);
       delete this.meetings[roomId];
       this.callService.endCall(roomId);
     }
