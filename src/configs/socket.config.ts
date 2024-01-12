@@ -39,6 +39,8 @@ export const socketConfig = {
       draw_doodle: 'call.draw_doodle',
       request_get_old_doodle_data: 'call.request_get_old_doodle_data',
       send_old_doodle_data: 'call.send_old_doodle_data',
+      starting_new_call: 'call.starting_new_call',
+      meeting_end: 'call.meeting_end',
     },
   },
 };

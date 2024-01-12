@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
-import { JwtUserId, Public } from 'src/common/decorators';
+import { JwtUserId } from 'src/common/decorators';
 import { CallService } from './call.service';
 
 @Controller('call')
@@ -14,6 +14,11 @@ export class CallController {
       id: userId,
       roomId: roomId,
     });
+    return { data: result };
+  }
+  @Post('check-is-have-meeting')
+  async checkIsHaveMeeting(@Body() { roomId }: { roomId: string }) {
+    const result = await this.callService.checkIsHaveMeeting(roomId);
     return { data: result };
   }
   @Get(':slug')

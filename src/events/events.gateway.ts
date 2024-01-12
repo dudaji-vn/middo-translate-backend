@@ -158,6 +158,34 @@ export class EventsGateway
       doodleImage: this.meetings[roomId]?.doodle?.image,
     });
   }
+
+  // Starting new call
+  @SubscribeMessage(socketConfig.events.call.starting_new_call)
+  handleStartingNewCall(
+    @MessageBody()
+    {
+      participants,
+      call,
+      room,
+      user,
+    }: {
+      participants: string[];
+      call: any;
+      room: any;
+      user: any;
+    },
+  ) {
+    if (!this.meetings[call._id]) {
+      this.meetings[call._id] = { participants: [], room };
+    }
+    const socketIds = participants
+      .map((p) => this.clients[p.toString()]?.socketIds || [])
+      .flat();
+    this.server.to(socketIds).emit(socketConfig.events.call.starting_new_call, {
+      call,
+      user,
+    });
+  }
   // Send signal event
   @SubscribeMessage(socketConfig.events.call.send_signal)
   sendSignal(
@@ -360,6 +388,16 @@ export class EventsGateway
     // Check if room is empty then delete room
     delete this.socketToRoom[client.id];
     if (meeting?.participants.length === 0) {
+      const room = this.meetings[roomId]?.room;
+      const participants = room.participants.filter((p: any) =>
+        p._id.toString(),
+      );
+      const socketIds = participants
+        .map((p: any) => this.clients[p.toString()]?.socketIds || [])
+        .flat();
+      this.server
+        .to(socketIds)
+        .emit(socketConfig.events.call.meeting_end, room._id);
       delete this.meetings[roomId];
       this.callService.endCall(roomId);
     }
