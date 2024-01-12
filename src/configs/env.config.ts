@@ -4,8 +4,9 @@ config();
 
 export const envConfig = {
   app: {
-    url: process.env.APP_URL || 'http://localhost:3000',
+    url: process.env.CLIENT_URL || 'http://localhost:3000',
     serverUrl: process.env.SERVER_URL || 'http://localhost:8080',
+    name: process.env.APP_NAME || 'Nest',
   },
   database: {
     uri: process.env.DATABASE_URI || 'mongodb://localhost/nest',

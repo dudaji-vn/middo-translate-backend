@@ -5,6 +5,7 @@ import { CreateMessageDto } from './dto';
 import { Message } from './schemas/messages.schema';
 import { Response } from 'src/common/types';
 import { RemoveParamsMessageDto } from './dto/remove-params-message.dto';
+import { ReactMessageDto } from './dto/react-message.dto';
 
 @Controller('messages')
 export class MessagesController {
@@ -39,10 +40,23 @@ export class MessagesController {
 
   @Patch(':id/seen')
   async seenMessage(@ParamObjectId() id: string, @JwtUserId() userId: string) {
-    await this.messagesService.seenMessage(id, userId);
+    await this.messagesService.seen(id, userId);
     return {
       data: null,
       message: 'Message seen',
+    };
+  }
+
+  @Patch(':id/react')
+  async reactMessage(
+    @ParamObjectId() id: string,
+    @JwtUserId() userId: string,
+    @Body() { emoji }: ReactMessageDto,
+  ) {
+    await this.messagesService.react(id, userId, emoji);
+    return {
+      data: null,
+      message: 'Message reacted',
     };
   }
 }

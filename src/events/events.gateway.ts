@@ -15,6 +15,7 @@ import { NewMessagePayload } from './types/message-payload.type';
 import { UpdateRoomPayload } from './types/room-payload.type';
 import { CallService } from 'src/call/call.service';
 import Meeting from './interface/meeting.interface';
+import { Room } from 'src/rooms/schemas/room.schema';
 
 @WebSocketGateway({
   cors: '*',
@@ -52,7 +53,6 @@ export class EventsGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() userId: number,
   ) {
-    // console.log('client.join', userId);
     client.join(userId.toString());
     this.clients[userId.toString()] = {
       socketIds: [
@@ -94,6 +94,13 @@ export class EventsGateway
       roomId,
       data,
     });
+  }
+  @OnEvent(socketConfig.events.room.new)
+  async handleNewRoom(room: Room) {
+    const socketIds = room.participants
+      .map((p) => this.clients[p._id.toString()]?.socketIds || [])
+      .flat();
+    this.server.to(socketIds).emit(socketConfig.events.room.new, room);
   }
   @OnEvent(socketConfig.events.message.update)
   async handleUpdateMessage({ roomId, message }: NewMessagePayload) {
