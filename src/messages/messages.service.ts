@@ -179,15 +179,33 @@ export class MessagesService {
       .limit(limit)
       .populate(
         'sender',
-        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
       )
       .populate(
         'targetUsers',
-        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
       )
       .populate(
         'reactions.user',
-        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'email',
+          'avatar',
+          'language',
+        ]),
       );
 
     return {
@@ -451,7 +469,13 @@ export class MessagesService {
       .findById(id)
       .populate(
         'reactions.user',
-        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'email',
+          'avatar',
+          'language',
+        ]),
       );
     if (!message) {
       throw new Error('Message not found');
@@ -484,6 +508,15 @@ export class MessagesService {
       newReaction.user = user;
       newReaction.emoji = emoji;
       message.reactions.push(newReaction);
+      if (message.sender._id.toString() !== userId) {
+        const link = `${envConfig.app.url}/talk/${message.room._id}`;
+        this.notificationService.sendNotification(
+          [message.sender._id.toString()],
+          envConfig.app.name,
+          `${user.name} reacted to your message`,
+          link,
+        );
+      }
     }
     await message.save();
     this.eventEmitter.emit(socketConfig.events.message.update, {
