@@ -18,6 +18,8 @@ export class Call {
   @Prop({ type: Date, default: null })
   endTime: Date;
   @Prop({ type: String })
+  avatar: string;
+  @Prop({ type: String })
   slug: string;
   @Prop({ type: String })
   name: string;

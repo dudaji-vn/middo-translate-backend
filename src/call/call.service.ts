@@ -3,8 +3,8 @@ import { InjectModel } from '@nestjs/mongoose';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { Call } from './schemas/call.schema';
 import { Model } from 'mongoose';
-import { generateSlug } from 'src/common/utils/generate-slug';
 import { STATUS } from './constants/call-status';
+import { CALL_TYPE } from './constants/call-type';
 @Injectable()
 export class CallService {
   constructor(
@@ -30,7 +30,9 @@ export class CallService {
       if (call) {
         return {
           status: STATUS.JOIN_SUCCESS,
-          room: call,
+          call: call,
+          room: room,
+          type: CALL_TYPE.JOIN_ROOM,
         };
       }
       let roomName = '';
@@ -44,14 +46,19 @@ export class CallService {
           roomName = roomName.slice(0, -2);
         }
       }
-      const newCall = { roomId: payload.roomId, name: roomName };
+      const newCall = {
+        roomId: payload.roomId,
+        name: roomName,
+        avatar: room?.avatar,
+      };
       const newCallObj = await this.callModel.create(newCall);
       return {
         status: STATUS.JOIN_SUCCESS,
-        room: newCallObj,
+        call: newCallObj,
+        room: room,
+        type: CALL_TYPE.NEW_CALL,
       };
     } catch (error) {
-      console.log(error);
       return { status: 'SERVER_ERROR' };
     }
   }
@@ -89,7 +96,21 @@ export class CallService {
       call.endTime = new Date();
       await call.save();
     } catch (error) {
-      return;
+      return { status: 'SERVER_ERROR' };
+    }
+  }
+  async checkIsHaveMeeting(roomId: string) {
+    try {
+      const call = await this.callModel.findOne({
+        roomId: roomId,
+        endTime: null,
+      });
+      if (!call) {
+        return { status: STATUS.MEEING_NOT_FOUND };
+      }
+      return { status: STATUS.MEETING_STARTED };
+    } catch (error) {
+      return { status: 'SERVER_ERROR' };
     }
   }
 }
