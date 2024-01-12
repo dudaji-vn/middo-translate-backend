@@ -17,7 +17,7 @@ export class Call {
   roomId: Room;
   @Prop({ type: Date, default: null })
   endTime: Date;
-  @Prop({ type: String, unique: true })
+  @Prop({ type: String })
   slug: string;
   @Prop({ type: String })
   name: string;

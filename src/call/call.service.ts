@@ -30,15 +30,9 @@ export class CallService {
       if (call) {
         return {
           status: STATUS.JOIN_SUCCESS,
-          slug: call.slug,
+          room: call,
         };
       }
-      let slug = '';
-      do {
-        slug = generateSlug();
-        const call = await this.callModel.exists({ slug });
-        if (!call) break;
-      } while (true);
       let roomName = '';
       if (room) {
         if (room.name) roomName = room.name;
@@ -50,14 +44,14 @@ export class CallService {
           roomName = roomName.slice(0, -2);
         }
       }
-      const newCall = { roomId: payload.roomId, slug, name: roomName };
-
+      const newCall = { roomId: payload.roomId, name: roomName };
       const newCallObj = await this.callModel.create(newCall);
       return {
         status: STATUS.JOIN_SUCCESS,
-        slug: newCallObj.slug,
+        room: newCallObj,
       };
     } catch (error) {
+      console.log(error);
       return { status: 'SERVER_ERROR' };
     }
   }
@@ -88,10 +82,7 @@ export class CallService {
   async endCall(roomId: string) {
     try {
       if (!roomId) return;
-      const call = await this.callModel.findOne({
-        slug: roomId,
-        endTime: null,
-      });
+      const call = await this.callModel.findById(roomId);
       if (!call) {
         return;
       }
