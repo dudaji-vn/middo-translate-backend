@@ -4,6 +4,7 @@ const commander = require("commander");
 const program = new commander.Command();
 
 const { getUsers } = require('./users.js');
+const { getDailyMsgStat } = require('./msgs.js');
 const { get } = require("http");
 
 program
@@ -15,6 +16,12 @@ program.command('get-users')
     .description('Get users')
     .action(function () {
         getUsers();
+    });
+
+program.command('get-daily-msg-stat')
+    .description('Get daily msg stat')
+    .action(function () {
+        getDailyMsgStat();
     });
 
 program.parse();

@@ -20,7 +20,7 @@ async function _getUsers(client) {
         table.push(row);
     });
     console.log(table.toString());
-    return r;
+    return true;
 }
 
 
