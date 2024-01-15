@@ -21,9 +21,12 @@ export class CallController {
     const result = await this.callService.checkIsHaveMeeting(roomId);
     return { data: result };
   }
-  @Get(':slug')
-  async getCallInfo(@JwtUserId() userId: string, @Param('slug') slug: string) {
-    const result = await this.callService.getCallInfo({ slug, userId });
+  @Post('get-call-info')
+  async getCallInfo(
+    @JwtUserId() userId: string,
+    @Body() { roomId }: { roomId: string },
+  ) {
+    const result = await this.callService.getCallInfo({ roomId });
     return { data: result };
   }
 }

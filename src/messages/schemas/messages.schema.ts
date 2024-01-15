@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document, HydratedDocument, ObjectId } from 'mongoose';
+import { Call } from 'src/call/schemas/call.schema';
 
 import { Room } from 'src/rooms/schemas/room.schema';
 import { User } from 'src/users/schemas/user.schema';
@@ -109,6 +110,9 @@ export class Message {
 
   @Prop({ type: [ReactionSchema], default: [] })
   reactions: Reaction[];
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Call' })
+  call: Call;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

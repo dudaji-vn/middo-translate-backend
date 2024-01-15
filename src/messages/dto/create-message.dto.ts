@@ -12,4 +12,6 @@ export class CreateMessageDto {
   type?: MessageType;
   targetUserIds?: string[];
   language?: string;
+  @IsMongoId()
+  callId?: string;
 }
