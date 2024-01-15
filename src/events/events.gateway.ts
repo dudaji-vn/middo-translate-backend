@@ -159,31 +159,22 @@ export class EventsGateway
     });
   }
 
-  // Starting new call
-  @SubscribeMessage(socketConfig.events.call.starting_new_call)
-  handleStartingNewCall(
+  // Send notify invite_to_call event
+  @SubscribeMessage(socketConfig.events.call.invite_to_call)
+  sendNotifyJoinCall(
     @MessageBody()
-    {
-      participants,
-      call,
-      room,
-      user,
-    }: {
-      participants: string[];
-      call: any;
-      room: any;
+    payload: {
+      users: string[];
+      call: string;
       user: any;
     },
   ) {
-    if (!this.meetings[call._id]) {
-      this.meetings[call._id] = { participants: [], room };
-    }
-    const socketIds = participants
+    const socketIds = payload.users
       .map((p) => this.clients[p.toString()]?.socketIds || [])
       .flat();
-    this.server.to(socketIds).emit(socketConfig.events.call.starting_new_call, {
-      call,
-      user,
+    this.server.to(socketIds).emit(socketConfig.events.call.invite_to_call, {
+      call: payload.call,
+      user: payload.user,
     });
   }
   // Send signal event
@@ -205,6 +196,7 @@ export class EventsGateway
       isShareScreen: payload.isShareScreen,
     });
   }
+
   // Return signal event
   @SubscribeMessage(socketConfig.events.call.return_signal)
   returnSignal(

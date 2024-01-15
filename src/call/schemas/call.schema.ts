@@ -20,7 +20,7 @@ export class Call {
   @Prop({ type: String })
   avatar: string;
   @Prop({ type: String })
-  slug: string;
+  type: string;
   @Prop({ type: String })
   name: string;
   @Prop({
