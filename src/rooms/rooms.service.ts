@@ -517,16 +517,74 @@ export class RoomsService {
     ]);
   }
 
-  async findRecentChatRooms(userId: string) {
+  async findRecentChatRooms(userId: string, notGroup = false) {
     const rooms = await this.roomModel
       .find({
         participants: userId,
-        isGroup: false,
+        ...(notGroup ? { isGroup: false } : {}),
         status: RoomStatus.ACTIVE,
       })
       .sort({ newMessageAt: -1 })
-      .limit(5)
+      .limit(10)
       .populate('participants');
     return rooms;
+  }
+
+  async findOrCreateByIdAndUserId(
+    id: string,
+    userId: string,
+    inCludeDeleted = false,
+  ) {
+    let room = await this.roomModel.findOne({
+      _id: id,
+      participants: userId,
+      ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
+    });
+
+    if (!room) {
+      const participantIds = [...new Set([userId, id])];
+      room = await this.roomModel.findOne({
+        participants: {
+          $all: participantIds,
+          $size: participantIds.length,
+        },
+        ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
+      });
+    }
+    if (!room) {
+      const participantIds = [id];
+      try {
+        const participants = await Promise.all(
+          participantIds.map((id) => this.usersService.findById(id)),
+        );
+        room = await this.createRoom(
+          {
+            isGroup: false,
+            participants: participants.map((p) => p._id),
+          },
+          userId,
+        );
+      } catch (error) {
+        throw new NotFoundException('Room not found');
+      }
+    }
+
+    return await room.populate([
+      {
+        path: 'participants',
+        select: userSelectFieldsString,
+      },
+      {
+        path: 'lastMessage',
+        populate: {
+          path: 'sender',
+          select: userSelectFieldsString,
+        },
+      },
+      {
+        path: 'admin',
+        select: userSelectFieldsString,
+      },
+    ]);
   }
 }
