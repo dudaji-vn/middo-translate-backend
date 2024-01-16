@@ -74,6 +74,48 @@ export class MessagesService {
           },
         ],
       },
+      {
+        path: 'forwardOf',
+        select: selectPopulateField<Message>([
+          '_id',
+          'content',
+          'contentEnglish',
+          'type',
+          'media',
+          'sender',
+          'targetUsers',
+          'reactions',
+          'forwardOf',
+          'room',
+        ]),
+        populate: [
+          {
+            path: 'sender',
+            select: selectPopulateField<User>([
+              '_id',
+              'name',
+              'avatar',
+              'email',
+              'language',
+            ]),
+          },
+          {
+            path: 'room',
+            select: selectPopulateField<Room>([
+              '_id',
+              'name',
+              'participants',
+              'isGroup',
+            ]),
+            populate: [
+              {
+                path: 'participants',
+                select: selectPopulateField<User>(['_id']),
+              },
+            ],
+          },
+        ],
+      },
     ]);
     if (!message) {
       throw new Error('Message not found');
@@ -256,6 +298,7 @@ export class MessagesService {
           'language',
         ]),
       )
+      .populate('call', selectPopulateField<Call>(['endTime', '_id', 'type']))
       .populate(
         'reactions.user',
         selectPopulateField<User>([
@@ -638,10 +681,15 @@ export class MessagesService {
   ) {
     const { roomIds, message } = data;
 
-    const forwardMessage = await this.messageModel.findById(forwardedId);
+    let forwardMessage = await this.findById(forwardedId);
     if (!forwardMessage) {
       throw new Error('Message not found');
     }
+
+    if (!forwardMessage.content && forwardMessage?.forwardOf) {
+      forwardMessage = forwardMessage.forwardOf;
+    }
+
     const rooms = await Promise.all(
       roomIds.map((id) =>
         this.roomsService.findOrCreateByIdAndUserId(id.toString(), senderId),
