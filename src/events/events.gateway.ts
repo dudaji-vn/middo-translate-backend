@@ -354,6 +354,15 @@ export class EventsGateway
       .to(client.id)
       .emit(socketConfig.events.call.request_get_old_doodle_data, doodleData);
   }
+  // Send caption
+  @SubscribeMessage(socketConfig.events.call.send_caption)
+  handleSendCaption(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: any,
+  ) {
+    const roomId = this.socketToRoom[client.id];
+    this.server.to(roomId).emit(socketConfig.events.call.send_caption, payload);
+  }
   private leaveCall(client: Socket) {
     const roomId = this.socketToRoom[client.id];
     const meeting = this.meetings[roomId];
