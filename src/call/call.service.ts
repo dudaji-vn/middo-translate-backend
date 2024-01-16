@@ -4,7 +4,7 @@ import { RoomsService } from 'src/rooms/rooms.service';
 import { Call } from './schemas/call.schema';
 import { Model } from 'mongoose';
 import { STATUS } from './constants/call-status';
-import { CALL_TYPE } from './constants/call-type';
+import { CALL_TYPE, JOIN_TYPE } from './constants/call-type';
 import { MessagesService } from 'src/messages/messages.service';
 import { MessageType } from 'src/messages/schemas/messages.schema';
 @Injectable()
@@ -35,7 +35,7 @@ export class CallService {
           status: STATUS.JOIN_SUCCESS,
           call: call,
           room: room,
-          type: CALL_TYPE.JOIN_ROOM,
+          type: JOIN_TYPE.JOIN_ROOM,
         };
       }
       let roomName = '';
@@ -58,6 +58,7 @@ export class CallService {
         name: roomName,
         avatar: room?.avatar,
         createdBy: payload.id,
+        type: room.participants.length > 2 ? CALL_TYPE.GROUP : CALL_TYPE.DIRECT,
       };
       const newCallObj = await this.callModel.create(newCall);
       this.messageService.create(
@@ -74,7 +75,7 @@ export class CallService {
         status: STATUS.JOIN_SUCCESS,
         call: newCallObj,
         room: room,
-        type: CALL_TYPE.NEW_CALL,
+        type: JOIN_TYPE.NEW_CALL,
       };
     } catch (error) {
       return { status: 'SERVER_ERROR' };
