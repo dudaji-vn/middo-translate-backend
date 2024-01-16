@@ -25,6 +25,8 @@ import { NotificationService } from 'src/notifications/notifications.service';
 import { envConfig } from 'src/configs/env.config';
 import { ForwardMessageDto } from './dto/forward-message.dto';
 import { Room } from 'src/rooms/schemas/room.schema';
+import { CallService } from 'src/call/call.service';
+import { Call } from 'src/call/schemas/call.schema';
 
 @Injectable()
 export class MessagesService {
@@ -34,6 +36,7 @@ export class MessagesService {
     private readonly notificationService: NotificationService,
     private readonly eventEmitter: EventEmitter2,
     @InjectModel(Message.name) private messageModel: Model<Message>,
+    @InjectModel(Call.name) private readonly callModel: Model<Call>,
   ) {}
 
   async findById(id: string): Promise<Message> {
@@ -123,6 +126,10 @@ export class MessagesService {
     createdMessage.room = room;
     createdMessage.readBy = [user._id];
     createdMessage.deliveredTo = [user._id];
+    if (createMessageDto.callId) {
+      const call = await this.callModel.findById(createMessageDto.callId);
+      if (call) createdMessage.call = call;
+    }
     const newMessage = await createdMessage.save();
 
     const newMessageWithSender = await newMessage.populate([

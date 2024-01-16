@@ -5,11 +5,13 @@ import { UsersModule } from 'src/users/users.module';
 import { MongooseModule } from '@nestjs/mongoose';
 import { Call, CallSchema } from './schemas/call.schema';
 import { RoomsModule } from 'src/rooms/rooms.module';
+import { MessagesModule } from 'src/messages/messages.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Call.name, schema: CallSchema }]),
     UsersModule,
+    forwardRef(() => MessagesModule),
     forwardRef(() => RoomsModule),
   ],
   providers: [CallService],
