@@ -23,6 +23,8 @@ import {
 import { convertMessageRemoved } from './utils/convert-message-removed';
 import { NotificationService } from 'src/notifications/notifications.service';
 import { envConfig } from 'src/configs/env.config';
+import { ForwardMessageDto } from './dto/forward-message.dto';
+import { Room } from 'src/rooms/schemas/room.schema';
 
 @Injectable()
 export class MessagesService {
@@ -33,6 +35,48 @@ export class MessagesService {
     private readonly eventEmitter: EventEmitter2,
     @InjectModel(Message.name) private messageModel: Model<Message>,
   ) {}
+
+  async findById(id: string): Promise<Message> {
+    const message = await this.messageModel.findById(id).populate([
+      {
+        path: 'sender',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'language',
+        ]),
+      },
+      {
+        path: 'targetUsers',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'language',
+        ]),
+      },
+      {
+        path: 'room',
+        select: selectPopulateField<Room>([
+          '_id',
+          'name',
+          'isGroup',
+          'participants',
+        ]),
+        populate: [
+          {
+            path: 'participants',
+            select: selectPopulateField<User>(['_id']),
+          },
+        ],
+      },
+    ]);
+    if (!message) {
+      throw new Error('Message not found');
+    }
+    return message;
+  }
 
   async create(
     createMessageDto: CreateMessageDto,
@@ -56,6 +100,7 @@ export class MessagesService {
     createdMessage.media = createMessageDto.media || [];
     createdMessage.language = createMessageDto.language || '';
     createdMessage.type = createMessageDto.type || MessageType.TEXT;
+
     if (createdMessage.media.length > 0) {
       createdMessage.type = MessageType.MEDIA;
     }
@@ -66,6 +111,12 @@ export class MessagesService {
     ) {
       createdMessage.targetUsers = await this.usersService.findManyByIds(
         createMessageDto.targetUserIds,
+      );
+    }
+
+    if (createMessageDto.forwardOfId) {
+      createdMessage.forwardOf = await this.findById(
+        createMessageDto.forwardOfId,
       );
     }
 
@@ -171,6 +222,7 @@ export class MessagesService {
       room: room._id,
       _id: { $lt: cursor },
       deleteFor: { $nin: [userId] },
+      isForwarded: { $ne: true },
     };
 
     const messages = await this.messageModel
@@ -206,7 +258,51 @@ export class MessagesService {
           'avatar',
           'language',
         ]),
-      );
+      )
+      .populate([
+        {
+          path: 'forwardOf',
+          select: selectPopulateField<Message>([
+            '_id',
+            'content',
+            'contentEnglish',
+            'type',
+            'media',
+            'sender',
+            'targetUsers',
+            'reactions',
+            'forwardOf',
+            'room',
+          ]),
+          populate: [
+            {
+              path: 'sender',
+              select: selectPopulateField<User>([
+                '_id',
+                'name',
+                'avatar',
+                'email',
+                'language',
+              ]),
+            },
+            {
+              path: 'room',
+              select: selectPopulateField<Room>([
+                '_id',
+                'name',
+                'participants',
+                'isGroup',
+              ]),
+              populate: [
+                {
+                  path: 'participants',
+                  select: selectPopulateField<User>(['_id']),
+                },
+              ],
+            },
+          ],
+        },
+      ]);
 
     return {
       items: messages.map((message) => {
@@ -526,5 +622,40 @@ export class MessagesService {
         reactions: message.reactions,
       },
     });
+  }
+
+  async forward(
+    forwardedId: string,
+    senderId: string,
+    data: ForwardMessageDto,
+  ) {
+    const { roomIds, message } = data;
+
+    const forwardMessage = await this.messageModel.findById(forwardedId);
+    if (!forwardMessage) {
+      throw new Error('Message not found');
+    }
+    const rooms = await Promise.all(
+      roomIds.map((id) =>
+        this.roomsService.findOrCreateByIdAndUserId(id.toString(), senderId),
+      ),
+    );
+    await Promise.all(
+      rooms.map(async (room) => {
+        const cloneForwardMessage = new this.messageModel();
+        cloneForwardMessage.sender = forwardMessage.sender;
+        cloneForwardMessage.content = forwardMessage.content;
+        cloneForwardMessage.contentEnglish = forwardMessage.contentEnglish;
+        cloneForwardMessage.media = forwardMessage.media;
+        cloneForwardMessage.language = forwardMessage.language;
+        cloneForwardMessage.type = forwardMessage.type;
+        cloneForwardMessage.room = forwardMessage.room;
+        cloneForwardMessage.isForwarded = true;
+        const savedClone = await cloneForwardMessage.save();
+        message.forwardOfId = savedClone._id.toString();
+        message.roomId = room._id.toString();
+        this.create(message, senderId, true);
+      }),
+    );
   }
 }

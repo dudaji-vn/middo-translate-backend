@@ -6,6 +6,7 @@ import { Message } from './schemas/messages.schema';
 import { Response } from 'src/common/types';
 import { RemoveParamsMessageDto } from './dto/remove-params-message.dto';
 import { ReactMessageDto } from './dto/react-message.dto';
+import { ForwardMessageDto } from './dto/forward-message.dto';
 
 @Controller('messages')
 export class MessagesController {
@@ -57,6 +58,19 @@ export class MessagesController {
     return {
       data: null,
       message: 'Message reacted',
+    };
+  }
+
+  @Post(':id/forward')
+  async forwardMessage(
+    @ParamObjectId() id: string,
+    @JwtUserId() userId: string,
+    @Body() forwardMessageDto: ForwardMessageDto,
+  ) {
+    await this.messagesService.forward(id, userId, forwardMessageDto);
+    return {
+      data: null,
+      message: 'Message forwarded',
     };
   }
 }

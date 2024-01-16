@@ -10,7 +10,12 @@ import { ValidationPipe } from '@nestjs/common';
 import { envConfig } from './configs/env.config';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger:
+      process.env.ENV === 'production'
+        ? ['warn', 'error']
+        : ['debug', 'log', 'verbose'],
+  });
   app.setGlobalPrefix('api', { exclude: ['/'] });
   app.useGlobalPipes(
     new ValidationPipe({
