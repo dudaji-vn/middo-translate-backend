@@ -24,6 +24,14 @@ program.command('get-daily-msg-stat')
         getDailyMsgStat();
     });
 
+program.command('get-google-stat')
+    .description('Get google api call stat')
+    .action(async function () {
+        const url = `http://${process.env.BACKEND_ADDRESS}/api/google-api-stat`
+        const res = await fetch(url).then(res=>res.json());
+        console.log(res);
+    });
+
 program.parse();
 
 // program.command('split')
