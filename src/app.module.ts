@@ -21,6 +21,7 @@ import { SearchModule } from './search/search.module';
 import { StorageModule } from './storage/storage.module';
 import { UsersModule } from './users/users.module';
 import { envConfig } from './configs/env.config';
+import { GoogleApiStatController } from './google-api-stat/google-api-stat.controller';
 
 @Module({
   imports: [
@@ -42,7 +43,7 @@ import { envConfig } from './configs/env.config';
     CallModule,
     NotificationModule,
   ],
-  controllers: [AppController],
+  controllers: [AppController, GoogleApiStatController],
   providers: [
     AppService,
     EventsGateway,
