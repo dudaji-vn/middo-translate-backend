@@ -12,5 +12,6 @@ export class CreateMessageDto {
   type?: MessageType;
   targetUserIds?: string[];
   language?: string;
+  forwardOfId?: string;
   callId?: string;
 }

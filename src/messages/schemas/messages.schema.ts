@@ -30,6 +30,7 @@ export enum MessageType {
   TEXT = 'text',
   CALL = 'call',
   MEDIA = 'media',
+  FORWARD = 'forward',
   NOTIFICATION = 'notification',
   ACTION = 'action',
 }
@@ -110,6 +111,12 @@ export class Message {
 
   @Prop({ type: [ReactionSchema], default: [] })
   reactions: Reaction[];
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Message.name })
+  forwardOf: Message;
+
+  @Prop({ type: Boolean, default: false })
+  isForwarded: boolean;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Call' })
   call: Call;
