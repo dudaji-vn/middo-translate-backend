@@ -4,6 +4,13 @@ export const socketConfig = {
       new: 'message.new',
       update: 'message.update',
       remove: 'message.remove',
+      reply: {
+        new: 'message.reply.new',
+        join: 'message.reply.join',
+        leave: 'message.reply.leave',
+        update: 'message.reply.update',
+        remove: 'message.reply.remove',
+      },
     },
     room: {
       join: 'room.join',

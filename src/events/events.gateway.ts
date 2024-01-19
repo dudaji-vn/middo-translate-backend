@@ -11,7 +11,10 @@ import {
 import { Server, Socket } from 'socket.io';
 import { OnEvent } from '@nestjs/event-emitter';
 import { socketConfig } from 'src/configs/socket.config';
-import { NewMessagePayload } from './types/message-payload.type';
+import {
+  NewMessagePayload,
+  ReplyMessagePayload,
+} from './types/message-payload.type';
 import { UpdateRoomPayload } from './types/room-payload.type';
 import { CallService } from 'src/call/call.service';
 import Meeting from './interface/meeting.interface';
@@ -78,13 +81,7 @@ export class EventsGateway
     client.leave(roomId);
   }
 
-  @OnEvent(socketConfig.events.message.new)
-  async handleNewMessage({ roomId, message, clientTempId }: NewMessagePayload) {
-    this.server.to(roomId).emit(socketConfig.events.message.new, {
-      message,
-      clientTempId,
-    });
-  }
+  // Room events
   @OnEvent(socketConfig.events.room.update)
   async handleUpdateRoom({ data, participants, roomId }: UpdateRoomPayload) {
     const socketIds = participants
@@ -101,18 +98,6 @@ export class EventsGateway
       .map((p) => this.clients[p._id.toString()]?.socketIds || [])
       .flat();
     this.server.to(socketIds).emit(socketConfig.events.room.new, room);
-  }
-  @OnEvent(socketConfig.events.message.update)
-  async handleUpdateMessage({ roomId, message }: NewMessagePayload) {
-    console.log('handleUpdateMessage', roomId, message);
-    this.server.to(roomId).emit(socketConfig.events.message.update, message);
-  }
-  @OnEvent(socketConfig.events.message.remove)
-  async handleRemoveMessage({ message }: NewMessagePayload) {
-    const socketIds = message.removedFor
-      .map((id) => this.clients[id.toString()]?.socketIds || [])
-      .flat();
-    this.server.to(socketIds).emit(socketConfig.events.message.update, message);
   }
   @OnEvent(socketConfig.events.room.delete)
   async handleDeleteRoom({ roomId, participants }: UpdateRoomPayload) {
@@ -131,6 +116,65 @@ export class EventsGateway
   }) {
     const socketIds = this.clients[userId.toString()]?.socketIds || [];
     this.server.to(socketIds).emit(socketConfig.events.room.leave, roomId);
+  }
+  // Message events
+  @OnEvent(socketConfig.events.message.new)
+  async handleNewMessage({ roomId, message, clientTempId }: NewMessagePayload) {
+    this.server.to(roomId).emit(socketConfig.events.message.new, {
+      message,
+      clientTempId,
+    });
+  }
+  @OnEvent(socketConfig.events.message.update)
+  async handleUpdateMessage({ roomId, message }: NewMessagePayload) {
+    console.log('handleUpdateMessage', message);
+    if (message.parent) {
+      console.log('handleUpdateMessage', message.parent._id.toString());
+      this.server
+        .to(message.parent._id.toString())
+        .emit(socketConfig.events.message.reply.update, message);
+      return;
+    }
+    this.server.to(roomId).emit(socketConfig.events.message.update, message);
+  }
+  @OnEvent(socketConfig.events.message.remove)
+  async handleRemoveMessage({ message }: NewMessagePayload) {
+    if (message.parent) {
+      this.server
+        .to(message.parent._id.toString())
+        .emit(socketConfig.events.message.reply.update, message);
+      return;
+    }
+    const socketIds = message.removedFor
+      .map((id) => this.clients[id.toString()]?.socketIds || [])
+      .flat();
+    this.server.to(socketIds).emit(socketConfig.events.message.update, message);
+  }
+
+  // Reply message events
+
+  @OnEvent(socketConfig.events.message.reply.new)
+  async handleReplyMessage({ replyToMessageId, message }: ReplyMessagePayload) {
+    this.server
+      .to(replyToMessageId)
+      .emit(socketConfig.events.message.reply.new, message);
+  }
+
+  @SubscribeMessage(socketConfig.events.message.reply.join)
+  handleJoinDiscussion(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() messageId: string,
+  ) {
+    console.log('handleJoinDiscussion', messageId);
+    client.join(messageId);
+  }
+  @SubscribeMessage(socketConfig.events.message.reply.leave)
+  handleLeaveDiscussion(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() messageId: string,
+  ) {
+    console.log('handleLeaveDiscussion', messageId);
+    client.leave(messageId);
   }
 
   // Events for call

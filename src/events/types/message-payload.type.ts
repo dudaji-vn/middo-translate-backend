@@ -5,3 +5,8 @@ export type NewMessagePayload = {
   message: Message;
   clientTempId: string;
 };
+
+export type ReplyMessagePayload = {
+  replyToMessageId: string;
+  message: Message;
+};

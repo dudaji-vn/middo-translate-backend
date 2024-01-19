@@ -1,4 +1,12 @@
-import { Body, Controller, Post, Delete, Query, Patch } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Post,
+  Delete,
+  Query,
+  Patch,
+  Get,
+} from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { JwtUserId, ParamObjectId } from 'src/common/decorators';
 import { CreateMessageDto } from './dto';
@@ -24,6 +32,14 @@ export class MessagesController {
     return {
       data: message,
       message: 'Message created',
+    };
+  }
+  @Get(':id')
+  async getMessage(@ParamObjectId() id: string): Promise<Response<Message>> {
+    const message = await this.messagesService.findById(id);
+    return {
+      data: message,
+      message: 'Message found',
     };
   }
   @Delete(':id')
@@ -71,6 +87,32 @@ export class MessagesController {
     return {
       data: null,
       message: 'Message forwarded',
+    };
+  }
+
+  @Post(':id/reply')
+  async replyMessage(
+    @ParamObjectId() id: string,
+    @JwtUserId() userId: string,
+    @Body() createMessageDto: CreateMessageDto,
+  ) {
+    await this.messagesService.reply(id, userId, createMessageDto);
+    return {
+      data: null,
+      message: 'Message replied',
+    };
+  }
+  @Get(':id/replies')
+  async getReplies(
+    @ParamObjectId() id: string,
+    @JwtUserId() userId: string,
+    // @Query('limit') limit: number,
+    // @Query('page') page: number,
+  ) {
+    const replies = await this.messagesService.getReplies(id, userId);
+    return {
+      data: replies,
+      message: 'Replies found',
     };
   }
 }
