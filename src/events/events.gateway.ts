@@ -449,6 +449,12 @@ export class EventsGateway
       this.callService.endCall(roomId);
     }
   }
+
+  @OnEvent(socketConfig.events.call.update) // Update call event
+  handleUpdateCall(@MessageBody() call: any) {
+    console.log('handleUpdateCall', call);
+    this.server.emit(socketConfig.events.call.update, call);
+  }
   // Leave call event
   @SubscribeMessage(socketConfig.events.call.leave)
   handleLeaveCall(@ConnectedSocket() client: Socket) {

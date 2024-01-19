@@ -7,11 +7,14 @@ import { STATUS } from './constants/call-status';
 import { CALL_TYPE, JOIN_TYPE } from './constants/call-type';
 import { MessagesService } from 'src/messages/messages.service';
 import { MessageType } from 'src/messages/schemas/messages.schema';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { socketConfig } from 'src/configs/socket.config';
 @Injectable()
 export class CallService {
   constructor(
     private roomService: RoomsService,
     private messageService: MessagesService,
+    private readonly eventEmitter: EventEmitter2,
     @InjectModel(Call.name) private readonly callModel: Model<Call>,
   ) {}
   async joinVideoCallRoom(payload: { id: string; roomId: string }) {
@@ -103,8 +106,9 @@ export class CallService {
         return;
       }
       call.endTime = new Date();
-      await call.save();
-      // this.messService
+      const newCall = await call.save();
+      console.log('newCall', newCall);
+      this.eventEmitter.emit(socketConfig.events.call.update, newCall);
     } catch (error) {
       return { status: 'SERVER_ERROR' };
     }

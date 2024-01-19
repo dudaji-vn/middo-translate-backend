@@ -118,6 +118,10 @@ export class MessagesService {
           },
         ],
       },
+      {
+        path: 'call',
+        select: selectPopulateField<Call>(['endTime', '_id', 'type']),
+      },
     ]);
     if (!message) {
       throw new Error('Message not found');
