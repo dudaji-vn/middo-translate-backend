@@ -120,6 +120,11 @@ export class Message {
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Call' })
   call: Call;
+  // parent message
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Message.name })
+  parent: Message;
+  @Prop({ type: Boolean, default: false })
+  hasChild: boolean;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

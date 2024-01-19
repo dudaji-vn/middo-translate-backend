@@ -9,7 +9,10 @@ import {
 } from 'src/common/types';
 import { selectPopulateField } from 'src/common/utils';
 import { socketConfig } from 'src/configs/socket.config';
-import { NewMessagePayload } from 'src/events/types/message-payload.type';
+import {
+  NewMessagePayload,
+  ReplyMessagePayload,
+} from 'src/events/types/message-payload.type';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
@@ -25,7 +28,6 @@ import { NotificationService } from 'src/notifications/notifications.service';
 import { envConfig } from 'src/configs/env.config';
 import { ForwardMessageDto } from './dto/forward-message.dto';
 import { Room } from 'src/rooms/schemas/room.schema';
-import { CallService } from 'src/call/call.service';
 import { Call } from 'src/call/schemas/call.schema';
 
 @Injectable()
@@ -208,6 +210,160 @@ export class MessagesService {
     this.sendMessageNotification(newMessageWithSender);
     return newMessageWithSender;
   }
+  // reply to message
+  async reply(
+    id: string,
+    senderId: string,
+    createMessageDto: CreateMessageDto,
+  ) {
+    const user = await this.usersService.findById(senderId);
+    const parentMessage = await this.findById(id);
+
+    const room = await this.roomsService.findByIdAndUserId(
+      parentMessage.room._id.toString(),
+      user._id.toString(),
+    );
+
+    const createdMessage = new this.messageModel();
+    createdMessage.sender = user;
+    createdMessage.content = createMessageDto.content || '';
+    createdMessage.contentEnglish = createMessageDto.contentEnglish || '';
+    createdMessage.media = createMessageDto.media || [];
+    createdMessage.language = createMessageDto.language || '';
+    createdMessage.type = createMessageDto.type || MessageType.TEXT;
+    if (createdMessage.media.length > 0) {
+      createdMessage.type = MessageType.MEDIA;
+    }
+    createdMessage.room = room;
+    createdMessage.readBy = [user._id];
+    createdMessage.deliveredTo = [user._id];
+    createdMessage.parent = parentMessage;
+    const newMessage = await createdMessage.save();
+    const socketPayload: ReplyMessagePayload = {
+      replyToMessageId: id,
+      message: newMessage,
+    };
+    this.eventEmitter.emit(
+      socketConfig.events.message.reply.new,
+      socketPayload,
+    );
+    await this.update(id, { hasChild: true });
+    return newMessage;
+  }
+
+  // get all reply of message
+
+  async getReplies(id: string, userId: string) {
+    const message = await this.findById(id);
+    const room = await this.roomsService.findByIdAndUserId(
+      message.room._id.toString(),
+      userId,
+    );
+    const query: FilterQuery<Message> = {
+      room: room._id,
+      parent: message._id,
+      deleteFor: { $nin: [userId] },
+    };
+
+    const messages = await this.messageModel
+      .find(query)
+      .populate(
+        'sender',
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
+      )
+      .populate(
+        'targetUsers',
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
+      )
+      .populate('call', selectPopulateField<Call>(['endTime', '_id', 'type']))
+      .populate(
+        'reactions.user',
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'email',
+          'avatar',
+          'language',
+        ]),
+      )
+      .populate([
+        {
+          path: 'forwardOf',
+          select: selectPopulateField<Message>([
+            '_id',
+            'content',
+            'contentEnglish',
+            'type',
+            'media',
+            'sender',
+            'targetUsers',
+            'reactions',
+            'forwardOf',
+            'room',
+          ]),
+          populate: [
+            {
+              path: 'sender',
+              select: selectPopulateField<User>([
+                '_id',
+                'name',
+                'avatar',
+                'email',
+                'language',
+              ]),
+            },
+            {
+              path: 'room',
+              select: selectPopulateField<Room>([
+                '_id',
+                'name',
+                'participants',
+                'isGroup',
+              ]),
+              populate: [
+                {
+                  path: 'participants',
+                  select: selectPopulateField<User>(['_id']),
+                },
+              ],
+            },
+          ],
+        },
+      ]);
+
+    return messages.map((message) => {
+      return convertMessageRemoved(message, userId) as Message;
+    });
+  }
+
+  async update(id: string, updateMessageDto: Partial<Message>) {
+    const message = await this.messageModel.findById(id).populate(['parent']);
+    if (!message) {
+      throw new Error('Message not found');
+    }
+    await message.updateOne(updateMessageDto);
+    this.eventEmitter.emit(socketConfig.events.message.update, {
+      roomId: String(message?.room),
+      message: {
+        _id: message._id,
+        parent: message.parent,
+        ...updateMessageDto,
+      },
+    });
+    return message;
+  }
 
   async sendMessageNotification(message: Message) {
     const title = envConfig.app.name;
@@ -272,6 +428,7 @@ export class MessagesService {
       _id: { $lt: cursor },
       deleteFor: { $nin: [userId] },
       isForwarded: { $ne: true },
+      parent: { $exists: false },
     };
 
     const messages = await this.messageModel
@@ -586,7 +743,8 @@ export class MessagesService {
       .populate(
         'sender',
         selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
-      );
+      )
+      .populate('parent');
 
     if (!message) {
       throw new Error('Message not found');
@@ -596,6 +754,7 @@ export class MessagesService {
       roomId: String(message?.room),
       message: {
         _id: message._id,
+        parent: message.parent,
         readBy: message.readBy,
       },
     });
@@ -622,7 +781,8 @@ export class MessagesService {
           'avatar',
           'language',
         ]),
-      );
+      )
+      .populate('parent');
     if (!message) {
       throw new Error('Message not found');
     }
@@ -669,6 +829,7 @@ export class MessagesService {
       roomId: String(message?.room),
       message: {
         _id: message._id,
+        parent: message.parent,
         reactions: message.reactions,
       },
     });
