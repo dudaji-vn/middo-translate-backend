@@ -172,6 +172,7 @@ export class EventsGateway
     const socketIds = payload.users
       .map((p) => this.clients[p.toString()]?.socketIds || [])
       .flat();
+    if (socketIds.length === 0) return;
     this.server.to(socketIds).emit(socketConfig.events.call.invite_to_call, {
       call: payload.call,
       user: payload.user,
