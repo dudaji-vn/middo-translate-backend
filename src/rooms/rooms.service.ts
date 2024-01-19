@@ -22,7 +22,6 @@ import { CreateRoomDto } from './dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
 import { Message } from 'src/messages/schemas/messages.schema';
-import { NotificationService } from 'src/notifications/notifications.service';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -30,7 +29,6 @@ export class RoomsService {
   constructor(
     private readonly usersService: UsersService,
     private readonly eventEmitter: EventEmitter2,
-    private readonly notificationService: NotificationService,
     @InjectModel(Room.name) private readonly roomModel: Model<Room>,
   ) {}
   async createRoom(createRoomDto: CreateRoomDto, creatorId: string) {
@@ -226,7 +224,12 @@ export class RoomsService {
   ): Promise<Pagination<Room, CursorPaginationInfo>> {
     const { limit = 10, cursor, type } = queryParams;
 
+    const user = await this.usersService.findById(userId);
+
     const query: FilterQuery<Room> = {
+      _id: {
+        $nin: user.pinRoomIds,
+      },
       newMessageAt: {
         $lt: cursor ? new Date(cursor).toISOString() : new Date().toISOString(),
       },
@@ -282,6 +285,7 @@ export class RoomsService {
     return {
       items: rooms.map((room) => ({
         ...room.toObject(),
+        isPinned: user.pinRoomIds.includes(room._id.toString()),
         lastMessage: convertMessageRemoved(room.lastMessage, userId),
       })),
       pageInfo,
@@ -586,5 +590,71 @@ export class RoomsService {
         select: userSelectFieldsString,
       },
     ]);
+  }
+
+  async pin(roomId: string, userId: string) {
+    const room = await this.findByIdAndUserId(roomId, userId);
+    if (!room) {
+      throw new Error('Room not found');
+    }
+    const user = await this.usersService.findById(userId);
+    const isPinned = user?.pinRoomIds?.includes(roomId);
+
+    if (isPinned) {
+      user.pinRoomIds = user.pinRoomIds.filter((id) => id !== roomId);
+    } else {
+      user.pinRoomIds = [roomId, ...(user?.pinRoomIds || [])];
+    }
+    console.log(user.pinRoomIds);
+    await this.usersService.update(user._id, {
+      pinRoomIds: user.pinRoomIds,
+    });
+  }
+  async getPinnedRooms(userId: string) {
+    const user = await this.usersService.findById(userId);
+    const rooms = await this.roomModel
+      .find({
+        _id: {
+          $in: user.pinRoomIds,
+        },
+      })
+      .populate({
+        path: 'lastMessage',
+        populate: [
+          {
+            path: 'targetUsers',
+            select: userSelectFieldsString,
+          },
+          {
+            path: 'sender',
+            select: userSelectFieldsString,
+          },
+        ],
+      })
+      .populate(
+        selectPopulateField<Room>(['participants']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
+      )
+      .populate(
+        selectPopulateField<Room>(['admin']),
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
+      );
+    return rooms.map((room) => ({
+      ...room.toObject(),
+      isPinned: true,
+      lastMessage: convertMessageRemoved(room.lastMessage, userId),
+    }));
   }
 }
