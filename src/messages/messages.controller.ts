@@ -115,4 +115,15 @@ export class MessagesController {
       message: 'Replies found',
     };
   }
+  @Post('get-message-id-from-call-id')
+  async getMessageIdFromCallId(
+    @JwtUserId() senderId: string,
+    @Body() { callId }: { callId: string },
+  ) {
+    const message = await this.messagesService.findByCallId(callId);
+    return {
+      data: message?._id,
+      message: 'Message created',
+    };
+  }
 }

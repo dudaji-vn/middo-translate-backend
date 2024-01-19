@@ -216,6 +216,7 @@ export class EventsGateway
     const socketIds = payload.users
       .map((p) => this.clients[p.toString()]?.socketIds || [])
       .flat();
+    if (socketIds.length === 0) return;
     this.server.to(socketIds).emit(socketConfig.events.call.invite_to_call, {
       call: payload.call,
       user: payload.user,
@@ -348,7 +349,7 @@ export class EventsGateway
     const roomId = this.socketToRoom[client.id];
     this.meetings[roomId].doodle = {
       image: payload.image_url,
-      data: [],
+      data: {},
       socketId: client.id,
     };
     this.server.to(roomId).emit(socketConfig.events.call.start_doodle, {
@@ -371,29 +372,33 @@ export class EventsGateway
   handleDrawDoodle(
     @ConnectedSocket() client: Socket,
     @MessageBody()
-    payload: { path: any; isEraser: boolean; width: number; height: string },
+    payload: { image: any; user: any; color: string },
   ) {
     const roomId = this.socketToRoom[client.id];
-    this.meetings[roomId].doodle?.data.push({
-      path: payload.path,
-      isEraser: payload.isEraser,
-      width: payload.width,
-      height: payload.height,
-      userId: client.id,
-    });
+    if (!this.meetings[roomId]?.doodle?.data) return;
+    const doodleData = this.meetings[roomId]?.doodle?.data;
+    if (!doodleData) return;
+    if (!doodleData?.[client.id]) {
+      doodleData[client.id] = {
+        user: payload.user,
+        image: payload.image,
+        color: payload.color,
+      };
+    } else {
+      doodleData[client.id].image = payload.image;
+    }
     this.server.to(roomId).emit(socketConfig.events.call.draw_doodle, {
-      path: payload.path,
-      isEraser: payload.isEraser,
-      width: payload.width,
-      height: payload.height,
-      userId: client.id,
+      image: payload.image,
+      user: payload.user,
+      color: payload.color,
+      socketId: client.id,
     });
   }
   // Request get old doodle data
   @SubscribeMessage(socketConfig.events.call.request_get_old_doodle_data)
   handleRequestGetOldDoodleData(@ConnectedSocket() client: Socket) {
     const roomId = this.socketToRoom[client.id];
-    const doodleData = this.meetings[roomId].doodle?.data || [];
+    const doodleData = this.meetings[roomId].doodle?.data || {};
     this.server
       .to(client.id)
       .emit(socketConfig.events.call.request_get_old_doodle_data, doodleData);
@@ -421,7 +426,6 @@ export class EventsGateway
         .to(roomId)
         .emit(socketConfig.events.call.end_doodle, nameOfUser);
     }
-
     meeting.participants = meeting.participants.filter(
       (user: any) => user.id !== client.id,
     );
@@ -434,15 +438,13 @@ export class EventsGateway
     delete this.socketToRoom[client.id];
     if (meeting?.participants.length === 0) {
       const room = this.meetings[roomId]?.room;
-      const participants = room?.participants?.filter((p: any) =>
-        p._id.toString(),
-      );
-      const socketIds = participants
-        ?.map((p: any) => this.clients[p.toString()]?.socketIds || [])
-        .flat();
-      this.server
-        .to(socketIds)
-        .emit(socketConfig.events.call.meeting_end, room?._id);
+      // const participants = room?.participants?.filter((p: any) =>
+      //   p._id.toString(),
+      // );
+      // const socketIds = participants
+      //   ?.map((p: any) => this.clients[p.toString()]?.socketIds || [])
+      //   .flat();
+      this.server.emit(socketConfig.events.call.meeting_end, room?._id);
       delete this.meetings[roomId];
       this.callService.endCall(roomId);
     }
