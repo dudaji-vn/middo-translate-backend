@@ -874,4 +874,9 @@ export class MessagesService {
       }),
     );
   }
+
+  async findByCallId(callId: string) {
+    const message = await this.messageModel.findOne({ call: callId });
+    return message;
+  }
 }
