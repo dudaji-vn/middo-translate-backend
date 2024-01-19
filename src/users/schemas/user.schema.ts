@@ -61,6 +61,11 @@ export class User {
   language: string;
   @Prop({ type: String, default: Provider.LOCAL })
   provider: string;
+  @Prop({
+    type: [{ type: String }],
+    default: [],
+  })
+  pinRoomIds: string[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

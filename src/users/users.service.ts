@@ -23,6 +23,7 @@ export class UsersService {
           'email',
           'language',
           'status',
+          'pinRoomIds',
         ]),
       )
       .lean();
@@ -47,6 +48,7 @@ export class UsersService {
         username: true,
         avatar: true,
         email: true,
+        pinRoomIds: true,
       })
       .lean();
     return users;
@@ -59,6 +61,7 @@ export class UsersService {
         username: true,
         avatar: true,
         email: true,
+        pinRoomIds: true,
       })
       .lean();
     if (!user) {

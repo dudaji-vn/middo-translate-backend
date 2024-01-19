@@ -53,6 +53,12 @@ export class RoomsController {
     return { data, message: 'Room found' };
   }
 
+  @Get('pin')
+  async getPinRooms(@JwtUserId() userId: string): Promise<Response<Room[]>> {
+    const rooms = await this.roomsService.getPinnedRooms(userId);
+    return { message: 'Rooms found', data: rooms };
+  }
+
   @Get(':id')
   async getRoomById(
     @ParamObjectId('id') id: string,
@@ -223,5 +229,14 @@ export class RoomsController {
   ): Promise<Response<null>> {
     await this.messagesService.deleteAllInRoom(id, userId);
     return { message: 'Messages deleted', data: null };
+  }
+
+  @Post(':id/pin')
+  async pinRoom(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ): Promise<Response<null>> {
+    await this.roomsService.pin(id, userId);
+    return { message: 'Room pinned', data: null };
   }
 }
