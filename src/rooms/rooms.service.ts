@@ -285,7 +285,7 @@ export class RoomsService {
     return {
       items: rooms.map((room) => ({
         ...room.toObject(),
-        isPinned: user.pinRoomIds.includes(room._id.toString()),
+        isPinned: user?.pinRoomIds?.includes(room._id.toString()) || false,
         lastMessage: convertMessageRemoved(room.lastMessage, userId),
       })),
       pageInfo,
