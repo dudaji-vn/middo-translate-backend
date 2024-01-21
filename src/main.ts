@@ -8,13 +8,43 @@ import { AppModule } from './app.module';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { envConfig } from './configs/env.config';
+import { WinstonModule } from 'nest-winston';
+import { transports, format } from 'winston';
+import { consoleFormat } from 'winston-console-format';
+import { Logger } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    logger:
-      process.env.ENV === 'production'
-        ? ['warn', 'error']
-        : ['debug', 'log', 'verbose'],
+    logger: WinstonModule.createLogger({
+      level: 'silly',
+      format: format.combine(
+        format.timestamp(),
+        format.ms(),
+        format.errors({ stack: true }),
+        format.splat(),
+        format.json(),
+      ),
+      defaultMeta: { service: 'Test' },
+      transports: [
+        new transports.Console({
+          format: format.combine(
+            format.colorize({ all: true }),
+            format.padLevels(),
+            consoleFormat({
+              showMeta: true,
+              metaStrip: ['timestamp', 'service'],
+              inspectOptions: {
+                depth: Infinity,
+                colors: true,
+                maxArrayLength: Infinity,
+                breakLength: 120,
+                compact: Infinity,
+              },
+            }),
+          ),
+        }),
+      ],
+    }),
   });
   app.setGlobalPrefix('api', { exclude: ['/'] });
   app.useGlobalPipes(
@@ -41,6 +71,7 @@ async function bootstrap() {
       projectId: envConfig.firebase.credentials.projectId,
     }),
   });
+
   const config = new DocumentBuilder()
     .setTitle('Cats example')
     .setDescription('The cats API description')
@@ -51,6 +82,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
   await app.listen(envConfig.port);
-  console.log(`Application is running on: ${await app.getUrl()}`);
+  const logger = new Logger('main');
+  logger.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();
