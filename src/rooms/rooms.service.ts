@@ -256,6 +256,9 @@ export class RoomsService {
             path: 'sender',
             select: userSelectFieldsString,
           },
+          {
+            path: 'call',
+          },
         ],
       })
       .populate(
@@ -603,9 +606,8 @@ export class RoomsService {
     if (isPinned) {
       user.pinRoomIds = user.pinRoomIds.filter((id) => id !== roomId);
     } else {
-      user.pinRoomIds = [roomId, ...(user?.pinRoomIds || [])];
+      user.pinRoomIds = [...(user?.pinRoomIds || []), roomId];
     }
-    console.log(user.pinRoomIds);
     await this.usersService.update(user._id, {
       pinRoomIds: user.pinRoomIds,
     });
@@ -628,6 +630,9 @@ export class RoomsService {
           {
             path: 'sender',
             select: userSelectFieldsString,
+          },
+          {
+            path: 'call',
           },
         ],
       })
