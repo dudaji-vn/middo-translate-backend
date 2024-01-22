@@ -86,7 +86,14 @@ export class RoomsService {
       throw new Error('Room not found');
     }
     room.status = RoomStatus.DELETED;
-    await room.save();
+    await this.roomModel.updateOne(
+      {
+        _id: room._id,
+      },
+      {
+        status: RoomStatus.DELETED,
+      },
+    );
     this.eventEmitter.emit(socketConfig.events.room.delete, {
       roomId: room._id,
       participants: room.participants.map((p) => p._id),
@@ -167,6 +174,7 @@ export class RoomsService {
   }
 
   async findByIdAndUserId(id: string, userId: string, inCludeDeleted = false) {
+    const user = await this.usersService.findById(userId);
     let room = await this.roomModel.findOne({
       _id: id,
       participants: userId,
@@ -197,7 +205,7 @@ export class RoomsService {
       }
     }
 
-    return await room.populate([
+    const roomRes = await room.populate([
       {
         path: 'participants',
         select: userSelectFieldsString,
@@ -214,6 +222,10 @@ export class RoomsService {
         select: userSelectFieldsString,
       },
     ]);
+    return {
+      ...roomRes.toObject(),
+      isPinned: user?.pinRoomIds?.includes(id) || false,
+    };
   }
 
   async findWithCursorPaginate(
@@ -608,6 +620,8 @@ export class RoomsService {
     } else {
       user.pinRoomIds = [...(user?.pinRoomIds || []), roomId];
     }
+
+    console.log(user.pinRoomIds);
     await this.usersService.update(user._id, {
       pinRoomIds: user.pinRoomIds,
     });
@@ -619,6 +633,7 @@ export class RoomsService {
         _id: {
           $in: user.pinRoomIds,
         },
+        status: RoomStatus.ACTIVE,
       })
       .populate({
         path: 'lastMessage',
@@ -656,6 +671,13 @@ export class RoomsService {
           'language',
         ]),
       );
+    // sort by pin order
+    const pinRoomIds = user.pinRoomIds;
+    rooms.sort((a, b) => {
+      const aIndex = pinRoomIds.indexOf(a._id.toString());
+      const bIndex = pinRoomIds.indexOf(b._id.toString());
+      return aIndex - bIndex;
+    });
     return rooms.map((room) => ({
       ...room.toObject(),
       isPinned: true,
