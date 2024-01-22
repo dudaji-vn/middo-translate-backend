@@ -82,6 +82,7 @@ export class EventsGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() roomId: string,
   ) {
+    console.log('handleLeaveChat', roomId);
     client.leave(roomId);
   }
 
@@ -131,9 +132,7 @@ export class EventsGateway
   }
   @OnEvent(socketConfig.events.message.update)
   async handleUpdateMessage({ roomId, message }: NewMessagePayload) {
-    console.log('handleUpdateMessage', message);
     if (message.parent) {
-      console.log('handleUpdateMessage', message.parent._id.toString());
       this.server
         .to(message.parent._id.toString())
         .emit(socketConfig.events.message.reply.update, message);
@@ -169,7 +168,6 @@ export class EventsGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() messageId: string,
   ) {
-    console.log('handleJoinDiscussion', messageId);
     client.join(messageId);
   }
   @SubscribeMessage(socketConfig.events.message.reply.leave)
@@ -177,7 +175,6 @@ export class EventsGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() messageId: string,
   ) {
-    console.log('handleLeaveDiscussion', messageId);
     client.leave(messageId);
   }
 
