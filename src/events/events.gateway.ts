@@ -463,8 +463,8 @@ export class EventsGateway
 
   @OnEvent(socketConfig.events.call.update) // Update call event
   handleUpdateCall(@MessageBody() call: any) {
-    console.log('handleUpdateCall', call);
     this.server.emit(socketConfig.events.call.update, call);
+    this.server.emit(socketConfig.events.room.update, {});
   }
   // Leave call event
   @SubscribeMessage(socketConfig.events.call.leave)
