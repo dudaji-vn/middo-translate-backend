@@ -25,6 +25,7 @@ export const socketConfig = {
     },
     call: {
       join: 'call.join',
+      start: 'call.start',
       leave: 'call.leave',
       list_participant: 'call.list',
       send_signal: 'call.send_signal',

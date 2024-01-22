@@ -19,6 +19,7 @@ import { UpdateRoomPayload } from './types/room-payload.type';
 import { CallService } from 'src/call/call.service';
 import Meeting from './interface/meeting.interface';
 import { Room } from 'src/rooms/schemas/room.schema';
+import { RoomsService } from 'src/rooms/rooms.service';
 
 @WebSocketGateway({
   cors: '*',
@@ -38,7 +39,10 @@ export class EventsGateway
       socketIds: string[];
     };
   } = {};
-  constructor(private callService: CallService) {}
+  constructor(
+    private callService: CallService,
+    private roomService: RoomsService,
+  ) {}
   afterInit(server: Server) {
     // console.log('socket ', server?.engine?.clientsCount);
     // console.log('socket ', server?.engine?.clientsCount);
@@ -185,21 +189,26 @@ export class EventsGateway
   @SubscribeMessage(socketConfig.events.call.join)
   handleJoinCall(
     @ConnectedSocket() client: Socket,
-    @MessageBody() { roomId, user }: { roomId: string; user: any },
+    @MessageBody()
+    { callId, user, roomId }: { callId: string; user: any; roomId: string },
   ) {
-    if (this.meetings[roomId]) {
-      this.meetings[roomId].participants.push({ id: client.id, user });
+    if (this.meetings[callId]) {
+      this.meetings[callId].participants.push({ id: client.id, user });
     } else {
-      this.meetings[roomId] = { participants: [{ id: client.id, user }] };
+      this.meetings[callId] = {
+        participants: [{ id: client.id, user }],
+        room: roomId,
+      };
+      this.server.emit(socketConfig.events.call.start, roomId);
     }
-    this.socketToRoom[client.id] = roomId;
-    const userInThisRoom = this.meetings[roomId].participants.filter(
+    this.socketToRoom[client.id] = callId;
+    const userInThisRoom = this.meetings[callId].participants.filter(
       (user: any) => user.id !== client.id,
     );
-    client.join(roomId);
+    client.join(callId);
     this.server.to(client.id).emit(socketConfig.events.call.list_participant, {
       users: userInThisRoom,
-      doodleImage: this.meetings[roomId]?.doodle?.image,
+      doodleImage: this.meetings[callId]?.doodle?.image,
     });
   }
 
@@ -241,7 +250,6 @@ export class EventsGateway
       isShareScreen: payload.isShareScreen,
     });
   }
-
   // Return signal event
   @SubscribeMessage(socketConfig.events.call.return_signal)
   returnSignal(
@@ -263,7 +271,6 @@ export class EventsGateway
         isShareScreen: payload.isShareScreen,
       });
   }
-
   // SHARE_SCREEN
   @SubscribeMessage(socketConfig.events.call.share_screen)
   handleShareScreen(
@@ -412,7 +419,7 @@ export class EventsGateway
     const roomId = this.socketToRoom[client.id];
     this.server.to(roomId).emit(socketConfig.events.call.send_caption, payload);
   }
-  private leaveCall(client: Socket) {
+  private async leaveCall(client: Socket) {
     const roomId = this.socketToRoom[client.id];
     const meeting = this.meetings[roomId];
     if (!meeting) return;
@@ -438,13 +445,17 @@ export class EventsGateway
     delete this.socketToRoom[client.id];
     if (meeting?.participants.length === 0) {
       const room = this.meetings[roomId]?.room;
-      // const participants = room?.participants?.filter((p: any) =>
-      //   p._id.toString(),
-      // );
-      // const socketIds = participants
-      //   ?.map((p: any) => this.clients[p.toString()]?.socketIds || [])
-      //   .flat();
-      this.server.emit(socketConfig.events.call.meeting_end, room?._id);
+      const roomData = await this.roomService.findById(room);
+      const participants = roomData?.participants?.filter((p: any) =>
+        p._id.toString(),
+      );
+      const socketIds =
+        participants
+          ?.map((p: any) => this.clients[p.toString()]?.socketIds || [])
+          .flat() || [];
+      this.server
+        // .to(socketIds)
+        .emit(socketConfig.events.call.meeting_end, room);
       delete this.meetings[roomId];
       this.callService.endCall(roomId);
     }
