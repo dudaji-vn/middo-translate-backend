@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  LoggerService,
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -481,9 +482,11 @@ export class RoomsService {
     const participants = await Promise.all(
       userIds.map((id) => this.usersService.findById(id)),
     );
-    room.participants = [...new Set([...room.participants, ...participants])];
-
-    await room.save();
+    room.participants = [...room.participants, ...participants];
+    const participantIds = room.participants.map((p) => p._id.toString());
+    await room.updateOne({
+      participants: [...new Set(participantIds)],
+    });
 
     this.eventEmitter.emit(socketConfig.events.room.update, {
       roomId,
