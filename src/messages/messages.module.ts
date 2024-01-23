@@ -9,12 +9,14 @@ import { RoomsModule } from 'src/rooms/rooms.module';
 import { UsersModule } from 'src/users/users.module';
 import { Call, CallSchema } from 'src/call/schemas/call.schema';
 import { CallModule } from 'src/call/call.module';
+import { PinMessage, PinMessageSchema } from './schemas/pin-messages.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Message.name, schema: MessageSchema },
       { name: Call.name, schema: CallSchema },
+      { name: PinMessage.name, schema: PinMessageSchema },
     ]),
     NotificationModule,
     UsersModule,

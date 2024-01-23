@@ -102,6 +102,14 @@ export class MessagesController {
       message: 'Message replied',
     };
   }
+  @Post(':id/pin')
+  async togglePin(@ParamObjectId() id: string, @JwtUserId() userId: string) {
+    const isPin = await this.messagesService.pin(id, userId);
+    return {
+      data: null,
+      message: isPin ? 'Message pinned' : 'Message unpinned',
+    };
+  }
   @Get(':id/replies')
   async getReplies(
     @ParamObjectId() id: string,
@@ -113,6 +121,22 @@ export class MessagesController {
     return {
       data: replies,
       message: 'Replies found',
+    };
+  }
+  @Get('pinned/:id')
+  async getPinnedMessages(
+    @ParamObjectId() roomId: string,
+    @JwtUserId() userId: string,
+    // @Query('limit') limit: number,
+    // @Query('page') page: number,
+  ) {
+    const pinnedMessages = await this.messagesService.getPinnedMessages(
+      roomId,
+      userId,
+    );
+    return {
+      data: pinnedMessages,
+      message: 'Pinned messages found',
     };
   }
   @Post('get-message-id-from-call-id')

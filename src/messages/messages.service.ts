@@ -29,6 +29,7 @@ import { envConfig } from 'src/configs/env.config';
 import { ForwardMessageDto } from './dto/forward-message.dto';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { Call } from 'src/call/schemas/call.schema';
+import { PinMessage } from './schemas/pin-messages.schema';
 
 @Injectable()
 export class MessagesService {
@@ -39,6 +40,8 @@ export class MessagesService {
     private readonly eventEmitter: EventEmitter2,
     @InjectModel(Message.name) private messageModel: Model<Message>,
     @InjectModel(Call.name) private readonly callModel: Model<Call>,
+    @InjectModel(PinMessage.name)
+    private readonly pinMessageModel: Model<PinMessage>,
   ) {}
 
   async findById(id: string): Promise<Message> {
@@ -597,7 +600,7 @@ export class MessagesService {
     roomId: string,
     senderId: string,
     targetUserIds: string[],
-    action: 'addToGroup' | 'removeFromGroup',
+    action: 'addToGroup' | 'removeFromGroup' | 'pin' | 'unpin',
   ): Promise<Message> {
     let content = '';
     switch (action) {
@@ -606,6 +609,12 @@ export class MessagesService {
         break;
       case 'removeFromGroup':
         content = 'removed';
+        break;
+      case 'pin':
+        content = 'pinned a message';
+        break;
+      case 'unpin':
+        content = 'unpinned a message';
         break;
       default:
         break;
@@ -882,5 +891,98 @@ export class MessagesService {
   async findByCallId(callId: string) {
     const message = await this.messageModel.findOne({ call: callId });
     return message;
+  }
+
+  async pin(messageId: string, userId: string) {
+    const message = await this.findById(messageId);
+    const user = await this.usersService.findById(userId);
+    const room = await this.roomsService.findByIdAndUserId(
+      message.room._id.toString(),
+      userId,
+    );
+    const pinMessage = await this.pinMessageModel.findOne({
+      message: messageId,
+    });
+    const isPinned = !!pinMessage;
+    if (isPinned) {
+      await pinMessage.deleteOne();
+      this.createAction(message.room._id.toString(), userId, [], 'unpin');
+      return false;
+    } else {
+      const newPinMessage = new this.pinMessageModel();
+      this.createAction(message.room._id.toString(), userId, [], 'pin');
+      newPinMessage.message = message;
+      newPinMessage.pinnedBy = user;
+      newPinMessage.room = room;
+      await newPinMessage.save();
+      return true;
+    }
+  }
+
+  async getPinnedMessages(roomId: string, userId: string) {
+    const room = await this.roomsService.findByIdAndUserId(roomId, userId);
+    const pinMessages = await this.pinMessageModel
+      .find({
+        room: room._id,
+      })
+      .populate([
+        {
+          path: 'message',
+          select: selectPopulateField<Message>([
+            '_id',
+            'content',
+            'contentEnglish',
+            'type',
+            'media',
+            'sender',
+            'targetUsers',
+            'reactions',
+            'forwardOf',
+            'room',
+            'call',
+          ]),
+          populate: [
+            {
+              path: 'sender',
+              select: selectPopulateField<User>([
+                '_id',
+                'name',
+                'avatar',
+                'email',
+                'language',
+              ]),
+            },
+            {
+              path: 'room',
+              select: selectPopulateField<Room>([
+                '_id',
+                'name',
+                'participants',
+                'isGroup',
+              ]),
+              populate: [
+                {
+                  path: 'participants',
+                  select: selectPopulateField<User>(['_id']),
+                },
+              ],
+            },
+            {
+              path: 'call',
+            },
+          ],
+        },
+        {
+          path: 'pinnedBy',
+          select: selectPopulateField<User>([
+            '_id',
+            'name',
+            'avatar',
+            'email',
+            'language',
+          ]),
+        },
+      ]);
+    return pinMessages;
   }
 }
