@@ -163,6 +163,12 @@ export class EventsGateway
       .emit(socketConfig.events.message.reply.new, message);
   }
 
+  // pin message events
+  @OnEvent(socketConfig.events.message.pin)
+  async handlePinMessage({ roomId }: NewMessagePayload) {
+    this.server.to(roomId).emit(socketConfig.events.message.pin);
+  }
+
   @SubscribeMessage(socketConfig.events.message.reply.join)
   handleJoinDiscussion(
     @ConnectedSocket() client: Socket,

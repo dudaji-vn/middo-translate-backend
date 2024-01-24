@@ -907,7 +907,6 @@ export class MessagesService {
     if (isPinned) {
       await pinMessage.deleteOne();
       this.createAction(message.room._id.toString(), userId, [], 'unpin');
-      return false;
     } else {
       const newPinMessage = new this.pinMessageModel();
       this.createAction(message.room._id.toString(), userId, [], 'pin');
@@ -915,8 +914,11 @@ export class MessagesService {
       newPinMessage.pinnedBy = user;
       newPinMessage.room = room;
       await newPinMessage.save();
-      return true;
     }
+    this.eventEmitter.emit(socketConfig.events.message.pin, {
+      roomId: room._id.toString(),
+    });
+    return !isPinned;
   }
 
   async getPinnedMessages(roomId: string, userId: string) {
