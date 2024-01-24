@@ -11,6 +11,7 @@ export const socketConfig = {
         update: 'message.reply.update',
         remove: 'message.reply.remove',
       },
+      pin: 'message.pin',
     },
     room: {
       join: 'room.join',
