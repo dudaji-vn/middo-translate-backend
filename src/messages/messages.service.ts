@@ -930,19 +930,6 @@ export class MessagesService {
       .populate([
         {
           path: 'message',
-          select: selectPopulateField<Message>([
-            '_id',
-            'content',
-            'contentEnglish',
-            'type',
-            'media',
-            'sender',
-            'targetUsers',
-            'reactions',
-            'forwardOf',
-            'room',
-            'call',
-          ]),
           populate: [
             {
               path: 'sender',
@@ -985,6 +972,13 @@ export class MessagesService {
           ]),
         },
       ]);
-    return pinMessages;
+    const pinMessagesWithRemoved = pinMessages.map((pinMessage) => {
+      const message = convertMessageRemoved(pinMessage.message, userId);
+      return {
+        ...pinMessage.toJSON(),
+        message: message,
+      };
+    });
+    return pinMessagesWithRemoved;
   }
 }
