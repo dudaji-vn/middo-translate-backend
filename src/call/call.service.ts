@@ -46,14 +46,19 @@ export class CallService {
         if (room.name) roomName = room.name;
         else if (room.participants.length < 3) {
           const participants = room.participants;
-          participants.forEach((participant) => {
+          participants.forEach((participant, index) => {
             roomName += participant.name + ', ';
           });
           roomName = roomName.slice(0, -2);
         } else {
           const participants = room.participants;
-          roomName = participants[0].name + ', ' + participants[1].name;
-          roomName += ' and ' + (participants.length - 2) + ' others';
+          participants.forEach((participant, index) => {
+            if (index !== participants.length - 1)
+              roomName += participant.name + ', ';
+            else roomName += participant.name;
+          });
+          // roomName = participants[0].name + ', ' + participants[1].name;
+          // roomName += ' and ' + (participants.length - 2) + ' others';
         }
       }
       const newCall = {
