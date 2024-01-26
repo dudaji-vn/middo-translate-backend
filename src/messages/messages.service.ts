@@ -462,7 +462,7 @@ export class MessagesService {
           'language',
         ]),
       )
-      .populate('call', selectPopulateField<Call>(['endTime', '_id', 'type']))
+      .populate('call')
       .populate(
         'reactions.user',
         selectPopulateField<User>([
