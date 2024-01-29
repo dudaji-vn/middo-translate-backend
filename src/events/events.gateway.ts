@@ -292,8 +292,10 @@ export class EventsGateway
   }
   // Request get share screen
   @SubscribeMessage(socketConfig.events.call.request_get_share_screen)
-  handleRequestGetShareScreen(@ConnectedSocket() client: Socket) {
-    const roomId = this.socketToRoom[client.id];
+  handleRequestGetShareScreen(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() roomId: string,
+  ) {
     this.server
       .to(roomId)
       .emit(socketConfig.events.call.request_get_share_screen, client.id);
