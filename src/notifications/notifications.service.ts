@@ -33,7 +33,7 @@ export class NotificationService {
 
     try {
       const response = await messaging().sendEachForMulticast({
-        tokens,
+        tokens: tokens || [],
         data: {
           title,
           body,
