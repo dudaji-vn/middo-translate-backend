@@ -19,7 +19,7 @@ export const envConfig = {
     },
     refreshToken: {
       secret: process.env.REFRESH_TOKEN_SECRET,
-      expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '365d',
     },
     verifyToken: {
       secret: process.env.VERIFY_TOKEN_SECRET,

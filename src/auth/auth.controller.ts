@@ -237,4 +237,23 @@ export class AuthController {
       },
     };
   }
+
+  // refresh token
+  @UseGuards(RefreshTokenGuard)
+  @Post('refresh')
+  async refreshToken(
+    @GetJwtInfo() { id, token }: { token: string; id: string },
+  ): Promise<
+    Response<{
+      tokens: Tokens;
+    }>
+  > {
+    const tokens = await this.authService.refreshTokens(id, token);
+    return {
+      message: 'ok',
+      data: {
+        tokens,
+      },
+    };
+  }
 }
