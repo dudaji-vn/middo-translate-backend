@@ -30,6 +30,7 @@ import { RefreshTokenGuard } from './guards/refresh-token.guard';
 import { GetJwtInfo } from 'src/common/decorators/get-jwt-info.decorator';
 import { GoogleOauthGuard } from './guards/google-oauth.guard';
 import { envConfig } from 'src/configs/env.config';
+import { SignOutDto } from './dto/sign-out.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -254,6 +255,18 @@ export class AuthController {
       data: {
         tokens,
       },
+    };
+  }
+  @Post('sign-out')
+  async signOut(
+    @JwtUserId() userId: string,
+    @Body() data: SignOutDto,
+  ): Promise<Response<null>> {
+    console.log('sign out', userId, data);
+    await this.authService.signOut(userId, data);
+    return {
+      message: 'ok',
+      data: null,
     };
   }
 }

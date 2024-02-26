@@ -35,7 +35,7 @@ export class NotificationService {
     const expoTokens = tokens.filter((token) =>
       token.includes('ExponentPushToken'),
     );
-    console.log(expoTokens);
+
     tokens = tokens.filter((token) => !token.includes('ExponentPushToken'));
     try {
       const response = await messaging().sendEachForMulticast({

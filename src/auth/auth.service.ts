@@ -11,6 +11,8 @@ import { SignUpDto } from './dto/sign-up.dto';
 import { Tokens } from './types';
 import { UsersService } from 'src/users/users.service';
 import { envConfig } from 'src/configs/env.config';
+import { NotificationService } from 'src/notifications/notifications.service';
+import { SignOutDto } from './dto/sign-out.dto';
 
 @Injectable()
 export class AuthService {
@@ -18,6 +20,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly usersService: UsersService,
     private readonly mailService: MailService,
+    private readonly notificationService: NotificationService,
   ) {}
   async createAccessToken(payload: { id: string }) {
     return this.jwtService.signAsync(payload, {
@@ -248,5 +251,11 @@ export class AuthService {
       refreshToken,
       user,
     };
+  }
+
+  async signOut(userId: string, { notifyToken }: SignOutDto) {
+    console.log('sign out', userId, notifyToken);
+    await this.notificationService.deleteToken(userId, notifyToken);
+    return;
   }
 }
