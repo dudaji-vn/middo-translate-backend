@@ -8,6 +8,7 @@ import { Module } from '@nestjs/common';
 import { RefreshTokenStrategy } from './strategies/refresh-token.strategy';
 import { UsersModule } from 'src/users/users.module';
 import { VerifyTokenStrategy } from './strategies/verify-token.strategy';
+import { NotificationModule } from 'src/notifications/notifications.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { VerifyTokenStrategy } from './strategies/verify-token.strategy';
     }),
     UsersModule,
     MailModule,
+    NotificationModule,
   ],
   providers: [
     AuthService,

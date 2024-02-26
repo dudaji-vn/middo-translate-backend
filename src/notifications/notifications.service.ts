@@ -5,6 +5,7 @@ import { Notification } from './schemas/notifications.schema';
 import { messaging } from 'firebase-admin';
 import { RoomNotification } from './schemas/room-notifications.schema';
 import { envConfig } from 'src/configs/env.config';
+import { Expo, ExpoPushMessage } from 'expo-server-sdk';
 
 @Injectable()
 export class NotificationService {
@@ -26,11 +27,16 @@ export class NotificationService {
     if (!notifications.length) {
       return;
     }
-    const tokens: string[] = notifications.reduce((acc, notification) => {
+    let tokens: string[] = notifications.reduce((acc, notification) => {
       acc.push(...notification.tokens);
       return acc;
     }, [] as string[]);
 
+    const expoTokens = tokens.filter((token) =>
+      token.includes('ExponentPushToken'),
+    );
+
+    tokens = tokens.filter((token) => !token.includes('ExponentPushToken'));
     try {
       const response = await messaging().sendEachForMulticast({
         tokens: tokens || [],
@@ -45,22 +51,38 @@ export class NotificationService {
           },
         },
       });
-      console.log(
-        response.responses.forEach(async (res, index) => {
-          //if error is entitity not found, remove token from database
-          if (
-            res.error?.code === 'messaging/invalid-registration-token' ||
-            res.error?.code === 'messaging/registration-token-not-registered'
-          ) {
-            const token = tokens[index];
-            console.log(token);
-            await this.notificationModel.updateOne(
-              { tokens: { $in: [token] } },
-              { $pull: { tokens: token } },
-            );
+      response.responses.forEach(async (res, index) => {
+        if (
+          res.error?.code === 'messaging/invalid-registration-token' ||
+          res.error?.code === 'messaging/registration-token-not-registered'
+        ) {
+          const token = tokens[index];
+          await this.notificationModel.updateOne(
+            { tokens: { $in: [token] } },
+            { $pull: { tokens: token } },
+          );
+        }
+      });
+      if (expoTokens.length) {
+        const expo = new Expo();
+        const messages: ExpoPushMessage[] = expoTokens.map((token) => ({
+          to: token,
+          sound: 'default',
+          title,
+          body,
+          data: { url: link || envConfig.app.url },
+        }));
+        const chunks = expo.chunkPushNotifications(messages);
+
+        for (const chunk of chunks) {
+          try {
+            const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
+            console.log(ticketChunk);
+          } catch (error) {
+            console.error(error);
           }
-        }),
-      );
+        }
+      }
     } catch (error) {
       console.log(error);
     }
