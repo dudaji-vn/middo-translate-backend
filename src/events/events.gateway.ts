@@ -20,6 +20,7 @@ import { CallService } from 'src/call/call.service';
 import Meeting from './interface/meeting.interface';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
+import { WatchingService } from 'src/watching/watching.service';
 
 @WebSocketGateway({
   cors: '*',
@@ -42,6 +43,7 @@ export class EventsGateway
   constructor(
     private callService: CallService,
     private roomService: RoomsService,
+    private watchingService: WatchingService,
   ) {}
   afterInit(server: Server) {
     // console.log('socket ', server?.engine?.clientsCount);
@@ -72,17 +74,39 @@ export class EventsGateway
   @SubscribeMessage(socketConfig.events.chat.join)
   handleJoinChat(
     @ConnectedSocket() client: Socket,
-    @MessageBody() roomId: string,
+    @MessageBody()
+    {
+      roomId,
+      notifyToken,
+    }: {
+      roomId: string;
+      notifyToken?: string;
+    },
   ) {
-    console.log('handleJoinChat', roomId);
+    const userId = findUserIdBySocketId(this.clients, client.id);
+    if (userId && notifyToken) {
+      this.watchingService.create({
+        userId: userId,
+        roomId: roomId,
+        notifyToken: notifyToken,
+        socketId: client.id,
+      });
+    }
     client.join(roomId);
   }
   @SubscribeMessage(socketConfig.events.chat.leave)
   handleLeaveChat(
     @ConnectedSocket() client: Socket,
-    @MessageBody() roomId: string,
+    @MessageBody()
+    {
+      roomId,
+      notifyToken,
+    }: {
+      roomId: string;
+      notifyToken: string;
+    },
   ) {
-    console.log('handleLeaveChat', roomId);
+    this.watchingService.deleteBySocketId(client.id);
     client.leave(roomId);
   }
 
@@ -480,6 +504,17 @@ export class EventsGateway
   // User disconnect
   handleDisconnect(@ConnectedSocket() client: Socket) {
     this.leaveCall(client);
+    const socketId = client.id;
+    this.watchingService.deleteBySocketId(socketId);
   }
   // End events for call
 }
+
+const findUserIdBySocketId = (clients: any, socketId: string) => {
+  for (const userId in clients) {
+    if (clients[userId].socketIds.includes(socketId)) {
+      return userId;
+    }
+  }
+  return null;
+};

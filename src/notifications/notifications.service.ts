@@ -6,6 +6,7 @@ import { messaging } from 'firebase-admin';
 import { RoomNotification } from './schemas/room-notifications.schema';
 import { envConfig } from 'src/configs/env.config';
 import { Expo, ExpoPushMessage } from 'expo-server-sdk';
+import { WatchingService } from 'src/watching/watching.service';
 
 @Injectable()
 export class NotificationService {
@@ -14,11 +15,13 @@ export class NotificationService {
     private roomNotificationModel: Model<RoomNotification>,
     @InjectModel(Notification.name)
     private notificationModel: Model<Notification>,
+    private watchingService: WatchingService,
   ) {}
   async sendNotification(
     userIds: string[],
     title: string,
     body: string,
+    roomId: string,
     link?: string,
   ) {
     const notifications = await this.notificationModel.find({
@@ -31,6 +34,15 @@ export class NotificationService {
       acc.push(...notification.tokens);
       return acc;
     }, [] as string[]);
+
+    const watchingList = await this.watchingService.getWatchingListByRoomId(
+      roomId,
+    );
+
+    // not push notification to user who is watching the room
+    watchingList.forEach((watching) => {
+      tokens = tokens.filter((token) => token !== watching.notifyToken);
+    });
 
     const expoTokens = tokens.filter((token) =>
       token.includes('ExponentPushToken'),

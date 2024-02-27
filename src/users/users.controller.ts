@@ -45,7 +45,7 @@ export class UsersController {
       excludeExtraneousValues: true,
     });
     return {
-      message: 'User infomation updated successfully!',
+      message: 'User information updated successfully!',
       data: userResponse,
     };
   }
