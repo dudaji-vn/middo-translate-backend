@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  LoggerService,
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -117,6 +116,7 @@ export class RoomsService {
       room.admin = room.participants[0];
     }
     await room.save();
+    await this.upPinIfExist(room._id.toString(), userId);
     this.eventEmitter.emit(socketConfig.events.room.leave, {
       roomId: room._id,
       userId,
@@ -629,6 +629,16 @@ export class RoomsService {
       pinRoomIds: user.pinRoomIds,
     });
   }
+  async upPinIfExist(roomId: string, userId: string) {
+    const user = await this.usersService.findById(userId);
+    if (user.pinRoomIds.includes(roomId)) {
+      return;
+    }
+    user.pinRoomIds = [roomId, ...user.pinRoomIds];
+    await this.usersService.update(user._id, {
+      pinRoomIds: user.pinRoomIds,
+    });
+  }
   async getPinnedRooms(userId: string) {
     const user = await this.usersService.findById(userId);
     const rooms = await this.roomModel
@@ -637,6 +647,7 @@ export class RoomsService {
           $in: user.pinRoomIds,
         },
         status: RoomStatus.ACTIVE,
+        participants: userId,
       })
       .populate({
         path: 'lastMessage',

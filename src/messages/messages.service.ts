@@ -416,7 +416,13 @@ export class MessagesService {
       (id) => !userIgnoredNotification.includes(id),
     );
     const link = `${envConfig.app.url}/talk/${room._id}`;
-    this.notificationService.sendNotification(targetUserIds, title, body, link);
+    this.notificationService.sendNotification(
+      targetUserIds,
+      title,
+      body,
+      room._id.toString(),
+      link,
+    );
   }
 
   async findByRoomIdWithCursorPaginate(
@@ -833,6 +839,7 @@ export class MessagesService {
           [message.sender._id.toString()],
           envConfig.app.name,
           `${user.name} reacted to your message`,
+          message.room._id.toString(),
           link,
         );
       }
