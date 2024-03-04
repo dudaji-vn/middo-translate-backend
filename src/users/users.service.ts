@@ -113,7 +113,9 @@ export class UsersService {
   }
 
   async isEmailExist(email: string) {
-    const res = await this.userModel.exists({ email });
+    const res = await this.userModel.exists({
+      email: { $regex: email, $options: 'i' },
+    });
     return !!res;
   }
 
