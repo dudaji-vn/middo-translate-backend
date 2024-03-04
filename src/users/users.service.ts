@@ -95,7 +95,10 @@ export class UsersService {
       ignoreNotFound?: boolean;
     },
   ) {
-    const user = await this.userModel.findOne({ email }).lean();
+    const regex = new RegExp('^' + email.trim() + '$', 'i');
+    const user = await this.userModel
+      .findOne({ email: { $regex: regex } })
+      .lean();
     if (!user && options?.ignoreNotFound) {
       return {} as User;
     }
