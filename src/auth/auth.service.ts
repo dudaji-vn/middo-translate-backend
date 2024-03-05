@@ -1,6 +1,6 @@
 import * as bcrypt from 'bcrypt';
 
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -56,9 +56,6 @@ export class AuthService {
       notFoundMessage: 'Invalid email or password',
       notFoundCode: 401,
     });
-
-    console.log('find user', user);
-
     const isMatch = await bcrypt.compare(signDto.password, user.password);
     if (!isMatch) {
       throw new HttpException('Invalid email or password', 401);
@@ -67,8 +64,6 @@ export class AuthService {
       throw new HttpException('Account not activated', 401);
     }
 
-    console.log('pass email', user);
-
     const accessToken = await this.createAccessToken({
       id: user._id.toString(),
     });
@@ -76,7 +71,6 @@ export class AuthService {
       id: user._id.toString(),
     });
 
-    console.log('pass token', accessToken, refreshToken);
     return {
       accessToken,
       refreshToken,
@@ -254,7 +248,10 @@ export class AuthService {
   }
 
   async signOut(userId: string, { notifyToken }: SignOutDto) {
-    console.log('sign out', userId, notifyToken);
+    Logger.log(
+      `sign out: userId:${userId}, notifyToken:${notifyToken}`,
+      AuthService.name,
+    );
     await this.notificationService.deleteToken(userId, notifyToken);
     return;
   }

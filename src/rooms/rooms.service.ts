@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -624,7 +625,6 @@ export class RoomsService {
       user.pinRoomIds = [...(user?.pinRoomIds || []), roomId];
     }
 
-    console.log(user.pinRoomIds);
     await this.usersService.update(user._id, {
       pinRoomIds: user.pinRoomIds,
     });

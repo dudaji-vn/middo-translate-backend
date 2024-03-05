@@ -10,7 +10,6 @@ export const ParamObjectId = createParamDecorator(
   (key: string | undefined, context: ExecutionContext) => {
     const request = context.switchToHttp().getRequest();
     const param = request.params[key || 'id'];
-    console.log(param);
     if (isValidObjectId(param)) {
       return param;
     }
