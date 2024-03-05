@@ -1,4 +1,4 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId } from 'mongoose';
 import { FindParams } from 'src/common/types';
@@ -168,6 +168,11 @@ export class UsersService {
       }
       return user;
     } catch (error) {
+      Logger.error(
+        `SERVER_ERROR in line 172: ${error['message']}`,
+        '',
+        UsersService.name,
+      );
       throw error;
     }
   }
@@ -187,6 +192,11 @@ export class UsersService {
         password: newPassword,
       });
     } catch (error) {
+      Logger.error(
+        `SERVER_ERROR in line 196: ${error['message']}`,
+        '',
+        UsersService.name,
+      );
       throw error;
     }
   }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { Call } from './schemas/call.schema';
@@ -86,6 +86,11 @@ export class CallService {
         type: JOIN_TYPE.NEW_CALL,
       };
     } catch (error) {
+      Logger.error(
+        `SERVER_ERROR in line 90: ${error['message']}`,
+        '',
+        CallService.name,
+      );
       return { status: 'SERVER_ERROR' };
     }
   }
@@ -100,6 +105,11 @@ export class CallService {
       }
       return { status: STATUS.MEETING_STARTED, call: call };
     } catch (error) {
+      Logger.error(
+        `SERVER_ERROR in line 109: ${error['message']}`,
+        '',
+        CallService.name,
+      );
       return { status: 'SERVER_ERROR' };
     }
   }
@@ -112,9 +122,14 @@ export class CallService {
       }
       call.endTime = new Date();
       const newCall = await call.save();
-      console.log('newCall', newCall);
+      Logger.log(`end call ${JSON.stringify(newCall)}`, CallService.name);
       this.eventEmitter.emit(socketConfig.events.call.update, newCall);
     } catch (error) {
+      Logger.error(
+        `SERVER_ERROR in line 119: ${error['message']}`,
+        '',
+        CallService.name,
+      );
       return { status: 'SERVER_ERROR' };
     }
   }
@@ -129,6 +144,11 @@ export class CallService {
       }
       return { status: STATUS.MEETING_STARTED };
     } catch (error) {
+      Logger.error(
+        `SERVER_ERROR in line 138: ${error['message']}`,
+        '',
+        CallService.name,
+      );
       return { status: 'SERVER_ERROR' };
     }
   }
