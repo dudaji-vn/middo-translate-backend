@@ -11,10 +11,8 @@ import {
 } from '@nestjs/common';
 
 import { ApiTags } from '@nestjs/swagger';
-import { plainToInstance } from 'class-transformer';
 import { GetVerifyJwt, JwtUserId, Public } from 'src/common/decorators';
 import { Response } from 'src/common/types';
-import { UserResponseDto } from 'src/users/dto/user-response.dto';
 import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { AuthService } from './auth.service';
@@ -85,20 +83,18 @@ export class AuthController {
   async SignIn(@Body() signInDto: SignInDto): Promise<
     Response<
       Tokens & {
-        user: UserResponseDto;
+        user: User;
       }
     >
   > {
     const res = await this.authService.signIn(signInDto);
-    const userResponse = plainToInstance(UserResponseDto, res.user, {
-      excludeExtraneousValues: true,
-    });
+    console.log(res.user);
     return {
       message: 'ok',
       data: {
         accessToken: res.accessToken,
         refreshToken: res.refreshToken,
-        user: userResponse,
+        user: res.user,
       },
     };
   }
