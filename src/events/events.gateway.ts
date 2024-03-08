@@ -268,6 +268,7 @@ export class EventsGateway
       callerId: string;
       signal: any;
       isShareScreen: boolean;
+      isElectron: boolean;
     },
   ) {
     this.server.to(payload.id).emit(socketConfig.events.call.user_joined, {
@@ -275,6 +276,7 @@ export class EventsGateway
       callerId: payload.callerId,
       user: payload.user,
       isShareScreen: payload.isShareScreen,
+      isElectron: payload.isElectron,
     });
   }
   // Return signal event
@@ -438,6 +440,17 @@ export class EventsGateway
     this.server
       .to(client.id)
       .emit(socketConfig.events.call.request_get_old_doodle_data, doodleData);
+  }
+  // Send doodle share screen
+  @SubscribeMessage(socketConfig.events.call.send_doodle_share_screen)
+  handleSendDoodleShareScreen(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { image: string; user: any },
+  ) {
+    const roomId = this.socketToRoom[client.id];
+    this.server
+      .to(roomId)
+      .emit(socketConfig.events.call.send_doodle_share_screen, payload);
   }
   // Send caption
   @SubscribeMessage(socketConfig.events.call.send_caption)
