@@ -9,19 +9,17 @@ import {
   HelpDeskBusiness,
   HelpDeskBusinessSchema,
 } from './schemas/help-desk-business.schema';
-import {
-  HelpDeskClient,
-  HelpDeskClientSchema,
-} from './schemas/help-desk-client.schema';
+
+import { MessagesModule } from '../messages/messages.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
-      { name: HelpDeskClient.name, schema: HelpDeskClientSchema },
       { name: HelpDeskBusiness.name, schema: HelpDeskBusinessSchema },
       { name: User.name, schema: UserSchema },
     ]),
     UsersModule,
+    forwardRef(() => MessagesModule),
     forwardRef(() => RoomsModule),
   ],
   providers: [HelpDeskService],
