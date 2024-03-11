@@ -29,7 +29,7 @@ export class HelpDeskBusiness {
   firstMessage: string;
 
   @Prop({ type: String, required: true })
-  secondMessage: string;
+  firstMessageEnglish: string;
 }
 
 export const HelpDeskBusinessSchema =

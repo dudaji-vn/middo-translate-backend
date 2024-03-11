@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { JwtUserId, Public } from 'src/common/decorators';
+import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
 import { CreateClientDto } from './dto/create-client-dto';
 import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
 import { HelpDeskService } from './help-desk.service';
@@ -37,9 +37,10 @@ export class HelpDeskController {
     return { data: result };
   }
 
+  @Public()
   @Get('/business/:id')
-  async getBusinessById(@JwtUserId() userId: string) {
-    const result = await this.helpDeskService.getBusinessByUser(userId);
+  async getBusinessById(@ParamObjectId() id: string) {
+    const result = await this.helpDeskService.getBusinessById(id);
     return { data: result };
   }
 }

@@ -23,7 +23,7 @@ import { UsersModule } from './users/users.module';
 import { envConfig } from './configs/env.config';
 import { GoogleApiStatController } from './google-api-stat/google-api-stat.controller';
 import { WatchingModule } from './watching/watching.module';
-import { HelpDeskModule } from './helpdesk/help-desk.module';
+import { HelpDeskModule } from './help-desk/help-desk.module';
 
 @Module({
   imports: [

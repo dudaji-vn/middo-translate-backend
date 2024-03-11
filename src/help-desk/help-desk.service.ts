@@ -87,4 +87,7 @@ export class HelpDeskService {
   async getBusinessByUser(userId: string) {
     return this.helpDeskBusinessModel.findOne({ user: userId });
   }
+  async getBusinessById(id: string) {
+    return this.helpDeskBusinessModel.findById(id);
+  }
 }

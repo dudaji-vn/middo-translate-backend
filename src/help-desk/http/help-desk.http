@@ -9,7 +9,8 @@ Content-Type: application/json
   "domain": ["https://test-ttalk.onrender.com"],
   "color": "red",
   "language": "vi",
-  "firstMessage": "Hi, how can I help you?"
+  "firstMessage": "Xin chào, tôi có thể giúp gì cho bạn",
+  "firstMessageEnglish":"Hi, how can I help you?"
 }
 
 ###
@@ -42,7 +43,13 @@ Content-Type: application/json
 ###
 GET http://localhost:8080/api/rooms
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU1NDg3N2U5YzNlOGRjMDQ5ODMyMyIsImlhdCI6MTcxMDA3MDA4NywiZXhwIjoxNzEwMTU2NDg3fQ.WcSopwd8Xi8bENCyPVcYQaFrzK1axJ6raiu5rVgMY0o
-Content-Type: application/json
+
+
+
+
+###
+GET http://localhost:8080/api/help-desk/business/65ee62852d3c6a7223f31421
+
 
 
 

@@ -17,5 +17,5 @@ export class CreateOrEditBusinessDto {
   firstMessage: string;
 
   @ApiProperty()
-  secondMessage: string;
+  firstMessageEnglish: string;
 }
