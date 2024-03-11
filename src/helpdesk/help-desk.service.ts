@@ -5,6 +5,8 @@ import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { HelpDeskBusiness } from './schemas/help-desk-business.schema';
 import { HelpDeskClient } from './schemas/help-desk-client.schema';
+import { FindParams } from '../common/types';
+import { selectPopulateField } from '../common/utils';
 
 @Injectable()
 export class HelpDeskService {
@@ -50,5 +52,39 @@ export class HelpDeskService {
       { new: true, upsert: true },
     );
     return user;
+  }
+
+  async findClient({ q, limit }: FindParams): Promise<Partial<User>[]> {
+    const anonymousClient = await this.helpDeskClientModel
+      .find({
+        $or: [
+          { name: { $regex: q, $options: 'i' } },
+          { email: { $regex: q, $options: 'i' } },
+        ],
+      })
+      .populate({
+        path: 'user',
+      })
+
+      .limit(limit)
+      .select({
+        name: true,
+        avatar: true,
+        email: true,
+      })
+      .lean();
+    if (!anonymousClient) {
+      return [];
+    }
+    return anonymousClient.map((item) => ({
+      _id: item.user._id,
+      avatar: item.avatar || '',
+      email: item.email,
+      name: item.name,
+    }));
+  }
+
+  async getBusinessByUser(userId: string) {
+    return this.helpDeskBusinessModel.findOne({ user: userId });
   }
 }

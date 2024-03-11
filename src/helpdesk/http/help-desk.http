@@ -1,0 +1,52 @@
+###
+
+####
+PUT http://localhost:8080/api/help-desk/create-or-edit-business
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU1NDg3N2U5YzNlOGRjMDQ5ODMyMyIsImlhdCI6MTcxMDA3MDA4NywiZXhwIjoxNzEwMTU2NDg3fQ.WcSopwd8Xi8bENCyPVcYQaFrzK1axJ6raiu5rVgMY0o
+Content-Type: application/json
+
+{
+  "domain": ["https://test-ttalk.onrender.com"],
+  "color": "red",
+  "language": "vi",
+  "firstMessage": "Hi, how can I help you?"
+}
+
+###
+POST  http://localhost:8080/api/help-desk/create-client
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU1NDg3N2U5YzNlOGRjMDQ5ODMyMyIsImlhdCI6MTcxMDA3MDA4NywiZXhwIjoxNzEwMTU2NDg3fQ.WcSopwd8Xi8bENCyPVcYQaFrzK1axJ6raiu5rVgMY0o
+Content-Type: application/json
+
+{
+  "businessId": "65ee62852d3c6a7223f31421",
+  "name": "string",
+  "language": "string",
+  "email": "hoquanglinh28ssss10@gmail.com",
+  "phoneNumber":"0352952481"
+}
+
+
+####
+GET http://localhost:8080/api/search/help-desk?q=hoquanglinh
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU1NDg3N2U5YzNlOGRjMDQ5ODMyMyIsImlhdCI6MTcwOTc5ODExMywiZXhwIjoxNzA5ODg0NTEzfQ.AfarcX8ZnA49i8QN6y_SbTQgu7eDYKYu2IzsGWq-N7c
+Content-Type: application/json
+
+###
+
+###
+GET http://localhost:8080/api/help-desk/my-business
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU1NDg3N2U5YzNlOGRjMDQ5ODMyMyIsImlhdCI6MTcxMDA3MDA4NywiZXhwIjoxNzEwMTU2NDg3fQ.WcSopwd8Xi8bENCyPVcYQaFrzK1axJ6raiu5rVgMY0o
+Content-Type: application/json
+
+
+###
+GET http://localhost:8080/api/rooms
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU1NDg3N2U5YzNlOGRjMDQ5ODMyMyIsImlhdCI6MTcxMDA3MDA4NywiZXhwIjoxNzEwMTU2NDg3fQ.WcSopwd8Xi8bENCyPVcYQaFrzK1axJ6raiu5rVgMY0o
+Content-Type: application/json
+
+
+
+
+
+
+

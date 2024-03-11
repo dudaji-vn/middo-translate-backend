@@ -16,8 +16,8 @@ export class HelpDeskBusiness {
   })
   user: User | string;
 
-  @Prop({ type: String })
-  domain: string;
+  @Prop({ type: Array })
+  domain: string[];
 
   @Prop({ type: String })
   color: string;

@@ -32,6 +32,9 @@ export class HelpDeskClient {
 
   @Prop({ type: String, required: true })
   language: string;
+
+  @Prop({ type: String, default: '' })
+  avatar: string;
 }
 
 export const HelpDeskClientSchema =
