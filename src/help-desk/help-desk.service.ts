@@ -4,23 +4,26 @@ import { Model } from 'mongoose';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { HelpDeskBusiness } from './schemas/help-desk-business.schema';
-import { HelpDeskClient } from './schemas/help-desk-client.schema';
+
 import { FindParams } from '../common/types';
-import { selectPopulateField } from '../common/utils';
+import { generateSlug } from '../common/utils/generate-slug';
+import { MessagesService } from '../messages/messages.service';
+import { MessageType } from '../messages/schemas/messages.schema';
+import { RoomsService } from '../rooms/rooms.service';
 
 @Injectable()
 export class HelpDeskService {
   constructor(
-    @InjectModel(HelpDeskClient.name)
-    private helpDeskClientModel: Model<HelpDeskClient>,
     @InjectModel(HelpDeskBusiness.name)
     private helpDeskBusinessModel: Model<HelpDeskBusiness>,
     @InjectModel(User.name)
     private userModel: Model<User>,
     private userService: UsersService,
+    private roomsService: RoomsService,
+    private messagesService: MessagesService,
   ) {}
 
-  async createClient(businessId: string, info: Partial<HelpDeskClient>) {
+  async createClient(businessId: string, info: Partial<User>) {
     const { email = '' } = info;
     const isEmailExist = await this.userService.isEmailExist(email);
     if (isEmailExist) {
@@ -29,17 +32,41 @@ export class HelpDeskService {
       );
     }
     const business = await this.helpDeskBusinessModel.findById(businessId);
+
     if (!business) {
       throw new BadRequestException('Business not found');
     }
     const user = await this.userModel.create({
-      status: UserStatus.PENDING,
-      email: `${new Date().getTime()}@gmail.com`,
+      status: UserStatus.ACTIVE,
+      email: `${generateSlug()}@gmail.com`,
+      business: business,
+      name: info.name,
+      isAnonymousClient: true,
+      tempEmail: info.email,
     });
-    info.user = user;
-    info.business = business;
-    const helpDeskClient = await this.helpDeskClientModel.create(info);
-    return helpDeskClient;
+
+    const room = await this.roomsService.createHelpDeskRoom(
+      {
+        participants: [user._id, (business.user as User)._id],
+        businessId: business._id.toString(),
+        senderId: business.user.toString(),
+      },
+      business.user.toString(),
+    );
+
+    this.messagesService.createOrUpdateHelpDeskMessage(
+      {
+        clientTempId: '',
+        content: business.firstMessage,
+        contentEnglish: business.firstMessageEnglish,
+        type: MessageType.TEXT,
+        roomId: room._id.toString(),
+        media: [],
+      },
+      business.user.toString(),
+    );
+
+    return user;
   }
 
   async createOrEditBusiness(userId: string, info: Partial<HelpDeskBusiness>) {
@@ -55,39 +82,13 @@ export class HelpDeskService {
   }
 
   async findClient({ q, limit }: FindParams): Promise<Partial<User>[]> {
-    const anonymousClient = await this.helpDeskClientModel
-      .find({
-        $or: [
-          { name: { $regex: q, $options: 'i' } },
-          { email: { $regex: q, $options: 'i' } },
-        ],
-      })
-      .populate({
-        path: 'user',
-      })
-
-      .limit(limit)
-      .select({
-        name: true,
-        avatar: true,
-        email: true,
-      })
-      .lean();
-    if (!anonymousClient) {
-      return [];
-    }
-    return anonymousClient.map((item) => ({
-      _id: item.user._id,
-      avatar: item.avatar || '',
-      email: item.email,
-      name: item.name,
-    }));
+    return [];
   }
 
   async getBusinessByUser(userId: string) {
-    return this.helpDeskBusinessModel.findOne({ user: userId });
+    return this.helpDeskBusinessModel.findOne({ user: userId }).lean();
   }
   async getBusinessById(id: string) {
-    return this.helpDeskBusinessModel.findById(id);
+    return this.helpDeskBusinessModel.findById(id).lean();
   }
 }
