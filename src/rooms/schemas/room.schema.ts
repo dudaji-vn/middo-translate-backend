@@ -53,7 +53,7 @@ export class Room {
   @Prop({ type: Boolean, default: false })
   isSetName: boolean;
 
-  @Prop({ type: Boolean, default: false })
+  @Prop({ type: Boolean })
   isHelpDesk: boolean;
 }
 
