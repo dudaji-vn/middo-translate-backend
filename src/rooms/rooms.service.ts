@@ -57,6 +57,9 @@ export class RoomsService {
     }
 
     const newRoom = new this.roomModel(createRoomDto);
+    if (createRoomDto.isHelpDesk) {
+      newRoom.isHelpDesk = createRoomDto.isHelpDesk;
+    }
     newRoom.participants = isGroup ? [...new Set(participants)] : participants;
     newRoom.name = createRoomDto.name || '';
     if (newRoom.name) {

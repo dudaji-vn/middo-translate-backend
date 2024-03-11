@@ -11,6 +11,7 @@ export enum RoomStatus {
   DELETED = 'deleted',
   CANNOT_MESSAGE = 'cannot_message',
 }
+
 @Schema({
   timestamps: true,
 })
@@ -51,6 +52,9 @@ export class Room {
 
   @Prop({ type: Boolean, default: false })
   isSetName: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  isHelpDesk: boolean;
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);
