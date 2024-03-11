@@ -5,12 +5,16 @@ import { RoomsService } from 'src/rooms/rooms.service';
 import { SearchMainResult } from './types';
 import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
+import { HelpDeskBusiness } from '../helpdesk/schemas/help-desk-business.schema';
+import { HelpDeskService } from '../helpdesk/help-desk.service';
+import { HelpDeskClient } from '../helpdesk/schemas/help-desk-client.schema';
 
 @Injectable()
 export class SearchService {
   constructor(
     private readonly usersService: UsersService,
     private readonly roomsService: RoomsService,
+    private readonly helpDeskService: HelpDeskService,
   ) {}
 
   async searchInbox(
@@ -58,5 +62,13 @@ export class SearchService {
       limit,
     });
     return users;
+  }
+
+  async searchHelpDesk({ q, limit }: FindParams): Promise<Partial<User>[]> {
+    const anonymousClients = await this.helpDeskService.findClient({
+      q,
+      limit,
+    });
+    return anonymousClients;
   }
 }

@@ -5,6 +5,7 @@ import { User } from 'src/users/schemas/user.schema';
 import { Response } from 'src/common/types';
 import { JwtUserId } from 'src/common/decorators';
 import { SearchMainResult } from './types';
+import { HelpDeskClient } from '../helpdesk/schemas/help-desk-client.schema';
 
 @Controller('search')
 export class SearchController {
@@ -28,6 +29,18 @@ export class SearchController {
   ): Promise<Response<User[]>> {
     query.limit = query.limit || 20;
     const users = await this.searchService.searchUsers(query);
+    return {
+      data: users,
+      message: 'Users found',
+    };
+  }
+
+  @Get('help-desk')
+  async searchHelpDesk(
+    @Query() query: SearchQueryParamsDto,
+  ): Promise<Response<Partial<User>[]>> {
+    query.limit = query.limit || 20;
+    const users = await this.searchService.searchHelpDesk(query);
     return {
       data: users,
       message: 'Users found',

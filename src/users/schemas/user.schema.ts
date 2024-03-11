@@ -66,6 +66,8 @@ export class User {
     default: [],
   })
   pinRoomIds: string[];
+  @Prop({ type: Boolean, default: false })
+  isAnonymousClient: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
