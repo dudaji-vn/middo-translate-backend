@@ -3,7 +3,7 @@ import { RoomsModule } from 'src/rooms/rooms.module';
 import { SearchController } from './search.controller';
 import { SearchService } from './search.service';
 import { UsersModule } from 'src/users/users.module';
-import { HelpDeskModule } from '../helpdesk/help-desk.module';
+import { HelpDeskModule } from '../help-desk/help-desk.module';
 
 @Module({
   imports: [UsersModule, RoomsModule, HelpDeskModule],

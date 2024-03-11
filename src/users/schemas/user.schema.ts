@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
+import { HelpDeskBusiness } from '../../help-desk/schemas/help-desk-business.schema';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -9,6 +10,7 @@ export enum UserStatus {
   BANNED = 'banned',
   UN_SET_INFO = 'unset',
   INACTIVE = 'inactive',
+  ANONYMOUS = 'anonymous',
 }
 
 export enum Provider {
@@ -68,6 +70,15 @@ export class User {
   pinRoomIds: string[];
   @Prop({ type: Boolean, default: false })
   isAnonymousClient: boolean;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: HelpDeskBusiness.name,
+  })
+  business: HelpDeskBusiness;
+
+  @Prop({ type: String, default: false })
+  tempEmail: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

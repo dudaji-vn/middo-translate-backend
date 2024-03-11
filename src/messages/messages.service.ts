@@ -1012,4 +1012,63 @@ export class MessagesService {
     });
     return pinMessagesWithRemoved;
   }
+
+  async createOrUpdateHelpDeskMessage(
+    createMessageDto: CreateMessageDto,
+    senderId: string,
+  ): Promise<Message> {
+    const user = await this.usersService.findById(senderId);
+
+    const room = await this.roomsService.findByIdAndUserId(
+      createMessageDto.roomId,
+      user._id.toString(),
+    );
+
+    const createdMessage = new this.messageModel();
+    createdMessage.sender = user;
+    createdMessage.content = createMessageDto.content || '';
+    createdMessage.contentEnglish = createMessageDto.contentEnglish || '';
+
+    createdMessage.room = room;
+    createdMessage.readBy = [user._id];
+    createdMessage.deliveredTo = [user._id];
+
+    const newMessage = await this.messageModel.findOneAndUpdate(
+      { room: room._id, isHelpDesk: true },
+      {
+        content: createMessageDto.content,
+        contentEnglish: createMessageDto.contentEnglish,
+        sender: senderId,
+      },
+      {
+        upsert: true,
+        new: true,
+      },
+    );
+    const newMessageWithSender = await newMessage.populate([
+      {
+        path: 'sender',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'language',
+        ]),
+      },
+      {
+        path: 'targetUsers',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'language',
+        ]),
+      },
+    ]);
+    this.roomsService.updateRoom(createMessageDto.roomId, {
+      lastMessage: newMessageWithSender,
+      newMessageAt: new Date(),
+    });
+    return newMessage;
+  }
 }

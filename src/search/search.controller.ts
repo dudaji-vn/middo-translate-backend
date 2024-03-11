@@ -5,7 +5,6 @@ import { User } from 'src/users/schemas/user.schema';
 import { Response } from 'src/common/types';
 import { JwtUserId } from 'src/common/decorators';
 import { SearchMainResult } from './types';
-import { HelpDeskClient } from '../helpdesk/schemas/help-desk-client.schema';
 
 @Controller('search')
 export class SearchController {

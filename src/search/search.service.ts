@@ -1,13 +1,11 @@
-import { FindParams } from 'src/common/types';
 import { Injectable } from '@nestjs/common';
-import { RoomStatus } from 'src/rooms/schemas/room.schema';
+import { FindParams } from 'src/common/types';
 import { RoomsService } from 'src/rooms/rooms.service';
-import { SearchMainResult } from './types';
+import { RoomStatus } from 'src/rooms/schemas/room.schema';
 import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import { HelpDeskBusiness } from '../helpdesk/schemas/help-desk-business.schema';
-import { HelpDeskService } from '../helpdesk/help-desk.service';
-import { HelpDeskClient } from '../helpdesk/schemas/help-desk-client.schema';
+import { HelpDeskService } from '../help-desk/help-desk.service';
+import { SearchMainResult } from './types';
 
 @Injectable()
 export class SearchService {
