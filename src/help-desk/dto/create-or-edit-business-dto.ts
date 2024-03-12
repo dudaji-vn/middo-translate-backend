@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsString } from 'class-validator';
+import { IsArray, IsString, MinLength } from 'class-validator';
 export class CreateOrEditBusinessDto {
   @ApiProperty()
   @IsArray()
@@ -14,8 +14,12 @@ export class CreateOrEditBusinessDto {
   language: string;
 
   @ApiProperty()
+  @IsString()
+  @MinLength(1)
   firstMessage: string;
 
   @ApiProperty()
+  @IsString()
+  @MinLength(1)
   firstMessageEnglish: string;
 }

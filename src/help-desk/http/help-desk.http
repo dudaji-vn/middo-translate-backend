@@ -6,10 +6,10 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2M
 Content-Type: application/json
 
 {
-  "domains": ["https://test-ttalk.onrender.com"],
+  "domains": ["https://test-ttalk.onrender.com","http://localhost:3000"],
   "color": "red",
   "language": "vi",
-  "firstMessage": "Xin chào, tôi có thể giúp gì cho bạn",
+  "firstMessage": "",
   "firstMessageEnglish":"Hi, how can I help you?"
 }
 
@@ -19,9 +19,9 @@ Content-Type: application/json
 
 { 
   "businessId": "65eec80a2d3c6a722349d697",
-  "name": "Ho Quang Linh",
+  "name": "Nguyen Van A",
   "language": "vi",
-  "email": "hoquanglinh28710@gmail.com"
+  "email": "nguyenvana28710@gmail.com"
 }
 
 
@@ -34,7 +34,8 @@ Content-Type: application/json
 
 ###
 GET http://localhost:8080/api/help-desk/my-business
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU1NDg3N2U5YzNlOGRjMDQ5ODMyMyIsImlhdCI6MTcxMDA3MDA4NywiZXhwIjoxNzEwMTU2NDg3fQ.WcSopwd8Xi8bENCyPVcYQaFrzK1axJ6raiu5rVgMY0o
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc 
+
 Content-Type: application/json
 
 
@@ -45,7 +46,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2M
 
 
 ###
-GET http://localhost:8080/api/help-desk/business/65ee62852d3c6a7223f31421
+GET http://localhost:8080/api/help-desk/business/65eec80a2d3c6a722349d697
 
 
 
@@ -73,6 +74,33 @@ Content-Type: application/json
 "roomId":"65efd52b102918180ed719cf",
 "userId":"65efd52a102918180ed719ca"
 }
+
+
+//Business
+###
+POST http://localhost:3000/api/messages
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc 
+Content-Type: application/json
+
+{
+"clientTempId": "2024-03-12T03:30:36.257Z",
+"content": "Đây là trang website giúp mình học tiếng Anh",
+"contentEnglish":"This is a website help you learn English",
+"language":"en",
+"roomId":"65efd52b102918180ed719cf"
+}
+
+
+###
+GET http://localhost:3000/api/rooms/65eff39fbe0534cecbc1a7ec
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc 
+
+###
+DELETE  http://localhost:3000/api/help-desk/65eec80a2d3c6a722349d697
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc 
+
+
+
 
 
 

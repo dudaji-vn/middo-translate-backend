@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
 import { CreateClientDto } from './dto/create-client-dto';
@@ -42,5 +50,14 @@ export class HelpDeskController {
   async getBusinessById(@ParamObjectId() id: string) {
     const result = await this.helpDeskService.getBusinessById(id);
     return { data: result };
+  }
+
+  @Delete(':id')
+  async deleteBusiness(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    await this.helpDeskService.deleteBusiness(id, userId);
+    return { message: 'Room deleted', data: null };
   }
 }

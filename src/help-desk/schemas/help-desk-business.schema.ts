@@ -2,6 +2,9 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose from 'mongoose';
 import { User } from 'src/users/schemas/user.schema';
 
+export enum StatusBusiness {
+  DELETED = 'deleted',
+}
 @Schema({
   timestamps: true,
 })
@@ -30,6 +33,9 @@ export class HelpDeskBusiness {
 
   @Prop({ type: String, required: true })
   firstMessageEnglish: string;
+
+  @Prop({ type: String })
+  status: StatusBusiness;
 }
 
 export const HelpDeskBusinessSchema =

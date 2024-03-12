@@ -3,7 +3,10 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import { HelpDeskBusiness } from './schemas/help-desk-business.schema';
+import {
+  HelpDeskBusiness,
+  StatusBusiness,
+} from './schemas/help-desk-business.schema';
 
 import { FindParams } from '../common/types';
 import { generateSlug } from '../common/utils/generate-slug';
@@ -37,7 +40,7 @@ export class HelpDeskService {
       throw new BadRequestException('Business not found');
     }
     const user = await this.userModel.create({
-      status: UserStatus.ACTIVE,
+      status: UserStatus.ANONYMOUS,
       email: `${generateSlug()}@gmail.com`,
       business: business,
       name: info.name,
@@ -67,7 +70,10 @@ export class HelpDeskService {
       business.user.toString(),
     );
 
-    return user;
+    return {
+      user: user,
+      roomId: room._id.toString(),
+    };
   }
 
   async createOrEditBusiness(userId: string, info: Partial<HelpDeskBusiness>) {
@@ -87,9 +93,35 @@ export class HelpDeskService {
   }
 
   async getBusinessByUser(userId: string) {
-    return this.helpDeskBusinessModel.findOne({ user: userId }).lean();
+    return this.helpDeskBusinessModel
+      .findOne({ user: userId, status: { $ne: StatusBusiness.DELETED } })
+      .lean();
   }
   async getBusinessById(id: string) {
-    return this.helpDeskBusinessModel.findById(id).lean();
+    return this.helpDeskBusinessModel
+      .findOne({
+        _id: id,
+        status: { $ne: StatusBusiness.DELETED },
+      })
+      .lean();
+  }
+  async deleteBusiness(businessId: string, userId: string) {
+    const business = await this.helpDeskBusinessModel
+      .findById(businessId)
+      .lean();
+    if (!business) {
+      throw new BadRequestException('business not found');
+    }
+    if (business.user.toString() !== userId) {
+      throw new BadRequestException('you are not admin of business');
+    }
+    await this.helpDeskBusinessModel.updateOne(
+      {
+        _id: businessId,
+      },
+      {
+        status: StatusBusiness.DELETED,
+      },
+    );
   }
 }
