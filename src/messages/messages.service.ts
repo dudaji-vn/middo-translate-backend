@@ -1013,7 +1013,7 @@ export class MessagesService {
     return pinMessagesWithRemoved;
   }
 
-  async createOrUpdateHelpDeskMessage(
+  async initHelpDeskConversation(
     createMessageDto: CreateMessageDto,
     senderId: string,
   ): Promise<Message> {
@@ -1034,7 +1034,7 @@ export class MessagesService {
     createdMessage.deliveredTo = [user._id];
 
     const newMessage = await this.messageModel.findOneAndUpdate(
-      { room: room._id, isHelpDesk: true },
+      { room: room._id },
       {
         content: createMessageDto.content,
         contentEnglish: createMessageDto.contentEnglish,

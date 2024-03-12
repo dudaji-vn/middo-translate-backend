@@ -6,7 +6,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2M
 Content-Type: application/json
 
 {
-  "domain": ["https://test-ttalk.onrender.com"],
+  "domains": ["https://test-ttalk.onrender.com"],
   "color": "red",
   "language": "vi",
   "firstMessage": "Xin chào, tôi có thể giúp gì cho bạn",
@@ -39,7 +39,7 @@ Content-Type: application/json
 
 
 ###
-GET http://localhost:8080/api/rooms
+GET http://localhost:8080/api/rooms?type=help-desk
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc
 
 
@@ -62,8 +62,17 @@ Content-Type: application/json
 
 
 ####
-GET http://localhost:8080/api/recommendation/chat
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU1NDg3N2U5YzNlOGRjMDQ5ODMyMyIsImlhdCI6MTcxMDA3MDA4NywiZXhwIjoxNzEwMTU2NDg3fQ.WcSopwd8Xi8bENCyPVcYQaFrzK1axJ6raiu5rVgMY0o
+POST http://localhost:3000/api/messages/help-desk
+Content-Type: application/json
+
+{
+"clientTempId": "2024-03-12T03:30:36.257Z",
+"content": "Trang website của mình có những tính năng gì",
+"contentEnglish":"What features does your website have?",
+"language":"en",
+"roomId":"65efd52b102918180ed719cf",
+"userId":"65efd52a102918180ed719ca"
+}
 
 
 

@@ -2,7 +2,6 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -23,7 +22,6 @@ import { CreateRoomDto } from './dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
 import { Message } from 'src/messages/schemas/messages.schema';
-import { MessagesService } from '../messages/messages.service';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 
 const userSelectFieldsString = '_id name avatar email username language';
@@ -236,7 +234,7 @@ export class RoomsService {
 
   async findWithCursorPaginate(
     queryParams: ListQueryParamsCursor & {
-      type?: 'all' | 'group' | 'individual';
+      type?: 'all' | 'group' | 'individual' | 'help-desk' | 'unread-help-desk';
     },
     userId: string,
   ): Promise<Pagination<Room, CursorPaginationInfo>> {
@@ -257,6 +255,7 @@ export class RoomsService {
       },
       ...(type === 'group' ? { isGroup: true } : {}),
       ...(type === 'individual' ? { isGroup: false } : {}),
+      ...(type === 'help-desk' ? { isHelpDesk: true } : {}),
     };
 
     const rooms = await this.roomModel
@@ -721,6 +720,7 @@ export class RoomsService {
 
     const oldRoom = await this.findByParticipantIds(
       participants.map((p) => p._id),
+      true,
     );
     if (oldRoom) {
       return oldRoom;

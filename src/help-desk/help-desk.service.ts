@@ -42,6 +42,7 @@ export class HelpDeskService {
       business: business,
       name: info.name,
       isAnonymousClient: true,
+      language: info.language,
       tempEmail: info.email,
     });
 
@@ -54,7 +55,7 @@ export class HelpDeskService {
       business.user.toString(),
     );
 
-    this.messagesService.createOrUpdateHelpDeskMessage(
+    this.messagesService.initHelpDeskConversation(
       {
         clientTempId: '',
         content: business.firstMessage,

@@ -59,7 +59,7 @@ export class RoomsController {
         createRoomDto.businessId,
       );
       if (business) {
-        this.messagesService.createOrUpdateHelpDeskMessage(
+        this.messagesService.initHelpDeskConversation(
           {
             clientTempId: '',
             content: business.firstMessage,

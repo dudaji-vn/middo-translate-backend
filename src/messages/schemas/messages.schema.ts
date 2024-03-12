@@ -134,12 +134,6 @@ export class Message {
   hasChild: boolean;
 
   @Prop({ type: Boolean, default: false })
-  isSentFromAnonymousClient: boolean;
-
-  @Prop({ type: Boolean, default: false })
-  isHelpDesk: boolean;
-
-  @Prop({ type: Boolean, default: false })
   isComplete: boolean;
 
   @Prop({ type: String })

@@ -3,7 +3,7 @@ import { IsArray, IsString } from 'class-validator';
 export class CreateOrEditBusinessDto {
   @ApiProperty()
   @IsArray()
-  domain: string[];
+  domains: string[];
 
   @ApiProperty()
   @IsString()

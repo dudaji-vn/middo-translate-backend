@@ -8,7 +8,7 @@ import {
   Get,
 } from '@nestjs/common';
 import { MessagesService } from './messages.service';
-import { JwtUserId, ParamObjectId } from 'src/common/decorators';
+import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
 import { CreateMessageDto } from './dto';
 import { Message } from './schemas/messages.schema';
 import { Response } from 'src/common/types';
@@ -16,6 +16,7 @@ import { RemoveParamsMessageDto } from './dto/remove-params-message.dto';
 import { ReactMessageDto } from './dto/react-message.dto';
 import { ForwardMessageDto } from './dto/forward-message.dto';
 import { convertMessageRemoved } from './utils/convert-message-removed';
+import { CreateHelpDeskMessageDto } from './dto/create-help-desk-message.dto';
 
 @Controller('messages')
 export class MessagesController {
@@ -151,6 +152,22 @@ export class MessagesController {
     const message = await this.messagesService.findByCallId(callId);
     return {
       data: message?._id,
+      message: 'Message created',
+    };
+  }
+
+  @Public()
+  @Post('help-desk')
+  async helpDeskCreate(
+    @Body() createMessageDto: CreateHelpDeskMessageDto,
+  ): Promise<Response<Message>> {
+    const message = await this.messagesService.create(
+      createMessageDto,
+      createMessageDto.userId,
+    );
+
+    return {
+      data: message,
       message: 'Message created',
     };
   }
