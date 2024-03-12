@@ -14,4 +14,5 @@ export class CreateMessageDto {
   language?: string;
   forwardOfId?: string;
   callId?: string;
+  mentions?: string[];
 }

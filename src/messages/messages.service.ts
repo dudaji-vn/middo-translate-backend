@@ -30,6 +30,7 @@ import { ForwardMessageDto } from './dto/forward-message.dto';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { Call } from 'src/call/schemas/call.schema';
 import { PinMessage } from './schemas/pin-messages.schema';
+import { convert } from 'html-to-text';
 
 @Injectable()
 export class MessagesService {
@@ -75,7 +76,7 @@ export class MessagesService {
         populate: [
           {
             path: 'participants',
-            select: selectPopulateField<User>(['_id']),
+            select: selectPopulateField<User>(['_id', 'avatar', 'name']),
           },
         ],
       },
@@ -124,6 +125,10 @@ export class MessagesService {
       {
         path: 'call',
         select: selectPopulateField<Call>(['endTime', '_id', 'type']),
+      },
+      {
+        path: 'mentions',
+        select: selectPopulateField<User>(['_id', 'name', 'email']),
       },
     ]);
     if (!message) {
@@ -348,7 +353,11 @@ export class MessagesService {
             },
           ],
         },
-      ]);
+      ])
+      .populate(
+        'mentions',
+        selectPopulateField<User>(['_id', 'name', 'email']),
+      );
 
     return messages.map((message) => {
       return convertMessageRemoved(message, userId) as Message;
@@ -379,6 +388,7 @@ export class MessagesService {
     if (!room) {
       throw new NotFoundException('Room not found');
     }
+    const messageContent = convert(message.content);
 
     switch (message.type) {
       case MessageType.TEXT:
@@ -387,16 +397,16 @@ export class MessagesService {
             room.name !== '' ? room.name : 'your group'
           }`;
         }
-        body += `: ${message.content}`;
+        body += `: ${messageContent}`;
         break;
       case MessageType.MEDIA:
         body += ' sent media';
         break;
       case MessageType.NOTIFICATION:
-        body += ` ${message.content}`;
+        body += ` ${messageContent}`;
         break;
       case MessageType.ACTION:
-        body = ` ${message.content}`;
+        body = ` ${messageContent}`;
         break;
       default:
         break;
@@ -522,7 +532,11 @@ export class MessagesService {
             },
           ],
         },
-      ]);
+      ])
+      .populate(
+        'mentions',
+        selectPopulateField<User>(['_id', 'name', 'email']),
+      );
 
     return {
       items: messages.map((message) => {
@@ -965,6 +979,10 @@ export class MessagesService {
             },
             {
               path: 'call',
+            },
+            {
+              path: 'mentions',
+              select: selectPopulateField<User>(['_id', 'name', 'email']),
             },
           ],
         },
