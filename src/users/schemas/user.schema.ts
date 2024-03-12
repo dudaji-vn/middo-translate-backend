@@ -68,8 +68,6 @@ export class User {
     default: [],
   })
   pinRoomIds: string[];
-  @Prop({ type: Boolean, default: false })
-  isAnonymousClient: boolean;
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,

@@ -44,7 +44,6 @@ export class HelpDeskService {
       email: `${generateSlug()}@gmail.com`,
       business: business,
       name: info.name,
-      isAnonymousClient: true,
       language: info.language,
       tempEmail: info.email,
     });

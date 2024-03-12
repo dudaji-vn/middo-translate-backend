@@ -38,13 +38,6 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2M
 
 Content-Type: application/json
 
-
-###
-GET http://localhost:8080/api/rooms?type=help-desk
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc
-
-
-
 ###
 GET http://localhost:8080/api/help-desk/business/65eec80a2d3c6a722349d697
 
@@ -68,8 +61,8 @@ Content-Type: application/json
 
 {
 "clientTempId": "2024-03-12T03:30:36.257Z",
-"content": "Trang website của mình có những tính năng gì",
-"contentEnglish":"What features does your website have?",
+"content": "Xin chào Tech Talk",
+"contentEnglish":"Hello Tech talk",
 "language":"en",
 "roomId":"65efd52b102918180ed719cf",
 "userId":"65efd52a102918180ed719ca"
@@ -92,12 +85,24 @@ Content-Type: application/json
 
 
 ###
+
+
+####
+GET http://localhost:8080/api/rooms?type=help-desk
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc
+
+###
 GET http://localhost:3000/api/rooms/65eff39fbe0534cecbc1a7ec
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc 
+
 
 ###
 DELETE  http://localhost:3000/api/help-desk/65eec80a2d3c6a722349d697
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc 
+
+
+###
+GET  http://localhost:3000/api/rooms/anonymous-room/65efd52b102918180ed719cf/65efd52a102918180ed719ca
 
 
 
