@@ -51,17 +51,25 @@ export class EventsGateway
   }
 
   handleConnection(@ConnectedSocket() client: Socket) {
-    // console.log('socket ', client?.id);
+    console.log('socket  ', client?.id);
+    const userId = findUserIdBySocketId(this.clients, client.id);
+    console.log('userId', userId);
   }
-  // handleDisconnect(@ConnectedSocket() client: Socket) {
-  //   // console.log('socket ', client?.id);
-  // }
+  handleDisconnect(@ConnectedSocket() client: Socket) {
+    this.leaveCall(client);
+    const socketId = client.id;
+    this.watchingService.deleteBySocketId(socketId);
+  }
 
   @SubscribeMessage('client.join')
   joinAdminRoom(
     @ConnectedSocket() client: Socket,
     @MessageBody() userId: number,
   ) {
+    console.log(
+      '🚀 ~ file: events.gateway.ts ~ line 123 ~ EventsGateway ~ joinAdminRoom ~ userId',
+      userId,
+    );
     client.join(userId.toString());
     this.clients[userId.toString()] = {
       socketIds: [
@@ -84,6 +92,8 @@ export class EventsGateway
     },
   ) {
     const userId = findUserIdBySocketId(this.clients, client.id);
+    console.log('Chat join', roomId, notifyToken, userId);
+
     if (userId && notifyToken) {
       this.watchingService.create({
         userId: userId,
@@ -116,6 +126,7 @@ export class EventsGateway
     const socketIds = participants
       .map((p) => this.clients[p.toString()]?.socketIds || [])
       .flat();
+    console.log('🚀 ~ handleUpdateRoom ~ socketIds', socketIds);
     this.server.to(socketIds).emit(socketConfig.events.room.update, {
       roomId,
       data,
@@ -502,11 +513,7 @@ export class EventsGateway
   }
 
   // User disconnect
-  handleDisconnect(@ConnectedSocket() client: Socket) {
-    this.leaveCall(client);
-    const socketId = client.id;
-    this.watchingService.deleteBySocketId(socketId);
-  }
+
   // End events for call
 }
 

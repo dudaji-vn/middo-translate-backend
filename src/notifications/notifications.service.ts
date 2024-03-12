@@ -50,31 +50,33 @@ export class NotificationService {
 
     tokens = tokens.filter((token) => !token.includes('ExponentPushToken'));
     try {
-      const response = await messaging().sendEachForMulticast({
-        tokens: tokens || [],
-        data: {
-          title,
-          body,
-          url: link || envConfig.app.url,
-        },
-        webpush: {
-          fcmOptions: {
-            link: link || envConfig.app.url,
+      if (tokens.length) {
+        const response = await messaging().sendEachForMulticast({
+          tokens: tokens || [],
+          data: {
+            title,
+            body,
+            url: link || envConfig.app.url,
           },
-        },
-      });
-      response.responses.forEach(async (res, index) => {
-        if (
-          res.error?.code === 'messaging/invalid-registration-token' ||
-          res.error?.code === 'messaging/registration-token-not-registered'
-        ) {
-          const token = tokens[index];
-          await this.notificationModel.updateOne(
-            { tokens: { $in: [token] } },
-            { $pull: { tokens: token } },
-          );
-        }
-      });
+          webpush: {
+            fcmOptions: {
+              link: link || envConfig.app.url,
+            },
+          },
+        });
+        response.responses.forEach(async (res, index) => {
+          if (
+            res.error?.code === 'messaging/invalid-registration-token' ||
+            res.error?.code === 'messaging/registration-token-not-registered'
+          ) {
+            const token = tokens[index];
+            await this.notificationModel.updateOne(
+              { tokens: { $in: [token] } },
+              { $pull: { tokens: token } },
+            );
+          }
+        });
+      }
       if (expoTokens.length) {
         const expo = new Expo();
         const messages: ExpoPushMessage[] = expoTokens.map((token) => ({
