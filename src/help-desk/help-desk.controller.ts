@@ -58,6 +58,6 @@ export class HelpDeskController {
     @JwtUserId() userId: string,
   ) {
     await this.helpDeskService.deleteBusiness(id, userId);
-    return { message: 'Room deleted', data: null };
+    return { message: 'Business deleted', data: null };
   }
 }

@@ -9,7 +9,7 @@ Content-Type: application/json
   "domains": ["https://test-ttalk.onrender.com","http://localhost:3000"],
   "color": "red",
   "language": "vi",
-  "firstMessage": "",
+  "firstMessage": "Xin chào",
   "firstMessageEnglish":"Hi, how can I help you?"
 }
 
