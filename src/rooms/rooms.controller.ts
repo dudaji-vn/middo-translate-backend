@@ -99,6 +99,16 @@ export class RoomsController {
     return { data: room, message: 'Room found' };
   }
 
+  @Public()
+  @Get('anonymous-room/:id/:userId')
+  async getClientRoom(
+    @ParamObjectId('id') id: string,
+    @ParamObjectId('userId') userId: string,
+  ) {
+    const room = await this.roomsService.findByIdAndUserId(id, userId);
+    return { data: room, message: 'Room found' };
+  }
+
   @Get(':id/messages')
   async getMessages(
     @ParamObjectId('id') id: string,

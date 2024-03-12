@@ -253,6 +253,7 @@ export class RoomsService {
       status: {
         $ne: RoomStatus.DELETED,
       },
+      // isHelpDesk: { $ne: true },
       ...(type === 'group' ? { isGroup: true } : {}),
       ...(type === 'individual' ? { isGroup: false } : {}),
       ...(type === 'help-desk' ? { isHelpDesk: true } : {}),
@@ -745,5 +746,23 @@ export class RoomsService {
     ]);
     this.eventEmitter.emit(socketConfig.events.room.new, room);
     return responseRoom;
+  }
+  async updateReadByLastMessageInRoom(roomId: ObjectId, userId: string) {
+    return await this.roomModel.findByIdAndUpdate(
+      roomId,
+      {
+        $addToSet: { readBy: userId },
+      },
+      { new: true },
+    );
+  }
+  async updateReadByWhenSendNewMessage(roomId: ObjectId, userId: string) {
+    return await this.roomModel.findByIdAndUpdate(
+      roomId,
+      {
+        readBy: [userId],
+      },
+      { new: true },
+    );
   }
 }
