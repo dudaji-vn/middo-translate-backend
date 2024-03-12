@@ -186,6 +186,12 @@ export class MessagesService {
       const call = await this.callModel.findById(createMessageDto.callId);
       if (call) createdMessage.call = call;
     }
+    if (room.isHelpDesk) {
+      await this.roomsService.updateReadByWhenSendNewMessage(
+        room._id,
+        user._id.toString(),
+      );
+    }
     const newMessage = await createdMessage.save();
 
     const newMessageWithSender = await newMessage.populate([
@@ -782,7 +788,10 @@ export class MessagesService {
     if (!message) {
       throw new Error('Message not found');
     }
-
+    await this.roomsService.updateReadByLastMessageInRoom(
+      message.room._id,
+      userId,
+    );
     this.eventEmitter.emit(socketConfig.events.message.update, {
       roomId: String(message?.room),
       message: {

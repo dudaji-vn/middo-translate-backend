@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { HydratedDocument } from 'mongoose';
+import mongoose, { HydratedDocument, ObjectId } from 'mongoose';
 
 import { Message } from 'src/messages/schemas/messages.schema';
 import { User } from 'src/users/schemas/user.schema';
@@ -55,6 +55,12 @@ export class Room {
 
   @Prop({ type: Boolean })
   isHelpDesk: boolean;
+
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    default: [],
+  })
+  readBy: ObjectId[] | string[];
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);

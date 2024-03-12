@@ -253,7 +253,7 @@ export class RoomsService {
       status: {
         $ne: RoomStatus.DELETED,
       },
-      // isHelpDesk: { $ne: true },
+      isHelpDesk: { $ne: true },
       ...(type === 'group' ? { isGroup: true } : {}),
       ...(type === 'individual' ? { isGroup: false } : {}),
       ...(type === 'help-desk' ? { isHelpDesk: true } : {}),
