@@ -18,7 +18,7 @@ POST  http://localhost:8080/api/help-desk/create-client
 Content-Type: application/json
 
 { 
-  "businessId": "65eec80a2d3c6a722349d697",
+  "businessId": "65effd002d3c6a72235bbe8e",
   "name": "Nguyen Van A",
   "language": "vi",
   "email": "nguyenvana28710@gmail.com"
@@ -88,12 +88,12 @@ Content-Type: application/json
 
 
 ####
-GET http://localhost:8080/api/rooms?type=help-desk
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc
+GET http://localhost:8080/api/rooms?type=unread-help-desk
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDIzNDM0NiwiZXhwIjoxNzEwMzIwNzQ2fQ.1VNT5TGw21_mbguR3Gnpy5ncvoKCRsrNqWjPHb4oU4I
 
 ###
-GET http://localhost:3000/api/rooms/65eff39fbe0534cecbc1a7ec
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc 
+GET http://localhost:3000/api/rooms/65f0286f833aa5c1d3d7b99d
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDIzNDM0NiwiZXhwIjoxNzEwMzIwNzQ2fQ.1VNT5TGw21_mbguR3Gnpy5ncvoKCRsrNqWjPHb4oU4I
 
 
 ###
@@ -102,7 +102,13 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2M
 
 
 ###
-GET  http://localhost:3000/api/rooms/anonymous-room/65efd52b102918180ed719cf/65efd52a102918180ed719ca
+GET  http://localhost:3000/api/rooms/anonymous/65f0286f833aa5c1d3d7b99d?userId=65f0286d833aa5c1d3d7b998
+
+
+###
+GET http://localhost:3000/api/rooms/anonymous/65f0286f833aa5c1d3d7b99d/message?userId=65f0286d833aa5c1d3d7b998&limit=16
+
+
 
 
 

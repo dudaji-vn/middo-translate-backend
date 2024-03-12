@@ -65,6 +65,7 @@ export class HelpDeskService {
         type: MessageType.TEXT,
         roomId: room._id.toString(),
         media: [],
+        businessUserId: business.user.toString(),
       },
       business.user.toString(),
     );

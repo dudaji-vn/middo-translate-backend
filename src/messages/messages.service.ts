@@ -1047,6 +1047,8 @@ export class MessagesService {
       {
         content: createMessageDto.content,
         contentEnglish: createMessageDto.contentEnglish,
+        readBy: [user._id, createMessageDto.businessUserId],
+        deliveredTo: [user._id],
         sender: senderId,
       },
       {

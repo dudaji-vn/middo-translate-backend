@@ -100,13 +100,28 @@ export class RoomsController {
   }
 
   @Public()
-  @Get('anonymous-room/:id/:userId')
+  @Get('anonymous/:id')
   async getClientRoom(
     @ParamObjectId('id') id: string,
-    @ParamObjectId('userId') userId: string,
+    @Query('userId') userId: string,
   ) {
     const room = await this.roomsService.findByIdAndUserId(id, userId);
     return { data: room, message: 'Room found' };
+  }
+
+  @Public()
+  @Get('anonymous/:id/message')
+  async getAnonymousMessages(
+    @ParamObjectId('id') id: string,
+    @Query() query: ListQueryParamsCursorDto,
+    @Query('userId') userId: string,
+  ): Promise<Response<Pagination<Message, CursorPaginationInfo>>> {
+    const data = await this.messagesService.findByRoomIdWithCursorPaginate(
+      id,
+      userId,
+      query,
+    );
+    return { data, message: 'Room found' };
   }
 
   @Get(':id/messages')

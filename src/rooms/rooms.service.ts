@@ -257,6 +257,9 @@ export class RoomsService {
       ...(type === 'group' ? { isGroup: true } : {}),
       ...(type === 'individual' ? { isGroup: false } : {}),
       ...(type === 'help-desk' ? { isHelpDesk: true } : {}),
+      ...(type === 'unread-help-desk'
+        ? { isHelpDesk: true, readBy: { $nin: [user] } }
+        : {}),
     };
 
     const rooms = await this.roomModel
