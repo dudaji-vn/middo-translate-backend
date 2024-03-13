@@ -55,5 +55,11 @@ export const socketConfig = {
       send_caption: 'call.send_caption',
       update: 'call.update',
     },
+    speech_to_text: {
+      start: 'speech_to_text.start',
+      stop: 'speech_to_text.stop',
+      send_audio: 'speech_to_text.send_audio',
+      receive_audio_text: 'speech_to_text.receive_audio_text',
+    },
   },
 };
