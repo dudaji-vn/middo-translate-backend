@@ -235,10 +235,11 @@ export class RoomsService {
   async findWithCursorPaginate(
     queryParams: ListQueryParamsCursor & {
       type?: 'all' | 'group' | 'individual' | 'help-desk' | 'unread-help-desk';
+      status?: RoomStatus;
     },
     userId: string,
   ): Promise<Pagination<Room, CursorPaginationInfo>> {
-    const { limit = 10, cursor, type } = queryParams;
+    const { limit = 10, cursor, type, status } = queryParams;
 
     const user = await this.usersService.findById(userId);
 
@@ -251,8 +252,9 @@ export class RoomsService {
       },
       participants: userId,
       status: {
-        $ne: RoomStatus.DELETED,
+        $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED],
       },
+      ...(status ? { status: status } : {}),
       isHelpDesk: { $ne: true },
       ...(type === 'group' ? { isGroup: true } : {}),
       ...(type === 'individual' ? { isGroup: false } : {}),
@@ -768,5 +770,22 @@ export class RoomsService {
       },
       { new: true },
     );
+  }
+
+  async changeRoomStatus(id: string, userId: string, status: RoomStatus) {
+    const room = await this.findByIdAndUserId(id, userId, true);
+    if (!room) {
+      throw new Error('Room not found');
+    }
+    room.status = status;
+    await this.roomModel.updateOne(
+      {
+        _id: room._id,
+      },
+      {
+        status: room.status,
+      },
+    );
+    return room;
   }
 }

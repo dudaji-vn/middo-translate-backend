@@ -131,6 +131,21 @@ GET http://localhost:3000/api/search/inboxes?q=nguyenvana28710@gmail&type=help-d
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDIzNDM0NiwiZXhwIjoxNzEwMzIwNzQ2fQ.1VNT5TGw21_mbguR3Gnpy5ncvoKCRsrNqWjPHb4oU4I
 
 
+####
+PUT  http://localhost:3000/api/rooms/65f116313d5ce1d45917e031/change-status-room
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMDc5NCwiZXhwIjoxNzEwNDA3MTk0fQ.YT36-AG26v3deYwrzdLJxS204_cPhpVih07kNGvyumA
+Content-Type: application/json
+
+{
+  //status: deleted|archived|completed
+  "status": "completed"
+}
+
+
+###
+GET http://localhost:8080/api/rooms?type=help-desk
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMDc5NCwiZXhwIjoxNzEwNDA3MTk0fQ.YT36-AG26v3deYwrzdLJxS204_cPhpVih07kNGvyumA
+
 
 
 

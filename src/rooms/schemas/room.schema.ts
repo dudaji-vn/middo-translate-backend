@@ -10,6 +10,8 @@ export enum RoomStatus {
   TEMPORARY = 'temporary',
   DELETED = 'deleted',
   CANNOT_MESSAGE = 'cannot_message',
+  ARCHIVED = 'archived',
+  COMPLETED = 'completed',
 }
 
 @Schema({
