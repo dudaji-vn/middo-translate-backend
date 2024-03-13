@@ -7,7 +7,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { JwtUserId, ParamObjectId } from 'src/common/decorators';
+import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
 import { ListQueryParamsCursorDto } from 'src/common/dto';
 import { CursorPaginationInfo, Pagination, Response } from 'src/common/types';
 import { CreateRoomDto } from './dto';
@@ -16,12 +16,15 @@ import { Room } from './schemas/room.schema';
 import { MessagesService } from 'src/messages/messages.service';
 import { Message, MessageType } from 'src/messages/schemas/messages.schema';
 import { UpdateRoomDto } from './dto/update-room.dto';
+import { HelpDeskService } from '../help-desk/help-desk.service';
+import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 
 @Controller('rooms')
 export class RoomsController {
   constructor(
     private readonly roomsService: RoomsService,
     private readonly messagesService: MessagesService,
+    private readonly helpDeskService: HelpDeskService,
   ) {}
   @Post()
   async createRoom(
@@ -40,6 +43,34 @@ export class RoomsController {
         },
         userId,
       );
+    }
+    return { data: room, message: 'Room created' };
+  }
+
+  @Public()
+  @Post('create-help-desk-room')
+  async createHelpDeskRoom(@Body() createRoomDto: CreateHelpDeskRoomDto) {
+    const room = await this.roomsService.createHelpDeskRoom(
+      createRoomDto,
+      createRoomDto.senderId,
+    );
+    if (createRoomDto.businessId) {
+      const business = await this.helpDeskService.getBusinessById(
+        createRoomDto.businessId,
+      );
+      if (business) {
+        this.messagesService.initHelpDeskConversation(
+          {
+            clientTempId: '',
+            content: business.firstMessage,
+            contentEnglish: business.firstMessageEnglish,
+            type: MessageType.TEXT,
+            roomId: room._id.toString(),
+            media: [],
+          },
+          createRoomDto.senderId,
+        );
+      }
     }
     return { data: room, message: 'Room created' };
   }
@@ -66,6 +97,31 @@ export class RoomsController {
   ): Promise<Response<Room>> {
     const room = await this.roomsService.findByIdAndUserId(id, userId);
     return { data: room, message: 'Room found' };
+  }
+
+  @Public()
+  @Get('anonymous/:id')
+  async getClientRoom(
+    @ParamObjectId('id') id: string,
+    @Query('userId') userId: string,
+  ) {
+    const room = await this.roomsService.findByIdAndUserId(id, userId);
+    return { data: room, message: 'Room found' };
+  }
+
+  @Public()
+  @Get('anonymous/:id/message')
+  async getAnonymousMessages(
+    @ParamObjectId('id') id: string,
+    @Query() query: ListQueryParamsCursorDto,
+    @Query('userId') userId: string,
+  ): Promise<Response<Pagination<Message, CursorPaginationInfo>>> {
+    const data = await this.messagesService.findByRoomIdWithCursorPaginate(
+      id,
+      userId,
+      query,
+    );
+    return { data, message: 'Room found' };
   }
 
   @Get(':id/messages')

@@ -186,6 +186,12 @@ export class MessagesService {
       const call = await this.callModel.findById(createMessageDto.callId);
       if (call) createdMessage.call = call;
     }
+    if (room.isHelpDesk) {
+      await this.roomsService.updateReadByWhenSendNewMessage(
+        room._id,
+        user._id.toString(),
+      );
+    }
     const newMessage = await createdMessage.save();
 
     const newMessageWithSender = await newMessage.populate([
@@ -782,7 +788,10 @@ export class MessagesService {
     if (!message) {
       throw new Error('Message not found');
     }
-
+    await this.roomsService.updateReadByLastMessageInRoom(
+      message.room._id,
+      userId,
+    );
     this.eventEmitter.emit(socketConfig.events.message.update, {
       roomId: String(message?.room),
       message: {
@@ -1011,5 +1020,66 @@ export class MessagesService {
       };
     });
     return pinMessagesWithRemoved;
+  }
+
+  async initHelpDeskConversation(
+    createMessageDto: CreateMessageDto,
+    senderId: string,
+  ): Promise<Message> {
+    const user = await this.usersService.findById(senderId);
+
+    const room = await this.roomsService.findByIdAndUserId(
+      createMessageDto.roomId,
+      user._id.toString(),
+    );
+
+    const createdMessage = new this.messageModel();
+    createdMessage.sender = user;
+    createdMessage.content = createMessageDto.content || '';
+    createdMessage.contentEnglish = createMessageDto.contentEnglish || '';
+
+    createdMessage.room = room;
+    createdMessage.readBy = [user._id];
+    createdMessage.deliveredTo = [user._id];
+
+    const newMessage = await this.messageModel.findOneAndUpdate(
+      { room: room._id },
+      {
+        content: createMessageDto.content,
+        contentEnglish: createMessageDto.contentEnglish,
+        readBy: [user._id, createMessageDto.businessUserId],
+        deliveredTo: [user._id],
+        sender: senderId,
+      },
+      {
+        upsert: true,
+        new: true,
+      },
+    );
+    const newMessageWithSender = await newMessage.populate([
+      {
+        path: 'sender',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'language',
+        ]),
+      },
+      {
+        path: 'targetUsers',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'language',
+        ]),
+      },
+    ]);
+    this.roomsService.updateRoom(createMessageDto.roomId, {
+      lastMessage: newMessageWithSender,
+      newMessageAt: new Date(),
+    });
+    return newMessage;
   }
 }

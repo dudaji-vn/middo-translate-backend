@@ -51,6 +51,11 @@ export type Media = {
   height?: number;
 };
 
+export enum MessageStatus {
+  ARCHIVE = 'archive',
+  DELETED = 'deleted',
+}
+
 @Schema({
   timestamps: true,
 })
@@ -127,6 +132,12 @@ export class Message {
   parent: Message;
   @Prop({ type: Boolean, default: false })
   hasChild: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  isComplete: boolean;
+
+  @Prop({ type: String })
+  messageStatus: MessageStatus;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);
