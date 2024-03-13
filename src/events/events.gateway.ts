@@ -58,11 +58,6 @@ export class EventsGateway
     const userId = findUserIdBySocketId(this.clients, client.id);
     console.log('userId', userId);
   }
-  handleDisconnect(@ConnectedSocket() client: Socket) {
-    this.leaveCall(client);
-    const socketId = client.id;
-    this.watchingService.deleteBySocketId(socketId);
-  }
 
   @SubscribeMessage('client.join')
   joinAdminRoom(
