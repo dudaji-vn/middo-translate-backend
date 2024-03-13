@@ -15,6 +15,7 @@ import { Response } from 'src/common/types';
 import { RemoveParamsMessageDto } from './dto/remove-params-message.dto';
 import { ReactMessageDto } from './dto/react-message.dto';
 import { ForwardMessageDto } from './dto/forward-message.dto';
+import { convertMessageRemoved } from './utils/convert-message-removed';
 
 @Controller('messages')
 export class MessagesController {
@@ -35,10 +36,13 @@ export class MessagesController {
     };
   }
   @Get(':id')
-  async getMessage(@ParamObjectId() id: string): Promise<Response<Message>> {
+  async getMessage(
+    @JwtUserId() userId: string,
+    @ParamObjectId() id: string,
+  ): Promise<Response<Message>> {
     const message = await this.messagesService.findById(id);
     return {
-      data: message,
+      data: convertMessageRemoved(message, userId) as Message,
       message: 'Message found',
     };
   }
