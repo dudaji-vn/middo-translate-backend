@@ -902,9 +902,15 @@ export class MessagesService {
         cloneForwardMessage.room = forwardMessage.room;
         cloneForwardMessage.isForwarded = true;
         const savedClone = await cloneForwardMessage.save();
-        message.forwardOfId = savedClone._id.toString();
-        message.roomId = room._id.toString();
-        this.create(message, senderId, true);
+        this.create(
+          {
+            ...message,
+            roomId: room._id.toString(),
+            forwardOfId: savedClone._id.toString(),
+          },
+          senderId,
+          true,
+        );
       }),
     );
   }
