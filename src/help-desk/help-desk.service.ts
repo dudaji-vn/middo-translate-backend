@@ -29,13 +29,13 @@ export class HelpDeskService {
   ) {}
 
   async createClient(businessId: string, info: Partial<User>) {
-    const { email = '' } = info;
-    const isEmailExist = await this.userService.isEmailExist(email);
-    if (isEmailExist) {
-      throw new BadRequestException(
-        'Email is exist. Please login with Middo account',
-      );
-    }
+    // const { email = '' } = info;
+    // const isEmailExist = await this.userService.isEmailExist(email);
+    // if (isEmailExist) {
+    //   throw new BadRequestException(
+    //     'Email is exist. Please login with Middo account',
+    //   );
+    // }
     const business = await this.helpDeskBusinessModel.findById(businessId);
 
     if (!business) {
@@ -88,10 +88,6 @@ export class HelpDeskService {
       { new: true, upsert: true },
     );
     return user;
-  }
-
-  async findClient({ q, limit }: FindParams): Promise<Partial<User>[]> {
-    return [];
   }
 
   async getBusinessByUser(userId: string) {

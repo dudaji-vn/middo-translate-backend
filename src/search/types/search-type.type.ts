@@ -1,1 +1,1 @@
-export type SearchType = 'users' | 'inbox' | 'messages' | 'all';
+export type SearchType = 'users' | 'inbox' | 'messages' | 'all' | 'help-desk';

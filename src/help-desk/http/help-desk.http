@@ -123,9 +123,12 @@ Content-Type: application/json
 {
   "businessId": "65effd002d3c6a72235bbe8e",
   "userId": "65f1162e3d5ce1d45917e02c",
-  "star":3
+  "star": 3
 }
 
+### 
+GET http://localhost:3000/api/search/inboxes?q=nguyenvana28710@gmail&type=help-desk
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDIzNDM0NiwiZXhwIjoxNzEwMzIwNzQ2fQ.1VNT5TGw21_mbguR3Gnpy5ncvoKCRsrNqWjPHb4oU4I
 
 
 

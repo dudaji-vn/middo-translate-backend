@@ -33,16 +33,4 @@ export class SearchController {
       message: 'Users found',
     };
   }
-
-  @Get('help-desk')
-  async searchHelpDesk(
-    @Query() query: SearchQueryParamsDto,
-  ): Promise<Response<Partial<User>[]>> {
-    query.limit = query.limit || 20;
-    const users = await this.searchService.searchHelpDesk(query);
-    return {
-      data: users,
-      message: 'Users found',
-    };
-  }
 }
