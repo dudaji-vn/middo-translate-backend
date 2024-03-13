@@ -22,6 +22,7 @@ import { CreateRoomDto } from './dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
 import { Message } from 'src/messages/schemas/messages.schema';
+import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -134,6 +135,7 @@ export class RoomsService {
   async findByParticipantIds(
     participantIds: ObjectId[] | string[],
     inCludeDeleted = false,
+    isHelpDesk = false,
   ) {
     const room = await this.roomModel
       .findOne({
@@ -142,6 +144,7 @@ export class RoomsService {
           $size: participantIds.length,
         },
         ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
+        ...(isHelpDesk && { isHelpDesk: isHelpDesk }),
       })
       .populate({
         path: 'lastMessage',
@@ -231,7 +234,7 @@ export class RoomsService {
 
   async findWithCursorPaginate(
     queryParams: ListQueryParamsCursor & {
-      type?: 'all' | 'group' | 'individual';
+      type?: 'all' | 'group' | 'individual' | 'help-desk' | 'unread-help-desk';
     },
     userId: string,
   ): Promise<Pagination<Room, CursorPaginationInfo>> {
@@ -250,8 +253,13 @@ export class RoomsService {
       status: {
         $ne: RoomStatus.DELETED,
       },
+      isHelpDesk: { $ne: true },
       ...(type === 'group' ? { isGroup: true } : {}),
       ...(type === 'individual' ? { isGroup: false } : {}),
+      ...(type === 'help-desk' ? { isHelpDesk: true } : {}),
+      ...(type === 'unread-help-desk'
+        ? { isHelpDesk: true, readBy: { $nin: [user] } }
+        : {}),
     };
 
     const rooms = await this.roomModel
@@ -624,7 +632,6 @@ export class RoomsService {
       user.pinRoomIds = [...(user?.pinRoomIds || []), roomId];
     }
 
-    console.log(user.pinRoomIds);
     await this.usersService.update(user._id, {
       pinRoomIds: user.pinRoomIds,
     });
@@ -697,5 +704,69 @@ export class RoomsService {
       isPinned: true,
       lastMessage: convertMessageRemoved(room.lastMessage, userId),
     }));
+  }
+  async createHelpDeskRoom(
+    createRoomDto: CreateHelpDeskRoomDto,
+    creatorId: string,
+  ) {
+    const participants = await Promise.all(
+      [...new Set(createRoomDto.participants)].map((id) =>
+        this.usersService.findById(id),
+      ),
+    );
+
+    if (
+      participants.length < 2 &&
+      participants[0]?._id?.toString() !== creatorId
+    ) {
+      throw new BadRequestException('Participants must be 2 users');
+    }
+
+    const oldRoom = await this.findByParticipantIds(
+      participants.map((p) => p._id),
+      true,
+    );
+    if (oldRoom) {
+      return oldRoom;
+    }
+
+    const newRoom = new this.roomModel(createRoomDto);
+    newRoom.isHelpDesk = true;
+    newRoom.participants = participants;
+    newRoom.admin =
+      participants.find((p) => p._id.toString() === creatorId) || ({} as User);
+    newRoom.readBy = createRoomDto.participants;
+
+    const room = await this.roomModel.create(newRoom);
+    const responseRoom = await room.populate([
+      {
+        path: 'participants',
+        select: userSelectFieldsString,
+      },
+      {
+        path: 'admin',
+        select: userSelectFieldsString,
+      },
+    ]);
+    this.eventEmitter.emit(socketConfig.events.room.new, room);
+    return responseRoom;
+  }
+  async updateReadByLastMessageInRoom(roomId: ObjectId, userId: string) {
+    return await this.roomModel.findByIdAndUpdate(
+      roomId,
+      {
+        $addToSet: { readBy: userId },
+      },
+      { new: true },
+    );
+  }
+  async updateReadByWhenSendNewMessage(roomId: ObjectId, userId: string) {
+    return await this.roomModel.findByIdAndUpdate(
+      roomId,
+      {
+        readBy: [userId],
+      },
+      { new: true },
+    );
   }
 }

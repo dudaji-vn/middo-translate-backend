@@ -1,16 +1,18 @@
-import { FindParams } from 'src/common/types';
 import { Injectable } from '@nestjs/common';
-import { RoomStatus } from 'src/rooms/schemas/room.schema';
+import { FindParams } from 'src/common/types';
 import { RoomsService } from 'src/rooms/rooms.service';
-import { SearchMainResult } from './types';
+import { RoomStatus } from 'src/rooms/schemas/room.schema';
 import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
+import { HelpDeskService } from '../help-desk/help-desk.service';
+import { SearchMainResult } from './types';
 
 @Injectable()
 export class SearchService {
   constructor(
     private readonly usersService: UsersService,
     private readonly roomsService: RoomsService,
+    private readonly helpDeskService: HelpDeskService,
   ) {}
 
   async searchInbox(
@@ -58,5 +60,13 @@ export class SearchService {
       limit,
     });
     return users;
+  }
+
+  async searchHelpDesk({ q, limit }: FindParams): Promise<Partial<User>[]> {
+    const anonymousClients = await this.helpDeskService.findClient({
+      q,
+      limit,
+    });
+    return anonymousClients;
   }
 }

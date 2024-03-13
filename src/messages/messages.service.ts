@@ -30,6 +30,7 @@ import { ForwardMessageDto } from './dto/forward-message.dto';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { Call } from 'src/call/schemas/call.schema';
 import { PinMessage } from './schemas/pin-messages.schema';
+import { convert } from 'html-to-text';
 
 @Injectable()
 export class MessagesService {
@@ -75,7 +76,7 @@ export class MessagesService {
         populate: [
           {
             path: 'participants',
-            select: selectPopulateField<User>(['_id']),
+            select: selectPopulateField<User>(['_id', 'avatar', 'name']),
           },
         ],
       },
@@ -124,6 +125,10 @@ export class MessagesService {
       {
         path: 'call',
         select: selectPopulateField<Call>(['endTime', '_id', 'type']),
+      },
+      {
+        path: 'mentions',
+        select: selectPopulateField<User>(['_id', 'name', 'email']),
       },
     ]);
     if (!message) {
@@ -180,6 +185,12 @@ export class MessagesService {
     if (createMessageDto.callId) {
       const call = await this.callModel.findById(createMessageDto.callId);
       if (call) createdMessage.call = call;
+    }
+    if (room.isHelpDesk) {
+      await this.roomsService.updateReadByWhenSendNewMessage(
+        room._id,
+        user._id.toString(),
+      );
     }
     const newMessage = await createdMessage.save();
 
@@ -348,7 +359,11 @@ export class MessagesService {
             },
           ],
         },
-      ]);
+      ])
+      .populate(
+        'mentions',
+        selectPopulateField<User>(['_id', 'name', 'email']),
+      );
 
     return messages.map((message) => {
       return convertMessageRemoved(message, userId) as Message;
@@ -379,6 +394,7 @@ export class MessagesService {
     if (!room) {
       throw new NotFoundException('Room not found');
     }
+    const messageContent = convert(message.content);
 
     switch (message.type) {
       case MessageType.TEXT:
@@ -387,16 +403,16 @@ export class MessagesService {
             room.name !== '' ? room.name : 'your group'
           }`;
         }
-        body += `: ${message.content}`;
+        body += `: ${messageContent}`;
         break;
       case MessageType.MEDIA:
         body += ' sent media';
         break;
       case MessageType.NOTIFICATION:
-        body += ` ${message.content}`;
+        body += ` ${messageContent}`;
         break;
       case MessageType.ACTION:
-        body = ` ${message.content}`;
+        body = ` ${messageContent}`;
         break;
       default:
         break;
@@ -522,7 +538,11 @@ export class MessagesService {
             },
           ],
         },
-      ]);
+      ])
+      .populate(
+        'mentions',
+        selectPopulateField<User>(['_id', 'name', 'email']),
+      );
 
     return {
       items: messages.map((message) => {
@@ -768,7 +788,10 @@ export class MessagesService {
     if (!message) {
       throw new Error('Message not found');
     }
-
+    await this.roomsService.updateReadByLastMessageInRoom(
+      message.room._id,
+      userId,
+    );
     this.eventEmitter.emit(socketConfig.events.message.update, {
       roomId: String(message?.room),
       message: {
@@ -888,9 +911,15 @@ export class MessagesService {
         cloneForwardMessage.room = forwardMessage.room;
         cloneForwardMessage.isForwarded = true;
         const savedClone = await cloneForwardMessage.save();
-        message.forwardOfId = savedClone._id.toString();
-        message.roomId = room._id.toString();
-        this.create(message, senderId, true);
+        this.create(
+          {
+            ...message,
+            roomId: room._id.toString(),
+            forwardOfId: savedClone._id.toString(),
+          },
+          senderId,
+          true,
+        );
       }),
     );
   }
@@ -966,6 +995,10 @@ export class MessagesService {
             {
               path: 'call',
             },
+            {
+              path: 'mentions',
+              select: selectPopulateField<User>(['_id', 'name', 'email']),
+            },
           ],
         },
         {
@@ -987,5 +1020,66 @@ export class MessagesService {
       };
     });
     return pinMessagesWithRemoved;
+  }
+
+  async initHelpDeskConversation(
+    createMessageDto: CreateMessageDto,
+    senderId: string,
+  ): Promise<Message> {
+    const user = await this.usersService.findById(senderId);
+
+    const room = await this.roomsService.findByIdAndUserId(
+      createMessageDto.roomId,
+      user._id.toString(),
+    );
+
+    const createdMessage = new this.messageModel();
+    createdMessage.sender = user;
+    createdMessage.content = createMessageDto.content || '';
+    createdMessage.contentEnglish = createMessageDto.contentEnglish || '';
+
+    createdMessage.room = room;
+    createdMessage.readBy = [user._id];
+    createdMessage.deliveredTo = [user._id];
+
+    const newMessage = await this.messageModel.findOneAndUpdate(
+      { room: room._id },
+      {
+        content: createMessageDto.content,
+        contentEnglish: createMessageDto.contentEnglish,
+        readBy: [user._id, createMessageDto.businessUserId],
+        deliveredTo: [user._id],
+        sender: senderId,
+      },
+      {
+        upsert: true,
+        new: true,
+      },
+    );
+    const newMessageWithSender = await newMessage.populate([
+      {
+        path: 'sender',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'language',
+        ]),
+      },
+      {
+        path: 'targetUsers',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'language',
+        ]),
+      },
+    ]);
+    this.roomsService.updateRoom(createMessageDto.roomId, {
+      lastMessage: newMessageWithSender,
+      newMessageAt: new Date(),
+    });
+    return newMessage;
   }
 }

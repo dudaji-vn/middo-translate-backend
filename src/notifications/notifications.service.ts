@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Notification } from './schemas/notifications.schema';
@@ -50,31 +50,33 @@ export class NotificationService {
 
     tokens = tokens.filter((token) => !token.includes('ExponentPushToken'));
     try {
-      const response = await messaging().sendEachForMulticast({
-        tokens: tokens || [],
-        data: {
-          title,
-          body,
-          url: link || envConfig.app.url,
-        },
-        webpush: {
-          fcmOptions: {
-            link: link || envConfig.app.url,
+      if (tokens.length) {
+        const response = await messaging().sendEachForMulticast({
+          tokens: tokens || [],
+          data: {
+            title,
+            body,
+            url: link || envConfig.app.url,
           },
-        },
-      });
-      response.responses.forEach(async (res, index) => {
-        if (
-          res.error?.code === 'messaging/invalid-registration-token' ||
-          res.error?.code === 'messaging/registration-token-not-registered'
-        ) {
-          const token = tokens[index];
-          await this.notificationModel.updateOne(
-            { tokens: { $in: [token] } },
-            { $pull: { tokens: token } },
-          );
-        }
-      });
+          webpush: {
+            fcmOptions: {
+              link: link || envConfig.app.url,
+            },
+          },
+        });
+        response.responses.forEach(async (res, index) => {
+          if (
+            res.error?.code === 'messaging/invalid-registration-token' ||
+            res.error?.code === 'messaging/registration-token-not-registered'
+          ) {
+            const token = tokens[index];
+            await this.notificationModel.updateOne(
+              { tokens: { $in: [token] } },
+              { $pull: { tokens: token } },
+            );
+          }
+        });
+      }
       if (expoTokens.length) {
         const expo = new Expo();
         const messages: ExpoPushMessage[] = expoTokens.map((token) => ({
@@ -89,14 +91,22 @@ export class NotificationService {
         for (const chunk of chunks) {
           try {
             const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-            console.log(ticketChunk);
+            Logger.log(JSON.stringify(ticketChunk));
           } catch (error) {
-            console.error(error);
+            Logger.error(
+              `SERVER_ERROR in line 95: ${error['message']}`,
+              '',
+              NotificationService.name,
+            );
           }
         }
       }
     } catch (error) {
-      console.log(error);
+      Logger.error(
+        `SERVER_ERROR in line 106: ${error['message']}`,
+        '',
+        NotificationService.name,
+      );
     }
   }
 
@@ -141,7 +151,6 @@ export class NotificationService {
   }
 
   async toggleNotification(roomId: string, userId: string) {
-    console.log(roomId, userId);
     const roomNotification = await this.roomNotificationModel.findOne({
       user: userId,
       room: roomId,
