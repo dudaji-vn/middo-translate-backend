@@ -12,6 +12,7 @@ import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
 import { CreateClientDto } from './dto/create-client-dto';
 import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
 import { HelpDeskService } from './help-desk.service';
+import { CreateRatingDto } from './dto/create-rating.dto';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -59,5 +60,12 @@ export class HelpDeskController {
   ) {
     await this.helpDeskService.deleteBusiness(id, userId);
     return { message: 'Business deleted', data: null };
+  }
+
+  @Public()
+  @Post('rating')
+  async rating(@Body() createRatingDto: CreateRatingDto) {
+    const rating = await this.helpDeskService.rating(createRatingDto);
+    return { message: 'Rating success', data: rating };
   }
 }

@@ -5,14 +5,16 @@ import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import {
   HelpDeskBusiness,
+  Rating,
   StatusBusiness,
 } from './schemas/help-desk-business.schema';
 
-import { FindParams } from '../common/types';
-import { generateSlug } from '../common/utils/generate-slug';
-import { MessagesService } from '../messages/messages.service';
-import { MessageType } from '../messages/schemas/messages.schema';
-import { RoomsService } from '../rooms/rooms.service';
+import { FindParams } from 'src/common/types';
+import { generateSlug } from 'src/common/utils/generate-slug';
+import { MessagesService } from 'src/messages/messages.service';
+import { MessageType } from 'src/messages/schemas/messages.schema';
+import { RoomsService } from 'src/rooms/rooms.service';
+import { CreateRatingDto } from './dto/create-rating.dto';
 
 @Injectable()
 export class HelpDeskService {
@@ -123,5 +125,33 @@ export class HelpDeskService {
         status: StatusBusiness.DELETED,
       },
     );
+  }
+  async rating(createRatingDto: CreateRatingDto) {
+    const { userId, businessId, star } = createRatingDto;
+    const user = await this.userService.findById(userId);
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    const business = await this.helpDeskBusinessModel.findById(businessId);
+
+    if (!business) {
+      throw new BadRequestException('Business not found');
+    }
+    const ratingIndex = business.ratings.findIndex(
+      (item) => item.user.toString() === userId.toString(),
+    );
+    if (ratingIndex >= 0) {
+      business.ratings[ratingIndex].star = star;
+    } else {
+      const rating: Rating = {
+        user: user,
+        star: star,
+      } as Rating;
+      business.ratings.push(rating);
+    }
+
+    await business.save();
+    return true;
   }
 }
