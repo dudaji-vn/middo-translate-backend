@@ -553,16 +553,19 @@ export class EventsGateway
     @MessageBody() audioData: any,
     @ConnectedSocket() client: Socket,
   ) {
+    console.log('Send audio to google api::', client.id);
     const recognizeStream = this.recognizeStreams[client.id];
     if (!recognizeStream) return;
     try {
       recognizeStream.write(audioData.audio);
     } catch (err) {
+      console.log('Error calling google api ' + err);
       Logger.error('Error calling google api ' + err, 'SPEECH_TO_TEXT');
     }
   }
   startRecognitionStream(client: Socket, language_code?: string) {
     try {
+      console.log('Start recognition stream for::', client.id);
       this.recognizeStreams[client.id] = speechClient
         .streamingRecognize({
           config: {
@@ -600,11 +603,13 @@ export class EventsGateway
           }
         });
     } catch (err) {
+      console.log('Error streaming google api ' + err);
       Logger.error('Error streaming google api ' + err, 'SPEECH_TO_TEXT');
     }
   }
 
   stopRecognitionStream(client: Socket) {
+    console.log('Stop recognition stream for::', client.id);
     const recognizeStream = this.recognizeStreams[client.id];
     if (recognizeStream) {
       recognizeStream.end();
