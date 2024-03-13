@@ -61,11 +61,11 @@ Content-Type: application/json
 
 {
 "clientTempId": "2024-03-12T03:30:36.257Z",
-"content": "Xin chào Tech Talk",
+"content": "Xin chào Tech Talk111",
 "contentEnglish":"Hello Tech talk",
 "language":"en",
-"roomId":"65efd52b102918180ed719cf",
-"userId":"65efd52a102918180ed719ca"
+"roomId":"65f116313d5ce1d45917e031",
+"userId":"65f1162e3d5ce1d45917e02c"
 }
 
 
@@ -88,8 +88,7 @@ Content-Type: application/json
 
 
 ####
-GET http://localhost:8080/api/rooms?type=unread-help-desk
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDIzNDM0NiwiZXhwIjoxNzEwMzIwNzQ2fQ.1VNT5TGw21_mbguR3Gnpy5ncvoKCRsrNqWjPHb4oU4I
+
 
 ###
 GET http://localhost:3000/api/rooms/65f0286f833aa5c1d3d7b99d
@@ -107,6 +106,11 @@ GET  http://localhost:3000/api/rooms/anonymous/65f0286f833aa5c1d3d7b99d?userId=6
 
 ###
 GET http://localhost:3000/api/rooms/anonymous/65f0286f833aa5c1d3d7b99d/message?userId=65f0286d833aa5c1d3d7b998&limit=16
+
+
+####
+GET http://localhost:8080/api/rooms?type=unread-help-desk
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDIzNDM0NiwiZXhwIjoxNzEwMzIwNzQ2fQ.1VNT5TGw21_mbguR3Gnpy5ncvoKCRsrNqWjPHb4oU4I
 
 
 

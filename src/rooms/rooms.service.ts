@@ -735,6 +735,7 @@ export class RoomsService {
     newRoom.participants = participants;
     newRoom.admin =
       participants.find((p) => p._id.toString() === creatorId) || ({} as User);
+    newRoom.readBy = createRoomDto.participants;
 
     const room = await this.roomModel.create(newRoom);
     const responseRoom = await room.populate([
