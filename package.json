@@ -24,6 +24,7 @@
     "node": "^14 || ^18 || ^ 20 || ^21"
   },
   "dependencies": {
+    "@google-cloud/speech": "^6.3.0",
     "@nestjs-modules/mailer": "^1.9.1",
     "@nestjs/common": "^9.0.0",
     "@nestjs/config": "^3.0.1",

@@ -21,7 +21,10 @@ import Meeting from './interface/meeting.interface';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { WatchingService } from 'src/watching/watching.service';
-
+import speech from '@google-cloud/speech';
+import { Logger } from '@nestjs/common';
+process.env.GOOGLE_APPLICATION_CREDENTIALS = './speech-to-text-key.json';
+const speechClient = new speech.SpeechClient();
 @WebSocketGateway({
   cors: '*',
   maxHttpBufferSize: 100000000,
@@ -527,7 +530,92 @@ export class EventsGateway
 
   // User disconnect
 
+  handleDisconnect(@ConnectedSocket() client: Socket) {
+    this.leaveCall(client);
+    const socketId = client.id;
+    this.watchingService.deleteBySocketId(socketId);
+    this.stopRecognitionStream(client);
+  }
+
   // End events for call
+
+  // SPEECH TO TEXT
+  private recognizeStreams: Record<string, any> = {};
+  @SubscribeMessage(socketConfig.events.speech_to_text.start)
+  handleStartSpeechToText(
+    @MessageBody() language_code: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    this.recognizeStreams[client.id] = null;
+    this.startRecognitionStream(client, language_code);
+  }
+  @SubscribeMessage(socketConfig.events.speech_to_text.stop)
+  handleStopSpeechToText(@ConnectedSocket() client: Socket) {
+    this.stopRecognitionStream(client);
+  }
+  @SubscribeMessage(socketConfig.events.speech_to_text.send_audio)
+  handleSendAudio(
+    @MessageBody() audioData: any,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const recognizeStream = this.recognizeStreams[client.id];
+    if (!recognizeStream) return;
+    try {
+      recognizeStream.write(audioData.audio);
+    } catch (err) {
+      Logger.error('Error calling google api ' + err, 'SPEECH_TO_TEXT');
+    }
+  }
+  startRecognitionStream(client: Socket, language_code?: string) {
+    try {
+      this.recognizeStreams[client.id] = speechClient
+        .streamingRecognize({
+          config: {
+            encoding: 'LINEAR16',
+            sampleRateHertz: 16000,
+            languageCode: language_code || 'en-US',
+            enableWordTimeOffsets: true,
+            enableAutomaticPunctuation: true,
+            enableWordConfidence: true,
+            model: 'command_and_search',
+            useEnhanced: true,
+          },
+          interimResults: true,
+        })
+        .on('error', console.log)
+        .on('data', (data) => {
+          const result = data.results[0];
+          const isFinal = result.isFinal;
+
+          const transcription = data.results
+            .map((result: any) => result.alternatives[0].transcript)
+            .join('\n');
+          this.server
+            .to(client.id)
+            .emit(socketConfig.events.speech_to_text.receive_audio_text, {
+              text: transcription,
+              isFinal: isFinal,
+            });
+          // if end of utterance, let's restart stream
+          // this is a small hack to keep restarting the stream on the server and keep the connection with Google api
+          // Google api disconects the stream every five minutes
+          if (data.results[0] && data.results[0].isFinal) {
+            this.stopRecognitionStream(client);
+            this.startRecognitionStream(client, language_code);
+          }
+        });
+    } catch (err) {
+      Logger.error('Error streaming google api ' + err, 'SPEECH_TO_TEXT');
+    }
+  }
+
+  stopRecognitionStream(client: Socket) {
+    const recognizeStream = this.recognizeStreams[client.id];
+    if (recognizeStream) {
+      recognizeStream.end();
+    }
+    delete this.recognizeStreams[client.id];
+  }
 }
 
 const findUserIdBySocketId = (clients: any, socketId: string) => {
