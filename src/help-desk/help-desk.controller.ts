@@ -3,16 +3,17 @@ import {
   Controller,
   Delete,
   Get,
-  Param,
   Post,
   Put,
+  Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
+import { SearchQueryParamsDto } from 'src/search/dtos';
 import { CreateClientDto } from './dto/create-client-dto';
 import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
-import { HelpDeskService } from './help-desk.service';
 import { CreateRatingDto } from './dto/create-rating.dto';
+import { HelpDeskService } from './help-desk.service';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -67,5 +68,17 @@ export class HelpDeskController {
   async rating(@Body() createRatingDto: CreateRatingDto) {
     const rating = await this.helpDeskService.rating(createRatingDto);
     return { message: 'Rating success', data: rating };
+  }
+
+  @Get('my-clients')
+  async myClients(
+    @Query() query: SearchQueryParamsDto,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.getClientsByUser(query, userId);
+    return {
+      message: 'My clients',
+      data: result,
+    };
   }
 }

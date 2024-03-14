@@ -1,20 +1,19 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { generateSlug } from 'src/common/utils/generate-slug';
+import { MessagesService } from 'src/messages/messages.service';
+import { MessageType } from 'src/messages/schemas/messages.schema';
+import { RoomsService } from 'src/rooms/rooms.service';
+import { SearchQueryParamsDto } from 'src/search/dtos';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
+import { CreateRatingDto } from './dto/create-rating.dto';
 import {
   HelpDeskBusiness,
   Rating,
   StatusBusiness,
 } from './schemas/help-desk-business.schema';
-
-import { FindParams } from 'src/common/types';
-import { generateSlug } from 'src/common/utils/generate-slug';
-import { MessagesService } from 'src/messages/messages.service';
-import { MessageType } from 'src/messages/schemas/messages.schema';
-import { RoomsService } from 'src/rooms/rooms.service';
-import { CreateRatingDto } from './dto/create-rating.dto';
 
 @Injectable()
 export class HelpDeskService {
@@ -29,13 +28,6 @@ export class HelpDeskService {
   ) {}
 
   async createClient(businessId: string, info: Partial<User>) {
-    // const { email = '' } = info;
-    // const isEmailExist = await this.userService.isEmailExist(email);
-    // if (isEmailExist) {
-    //   throw new BadRequestException(
-    //     'Email is exist. Please login with Middo account',
-    //   );
-    // }
     const business = await this.helpDeskBusinessModel.findById(businessId);
 
     if (!business) {
@@ -149,5 +141,19 @@ export class HelpDeskService {
 
     await business.save();
     return true;
+  }
+  async getClientsByUser(query: SearchQueryParamsDto, userId: string) {
+    const { q, limit } = query;
+    const business = await this.helpDeskBusinessModel.findOne({ user: userId });
+    if (!business) {
+      throw new BadRequestException('Business not found');
+    }
+    const data = await this.userService.findByBusiness({
+      q,
+      limit,
+      businessId: business._id.toString(),
+      userId: userId,
+    });
+    return data;
   }
 }
