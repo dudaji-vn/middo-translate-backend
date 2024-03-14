@@ -16,10 +16,10 @@ export class SearchService {
   ) {}
 
   async searchInbox(
-    { q, limit }: FindParams,
+    { q, limit, type }: FindParams,
     userId: string,
   ): Promise<SearchMainResult> {
-    const users = await this.searchUsers({ q, limit });
+    const users = await this.searchUsers({ q, limit, type });
     const userIds = users.map((u) => u._id);
     const rooms = await this.roomsService.search({
       query: {
@@ -54,19 +54,12 @@ export class SearchService {
     };
   }
 
-  async searchUsers({ q, limit }: FindParams): Promise<User[]> {
+  async searchUsers({ q, limit, type }: FindParams): Promise<User[]> {
     const users = await this.usersService.find({
       q,
       limit,
+      type,
     });
     return users;
-  }
-
-  async searchHelpDesk({ q, limit }: FindParams): Promise<Partial<User>[]> {
-    const anonymousClients = await this.helpDeskService.findClient({
-      q,
-      limit,
-    });
-    return anonymousClients;
   }
 }

@@ -32,15 +32,19 @@ export class UsersService {
     }
     return user;
   }
-  async find({ q, limit }: FindParams): Promise<User[]> {
+  async find({ q, limit, type }: FindParams): Promise<User[]> {
     const users = await this.userModel
       .find({
         $or: [
           { name: { $regex: q, $options: 'i' } },
           { username: { $regex: q, $options: 'i' } },
-          { email: { $regex: q, $options: 'i' } },
+          {
+            ...(type === 'help-desk'
+              ? { tempEmail: { $regex: q, $options: 'i' } }
+              : { email: { $regex: q, $options: 'i' } }),
+          },
         ],
-        status: UserStatus.ACTIVE,
+        status: type === 'help-desk' ? UserStatus.ANONYMOUS : UserStatus.ACTIVE,
       })
       .limit(limit)
       .select({
@@ -48,10 +52,14 @@ export class UsersService {
         username: true,
         avatar: true,
         email: true,
+        tempEmail: true,
         pinRoomIds: true,
       })
       .lean();
-    return users;
+    return users.map((item) => ({
+      ...item,
+      email: type === 'help-desk' ? item.tempEmail : item.email,
+    }));
   }
   async findById(id: ObjectId | string) {
     const user = await this.userModel

@@ -5,6 +5,7 @@ import {
   Get,
   Patch,
   Post,
+  Put,
   Query,
 } from '@nestjs/common';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
@@ -15,8 +16,8 @@ import { RoomsService } from './rooms.service';
 import { Room } from './schemas/room.schema';
 import { MessagesService } from 'src/messages/messages.service';
 import { Message, MessageType } from 'src/messages/schemas/messages.schema';
-import { UpdateRoomDto } from './dto/update-room.dto';
-import { HelpDeskService } from '../help-desk/help-desk.service';
+import { UpdateRoomDto, UpdateRoomStatusDto } from './dto/update-room.dto';
+import { HelpDeskService } from 'src/help-desk/help-desk.service';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 
 @Controller('rooms')
@@ -294,5 +295,15 @@ export class RoomsController {
   ): Promise<Response<null>> {
     await this.roomsService.pin(id, userId);
     return { message: 'Room pinned', data: null };
+  }
+
+  @Put(':id/change-status-room')
+  async changeRoomStatus(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+    @Body() { status }: UpdateRoomStatusDto,
+  ): Promise<Response<null>> {
+    await this.roomsService.changeRoomStatus(id, userId, status);
+    return { message: 'Changed room status', data: null };
   }
 }
