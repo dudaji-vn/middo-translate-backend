@@ -1,8 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsString, MinLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsString, MinLength } from 'class-validator';
 export class CreateOrEditBusinessDto {
   @ApiProperty()
   @IsArray()
+  @ArrayMaxSize(5)
   domains: string[];
 
   @ApiProperty()
