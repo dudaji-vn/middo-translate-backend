@@ -123,7 +123,7 @@ Content-Type: application/json
 {
   "businessId": "65effd002d3c6a72235bbe8e",
   "userId": "65f1162e3d5ce1d45917e02c",
-  "star": 3
+  "star": 4
 }
 
 ### 
@@ -161,7 +161,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2M
 Content-Type: application/json
 
 {
-"phoneNumber":"",
+"phoneNumber":"035295211",
 "userId":"65f262d14abba3c51f9a5214"
 }
 

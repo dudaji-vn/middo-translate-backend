@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Patch,
   Post,
   Put,
   Query,
@@ -94,7 +95,7 @@ export class HelpDeskController {
     };
   }
 
-  @Put('edit-client-profile')
+  @Patch('edit-client-profile')
   async editClientProfile(
     @Body() clientDto: EditClientDto,
     @JwtUserId() userId: string,
