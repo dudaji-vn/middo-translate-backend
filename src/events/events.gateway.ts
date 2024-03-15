@@ -32,10 +32,6 @@ const speechClient = new speech.SpeechClient();
 export class EventsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
-  // constructor()
-  // private readonly eventEmitter: EventEmitter2, // private readonly roomsService: RoomsService, // private readonly usersService: UsersService,
-  // @InjectModel(Message) private readonly messageModel: Model<Message>,
-  // {}
   @WebSocketServer()
   public server: Server;
   private clients: {
@@ -59,15 +55,30 @@ export class EventsGateway
     console.log('userId', userId);
   }
 
-  @SubscribeMessage('client.join')
+  handleDisconnect(@ConnectedSocket() client: Socket) {
+    this.leaveCall(client);
+    const socketId = client.id;
+    this.watchingService.deleteBySocketId(socketId);
+    this.stopRecognitionStream(client);
+    // remove socketId from clients
+    for (const userId in this.clients) {
+      this.clients[userId].socketIds = this.clients[userId].socketIds.filter(
+        (id) => id !== socketId,
+      );
+      if (this.clients[userId].socketIds.length === 0) {
+        delete this.clients[userId];
+      }
+    }
+    const userIds = Object.keys(this.clients);
+    console.log('socket disconnected', userIds);
+    this.server.emit(socketConfig.events.client.list, userIds);
+  }
+
+  @SubscribeMessage(socketConfig.events.client.join)
   joinAdminRoom(
     @ConnectedSocket() client: Socket,
     @MessageBody() userId: number,
   ) {
-    console.log(
-      '🚀 ~ file: events.gateway.ts ~ line 123 ~ EventsGateway ~ joinAdminRoom ~ userId',
-      userId,
-    );
     client.join(userId.toString());
     this.clients[userId.toString()] = {
       socketIds: [
@@ -75,6 +86,9 @@ export class EventsGateway
         client.id,
       ],
     };
+    const userIds = Object.keys(this.clients);
+    console.log('socket connected', userIds);
+    this.server.emit(socketConfig.events.client.list, userIds);
   }
 
   @SubscribeMessage(socketConfig.events.chat.join)
@@ -521,15 +535,6 @@ export class EventsGateway
   @SubscribeMessage(socketConfig.events.call.leave)
   handleLeaveCall(@ConnectedSocket() client: Socket) {
     this.leaveCall(client);
-  }
-
-  // User disconnect
-
-  handleDisconnect(@ConnectedSocket() client: Socket) {
-    this.leaveCall(client);
-    const socketId = client.id;
-    this.watchingService.deleteBySocketId(socketId);
-    this.stopRecognitionStream(client);
   }
 
   // End events for call

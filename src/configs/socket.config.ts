@@ -1,5 +1,10 @@
 export const socketConfig = {
   events: {
+    client: {
+      join: 'client.join',
+      list: 'client.list',
+      leave: 'client.leave',
+    },
     message: {
       new: 'message.new',
       update: 'message.update',
