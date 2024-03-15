@@ -213,7 +213,7 @@ export class RoomsService {
     const roomRes = await room.populate([
       {
         path: 'participants',
-        select: userSelectFieldsString,
+        select: `${userSelectFieldsString} + phoneNumber`,
       },
       {
         path: 'lastMessage',
