@@ -77,6 +77,9 @@ export class User {
 
   @Prop({ type: String, default: false })
   tempEmail: string;
+
+  @Prop({ type: String })
+  phoneNumber: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
