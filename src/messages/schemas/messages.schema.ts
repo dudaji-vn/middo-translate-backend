@@ -106,8 +106,13 @@ export class Message {
     default: [],
   })
   targetUsers: User[];
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
+
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    default: [],
+  })
   mentions: User[];
+
   @Prop({ type: String })
   language: string;
 

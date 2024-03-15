@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
 import {
   CursorPaginationInfo,
   ListQueryParamsCursor,
@@ -177,6 +177,17 @@ export class MessagesService {
       createdMessage.forwardOf = await this.findById(
         createMessageDto.forwardOfId,
       );
+    }
+
+    if (createMessageDto.mentions && createMessageDto.mentions.length > 0) {
+      const mentions = createMessageDto.mentions.filter((id) =>
+        Types.ObjectId.isValid(id),
+      );
+      if (mentions.length > 0) {
+        createdMessage.mentions = await this.usersService.findManyByIds(
+          mentions,
+        );
+      }
     }
 
     createdMessage.room = room;
