@@ -23,6 +23,7 @@ import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
 import { Message } from 'src/messages/schemas/messages.schema';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
+import moment from 'moment';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -788,4 +789,18 @@ export class RoomsService {
     );
     return room;
   }
+  getTotalClientCompletedConversation = async (
+    userId: string,
+    fromDate: Date,
+    toDate: Date,
+  ) => {
+    return await this.roomModel.countDocuments({
+      admin: userId,
+      status: RoomStatus.ACTIVE,
+      updatedAt: {
+        $gte: fromDate,
+        $lte: toDate,
+      },
+    });
+  };
 }
