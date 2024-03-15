@@ -86,14 +86,12 @@ export class RoomsService {
     if (!room) {
       throw new Error('Room not found');
     }
-    room.status = RoomStatus.DELETED;
     await this.roomModel.updateOne(
       {
         _id: room._id,
       },
-      {
-        status: RoomStatus.DELETED,
-      },
+
+      { $push: { deleteFor: userId } },
     );
     this.eventEmitter.emit(socketConfig.events.room.delete, {
       roomId: room._id,
@@ -255,6 +253,7 @@ export class RoomsService {
         $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED],
       },
       ...(status ? { status: status } : {}),
+      deleteFor: { $nin: [userId] },
       isHelpDesk: { $ne: true },
       ...(type === 'group' ? { isGroup: true } : {}),
       ...(type === 'individual' ? { isGroup: false } : {}),

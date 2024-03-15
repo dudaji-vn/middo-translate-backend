@@ -285,6 +285,7 @@ export class RoomsController {
     @JwtUserId() userId: string,
   ): Promise<Response<null>> {
     await this.messagesService.deleteAllInRoom(id, userId);
+    await this.roomsService.deleteRoom(id, userId);
     return { message: 'Messages deleted', data: null };
   }
 
