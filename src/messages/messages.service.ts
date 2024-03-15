@@ -234,6 +234,7 @@ export class MessagesService {
     this.roomsService.updateRoom(String(newMessage.room._id), {
       lastMessage: newMessageWithSender,
       newMessageAt: new Date(),
+      deleteFor: [],
     });
     this.eventEmitter.emit(socketConfig.events.message.new, socketPayload);
     this.sendMessageNotification(newMessageWithSender);
