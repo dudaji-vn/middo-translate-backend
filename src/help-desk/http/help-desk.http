@@ -1,4 +1,3 @@
-###
 
 ####
 PUT http://localhost:8080/api/help-desk/create-or-edit-business
@@ -91,8 +90,7 @@ Content-Type: application/json
 
 
 ###
-GET http://localhost:3000/api/rooms/65f25e2b4abba3c51f9a50f8
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDQ5MTQzNywiZXhwIjoxNzEwNTc3ODM3fQ.MHPmcpCwi5Izpe2pyyED1-16TK_rlXexVrtteg5tf0M
+
 
 
 ###
@@ -178,6 +176,10 @@ Content-Type: application/json
 
 ###
 GET http://localhost:3000/api/recommendation/chat?type=help-desk
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDczMzIwNiwiZXhwIjoxNzEwODE5NjA2fQ.Wg8eR8VPDOwzTrSAWPZoP89RGWnvIn92vqNIlGbEfdc
+
+###
+GET http://localhost:3000/api/rooms/65f25e2b4abba3c51f9a50f8
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDczMzIwNiwiZXhwIjoxNzEwODE5NjA2fQ.Wg8eR8VPDOwzTrSAWPZoP89RGWnvIn92vqNIlGbEfdc
 
 

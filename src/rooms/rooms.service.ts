@@ -213,7 +213,7 @@ export class RoomsService {
     const roomRes = await room.populate([
       {
         path: 'participants',
-        select: `${userSelectFieldsString} + phoneNumber`,
+        select: `${userSelectFieldsString} + tempEmail status phoneNumber`,
       },
       {
         path: 'lastMessage',
@@ -227,8 +227,17 @@ export class RoomsService {
         select: userSelectFieldsString,
       },
     ]);
+
+    const data = roomRes.toObject();
+    data.participants = data.participants.map((user) => {
+      return {
+        ...user,
+        email:
+          user.status === UserStatus.ANONYMOUS ? user.tempEmail : user.email,
+      };
+    });
     return {
-      ...roomRes.toObject(),
+      ...data,
       isPinned: user?.pinRoomIds?.includes(id) || false,
     };
   }
