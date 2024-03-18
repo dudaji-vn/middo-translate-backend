@@ -39,7 +39,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2M
 Content-Type: application/json
 
 ###
-GET http://localhost:8080/api/help-desk/business/65effd002d3c6a72235bbe8e
+GET http://localhost:8080/api/help-desk/business/65f0075f2d3c6a722364d0c1
 
 
 
@@ -127,8 +127,8 @@ Content-Type: application/json
 }
 
 ### 
-GET http://localhost:3000/api/search/inboxes?q=@gmail&type=help-desk
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMjczMSwiZXhwIjoxNzEwNDA5MTMxfQ.Uc1Ow7yfRlsEmI9Z07N9IP0eVBo1VAqsArKivSlSu6E
+GET http://localhost:8080/api/search/inboxes?q=h&type=help-desk
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDczMzIwNiwiZXhwIjoxNzEwODE5NjA2fQ.Wg8eR8VPDOwzTrSAWPZoP89RGWnvIn92vqNIlGbEfdc
 
 
 ####
