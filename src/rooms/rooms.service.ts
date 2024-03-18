@@ -791,16 +791,19 @@ export class RoomsService {
   }
   getTotalClientCompletedConversation = async (
     userId: string,
-    fromDate: Date,
-    toDate: Date,
+    fromDate?: Date,
+    toDate?: Date,
   ) => {
     return await this.roomModel.countDocuments({
       admin: userId,
       status: RoomStatus.ACTIVE,
-      updatedAt: {
-        $gte: fromDate,
-        $lte: toDate,
-      },
+      ...(fromDate &&
+        toDate && {
+          updatedAt: {
+            $gte: fromDate,
+            $lte: toDate,
+          },
+        }),
     });
   };
 }

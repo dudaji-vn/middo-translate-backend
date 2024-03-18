@@ -7,17 +7,17 @@ import {
   Post,
   Put,
   Query,
+  Req,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
 import { SearchQueryParamsDto } from 'src/search/dtos';
+import { AnalystQueryDto } from './dto/analyst-query-dto';
 import { CreateClientDto } from './dto/create-client-dto';
 import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
-import { HelpDeskService } from './help-desk.service';
-import { query } from 'express';
-import { AnalystQueryDto } from './dto/analyst-query-dto';
 import { EditClientDto } from './dto/edit-client-dto';
+import { HelpDeskService } from './help-desk.service';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -25,7 +25,7 @@ export class HelpDeskController {
   constructor(private readonly helpDeskService: HelpDeskService) {}
   @Public()
   @Post('create-client')
-  async createClient(@Body() client: CreateClientDto) {
+  async createClient(@Req() request: Request, @Body() client: CreateClientDto) {
     const result = await this.helpDeskService.createClient(
       client.businessId,
       client,
@@ -88,8 +88,11 @@ export class HelpDeskController {
 
   @Public()
   @Get('analytics')
-  async analytics(@Query() query: AnalystQueryDto) {
-    const result = await this.helpDeskService.analyst(query);
+  async analytics(
+    @Query() query: AnalystQueryDto,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.analyst(query, userId);
     return {
       data: result,
     };

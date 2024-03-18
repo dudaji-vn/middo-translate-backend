@@ -14,7 +14,7 @@ Content-Type: application/json
 }
 
 ###
-POST  http://localhost:8080/api/help-desk/create-client
+POST  http://localhost:3000/api/help-desk/create-client
 Content-Type: application/json
 
 { 
@@ -39,7 +39,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2M
 Content-Type: application/json
 
 ###
-GET http://localhost:8080/api/help-desk/business/65eec80a2d3c6a722349d697
+GET http://localhost:8080/api/help-desk/business/65effd002d3c6a72235bbe8e
 
 
 
@@ -91,8 +91,8 @@ Content-Type: application/json
 
 
 ###
-GET http://localhost:3000/api/rooms/65f0286f833aa5c1d3d7b99d
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDIzNDM0NiwiZXhwIjoxNzEwMzIwNzQ2fQ.1VNT5TGw21_mbguR3Gnpy5ncvoKCRsrNqWjPHb4oU4I
+GET http://localhost:3000/api/rooms/65f25e2b4abba3c51f9a50f8
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDQ5MTQzNywiZXhwIjoxNzEwNTc3ODM3fQ.MHPmcpCwi5Izpe2pyyED1-16TK_rlXexVrtteg5tf0M
 
 
 ###
@@ -122,8 +122,8 @@ Content-Type: application/json
 
 {
   "businessId": "65effd002d3c6a72235bbe8e",
-  "userId": "65f1162e3d5ce1d45917e02c",
-  "star": 4
+  "userId": "65f261b54abba3c51f9a5151",
+  "star": 3
 }
 
 ### 
@@ -156,17 +156,25 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2M
 GET http://localhost:3000/api/help-desk/analytics?type=last-week
 
 ###
-PUT http://localhost:3000/api/help-desk/edit-client-profile
+PATCH  http://localhost:3000/api/help-desk/edit-client-profile
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDQ5MTQzNywiZXhwIjoxNzEwNTc3ODM3fQ.MHPmcpCwi5Izpe2pyyED1-16TK_rlXexVrtteg5tf0M
 Content-Type: application/json
 
 {
 "phoneNumber":"035295211",
-"userId":"65f262d14abba3c51f9a5214"
+"userId":"65f25e2a4abba3c51f9a50f3"
 }
 
 
+###
+POST http://localhost:3000/api/help-desk/check-domain
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDQ5MTQzNywiZXhwIjoxNzEwNTc3ODM3fQ.MHPmcpCwi5Izpe2pyyED1-16TK_rlXexVrtteg5tf0M
+Content-Type: application/json
 
+{
+  "domain":"http://localhost:3001",
+  "businessId":"65effd002d3c6a72235bbe8e"
+}
 
 
 
