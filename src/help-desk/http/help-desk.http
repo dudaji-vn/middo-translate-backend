@@ -2,13 +2,13 @@
 
 ####
 PUT http://localhost:8080/api/help-desk/create-or-edit-business
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMjczMSwiZXhwIjoxNzEwNDA5MTMxfQ.Uc1Ow7yfRlsEmI9Z07N9IP0eVBo1VAqsArKivSlSu6E
 Content-Type: application/json
 
 {
-  "domains": ["https://test-ttalk.onrender.com","http://localhost:3000"],
-  "color": "red",
-  "language": "vi",
+  "domains": ["https://test-ttalk.onrender.com","http://localhost:3001"],
+  "color": "redss",
+  "language": "vis",
   "firstMessage": "Xin chào",
   "firstMessageEnglish":"Hi, how can I help you?"
 }
@@ -123,12 +123,12 @@ Content-Type: application/json
 {
   "businessId": "65effd002d3c6a72235bbe8e",
   "userId": "65f1162e3d5ce1d45917e02c",
-  "star": 3
+  "star": 4
 }
 
 ### 
-GET http://localhost:3000/api/search/inboxes?q=nguyenvana28710@gmail&type=help-desk
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDIzNDM0NiwiZXhwIjoxNzEwMzIwNzQ2fQ.1VNT5TGw21_mbguR3Gnpy5ncvoKCRsrNqWjPHb4oU4I
+GET http://localhost:3000/api/search/inboxes?q=@gmail&type=help-desk
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMjczMSwiZXhwIjoxNzEwNDA5MTMxfQ.Uc1Ow7yfRlsEmI9Z07N9IP0eVBo1VAqsArKivSlSu6E
 
 
 ####
@@ -143,9 +143,27 @@ Content-Type: application/json
 
 
 ###
-GET http://localhost:8080/api/rooms?type=help-desk
+GET http://localhost:8080/api/rooms?type=help-desk&status=archived
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMDc5NCwiZXhwIjoxNzEwNDA3MTk0fQ.YT36-AG26v3deYwrzdLJxS204_cPhpVih07kNGvyumA
 
+
+###
+GET http://localhost:3000/api/help-desk/my-clients?q=ng
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMDc5NCwiZXhwIjoxNzEwNDA3MTk0fQ.YT36-AG26v3deYwrzdLJxS204_cPhpVih07kNGvyumA
+
+
+###
+GET http://localhost:3000/api/help-desk/analytics?type=last-week
+
+###
+PUT http://localhost:3000/api/help-desk/edit-client-profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDQ5MTQzNywiZXhwIjoxNzEwNTc3ODM3fQ.MHPmcpCwi5Izpe2pyyED1-16TK_rlXexVrtteg5tf0M
+Content-Type: application/json
+
+{
+"phoneNumber":"035295211",
+"userId":"65f262d14abba3c51f9a5214"
+}
 
 
 

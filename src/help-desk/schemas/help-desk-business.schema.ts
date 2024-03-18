@@ -6,7 +6,7 @@ export enum StatusBusiness {
   DELETED = 'deleted',
 }
 
-@Schema({ _id: false }) // _id: false because this is a subdocument
+@Schema({ _id: false, timestamps: true }) // _id: false because this is a subdocument
 export class Rating extends Document {
   @Prop({ type: Number, required: true })
   star: number;
