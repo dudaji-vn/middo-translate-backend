@@ -58,12 +58,9 @@ export class HelpDeskController {
     return { data: result };
   }
 
-  @Delete(':id')
-  async deleteBusiness(
-    @ParamObjectId('id') id: string,
-    @JwtUserId() userId: string,
-  ) {
-    await this.helpDeskService.deleteBusiness(id, userId);
+  @Delete('')
+  async deleteBusiness(@JwtUserId() userId: string) {
+    await this.helpDeskService.deleteBusiness(userId);
     return { message: 'Business deleted', data: null };
   }
 
@@ -86,7 +83,6 @@ export class HelpDeskController {
     };
   }
 
-  @Public()
   @Get('analytics')
   async analytics(
     @Query() query: AnalystQueryDto,

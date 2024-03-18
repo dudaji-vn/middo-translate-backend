@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
-import { Model } from 'mongoose';
+import { Model, ObjectId } from 'mongoose';
 import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import { MessagesService } from 'src/messages/messages.service';
@@ -104,9 +104,9 @@ export class HelpDeskService {
       })
       .lean();
   }
-  async deleteBusiness(businessId: string, userId: string) {
+  async deleteBusiness(userId: string) {
     const business = await this.helpDeskBusinessModel
-      .findById(businessId)
+      .findOne({ user: userId, status: { $ne: StatusBusiness.DELETED } })
       .lean();
     if (!business) {
       throw new BadRequestException('business not found');
@@ -116,7 +116,7 @@ export class HelpDeskService {
     }
     await this.helpDeskBusinessModel.updateOne(
       {
-        _id: businessId,
+        _id: business._id,
       },
       {
         status: StatusBusiness.DELETED,
@@ -207,41 +207,55 @@ export class HelpDeskService {
       [AnalystType.CUSTOM]: moment(toDate).toDate(),
     };
 
-    const totalClientsWithTime = await this.userModel.countDocuments({
+    const totalClientsWithTimePromise = this.userModel.countDocuments({
       business: business._id,
       createdAt: {
         $gte: fromDateBy[type],
         $lte: toDateBy[type],
       },
     });
-    const totalClients = await this.userModel.countDocuments({
+    const totalClientsPromise = this.userModel.countDocuments({
       business: business._id,
     });
 
-    const totalCompletedConversationWithTime =
-      await this.roomsService.getTotalClientCompletedConversation(
+    const totalCompletedConversationWithTimePromise =
+      this.roomsService.getTotalClientCompletedConversation(
         business.user.toString(),
         fromDateBy[type],
         toDateBy[type],
       );
-    const totalCompletedConversation =
-      await this.roomsService.getTotalClientCompletedConversation(
+    const totalCompletedConversationPromise =
+      this.roomsService.getTotalClientCompletedConversation(
         business.user.toString(),
       );
 
-    const averageRating = await this.getAverageRatingById(
-      userId,
+    const averageRatingPromise = await this.getAverageRatingById(
+      business._id,
       fromDateBy[type],
       toDateBy[type],
     );
+
+    const [
+      totalClientsWithTime,
+      totalClients,
+      totalCompletedConversationWithTime,
+      totalCompletedConversation,
+      averageRating,
+    ] = await Promise.all([
+      totalClientsWithTimePromise,
+      totalClientsPromise,
+      totalCompletedConversationWithTimePromise,
+      totalCompletedConversationPromise,
+      averageRatingPromise,
+    ]);
 
     const queryCustomDate = (fromDate: Date, toDate: Date) => {
       return [
         {
           $match: {
             createdAt: {
-              $gte: moment(fromDate).toDate(),
-              $lte: moment(toDate).toDate(),
+              $gte: fromDate,
+              $lte: toDate,
             },
           },
         },
@@ -296,11 +310,13 @@ export class HelpDeskService {
         },
       ];
     };
+
     const queryDate = queryCustomDate(fromDateBy[type], toDateBy[type]);
+    let analytics;
     switch (type) {
       case AnalystType.LAST_WEEK:
         const dataLastWeek = await this.userModel.aggregate(queryDate);
-        const analytics = this.addMissingDates(
+        analytics = this.addMissingDates(
           dataLastWeek,
           fromDateBy[type],
           toDateBy[type],
@@ -310,15 +326,11 @@ export class HelpDeskService {
             value: item.count,
           };
         });
-        return {
-          totalCompletedConversation,
-          totalClients,
-          analytics,
-        };
+        break;
 
       case AnalystType.LAST_MONTH:
         const dataLastMonth = await this.userModel.aggregate(queryDate);
-        return this.addMissingDates(
+        analytics = this.addMissingDates(
           dataLastMonth,
           fromDateBy[type],
           toDateBy[type],
@@ -328,22 +340,24 @@ export class HelpDeskService {
             value: item.count,
           };
         });
+        break;
       case AnalystType.LAST_YEAR:
         const dataLastYear = (await this.userModel.aggregate(queryDate)).map(
           (item) => {
             return {
-              label: item.date,
+              label: item.month,
               value: item.count,
             };
           },
         );
-        return dataLastYear;
+        analytics = dataLastYear;
+        break;
 
       case AnalystType.CUSTOM:
         if (!fromDate || !toDate) {
           throw new BadRequestException('fromDate and toDate are required');
         }
-        const queryCustom = queryCustomDate(fromDate, toDate);
+        const queryCustom = queryCustomDate(fromDateBy[type], toDateBy[type]);
         const dataCustom = (await this.userModel.aggregate(queryCustom)).map(
           (item) => {
             return {
@@ -352,8 +366,25 @@ export class HelpDeskService {
             };
           },
         );
-        return dataCustom;
+        analytics = dataCustom;
+        break;
     }
+
+    return {
+      client: {
+        count: totalClientsWithTime,
+        rate: Math.round((totalClientsWithTime * 100) / totalClients),
+      },
+      completedConversation: {
+        count: totalCompletedConversationWithTime,
+        rate: Math.round(
+          (totalCompletedConversationWithTime * 100) /
+            totalCompletedConversation,
+        ),
+      },
+      averageRating: averageRating,
+      chart: analytics,
+    };
   }
 
   addMissingDates(
@@ -403,7 +434,7 @@ export class HelpDeskService {
   }
 
   async getAverageRatingById(
-    id: string,
+    id: ObjectId,
     fromDate: Date,
     toDate: Date,
   ): Promise<number> {
