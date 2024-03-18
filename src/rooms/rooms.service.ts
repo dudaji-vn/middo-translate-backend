@@ -16,7 +16,7 @@ import { selectPopulateField } from 'src/common/utils';
 import { socketConfig } from 'src/configs/socket.config';
 import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
 import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
-import { User } from 'src/users/schemas/user.schema';
+import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { CreateRoomDto } from './dto';
 import { UpdateRoomDto } from './dto/update-room.dto';
@@ -565,7 +565,24 @@ export class RoomsService {
       })
       .sort({ newMessageAt: -1 })
       .limit(10)
-      .populate('participants');
+      .populate('participants')
+      .lean();
+    if (query?.type === 'help-desk') {
+      return rooms.map((item) => {
+        return {
+          ...item,
+          participants: item.participants.map((user) => {
+            return {
+              ...user,
+              email:
+                user.status === UserStatus.ANONYMOUS
+                  ? user.tempEmail
+                  : user.email,
+            };
+          }),
+        };
+      });
+    }
     return rooms;
   }
 
