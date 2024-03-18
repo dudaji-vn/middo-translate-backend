@@ -3,6 +3,7 @@ import { JwtUserId } from 'src/common/decorators';
 import { RecommendationService } from './recommendation.service';
 import { SearchQueryParamsDto } from '../search/dtos';
 import { query } from 'express';
+import { RecommendQueryDto } from './dto/recommend-query-dto';
 
 @Controller('recommendation')
 export class RecommendationController {
@@ -21,7 +22,7 @@ export class RecommendationController {
 
   @Get('/chat')
   async getRecommend(
-    @Query() query: SearchQueryParamsDto,
+    @Query() query: RecommendQueryDto,
     @JwtUserId() userId: string,
   ) {
     const rooms =

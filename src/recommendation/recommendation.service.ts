@@ -4,6 +4,7 @@ import { Room } from 'src/rooms/schemas/room.schema';
 import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { SearchQueryParamsDto } from 'src/search/dtos';
+import { RecommendQueryDto } from './dto/recommend-query-dto';
 
 @Injectable()
 export class RecommendationService {
@@ -32,7 +33,7 @@ export class RecommendationService {
 
   async getRecommendBasedRecentlyChat(
     userId: string,
-    query?: SearchQueryParamsDto,
+    query?: RecommendQueryDto,
   ): Promise<Room[]> {
     const user = await this.userService.findById(userId);
     if (!user) {

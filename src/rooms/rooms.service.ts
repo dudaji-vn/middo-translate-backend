@@ -23,7 +23,7 @@ import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
 import { Message } from 'src/messages/schemas/messages.schema';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
-import { SearchQueryParamsDto } from 'src/search/dtos';
+import { RecommendQueryDto } from 'src/recommendation/dto/recommend-query-dto';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -553,14 +553,14 @@ export class RoomsService {
   async findRecentChatRooms(
     userId: string,
     notGroup = false,
-    query?: SearchQueryParamsDto,
+    query?: RecommendQueryDto,
   ) {
     const rooms = await this.roomModel
       .find({
         participants: userId,
         ...(notGroup ? { isGroup: false } : {}),
         status: RoomStatus.ACTIVE,
-        isHelpDesk: false,
+        isHelpDesk: { $ne: true },
         ...(query?.type === 'help-desk' ? { isHelpDesk: true } : {}),
       })
       .sort({ newMessageAt: -1 })
