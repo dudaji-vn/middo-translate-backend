@@ -96,7 +96,7 @@ export class RoomsService {
     );
     this.eventEmitter.emit(socketConfig.events.room.delete, {
       roomId: room._id,
-      participants: room.participants.map((p) => p._id),
+      participants: [userId],
     });
     return room;
   }
@@ -657,6 +657,7 @@ export class RoomsService {
         },
         status: RoomStatus.ACTIVE,
         participants: userId,
+        deleteFor: { $nin: [userId] },
       })
       .populate({
         path: 'lastMessage',
