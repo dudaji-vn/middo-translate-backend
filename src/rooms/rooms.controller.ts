@@ -298,7 +298,7 @@ export class RoomsController {
     return { message: 'Room pinned', data: null };
   }
 
-  @Put(':id/change-status-room')
+  @Patch(':id/change-status-room')
   async changeRoomStatus(
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,

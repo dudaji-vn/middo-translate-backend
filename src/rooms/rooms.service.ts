@@ -191,7 +191,17 @@ export class RoomsService {
     let room = await this.roomModel.findOne({
       _id: id,
       participants: userId,
-      ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
+      ...(inCludeDeleted
+        ? {}
+        : {
+            status: {
+              $in: [
+                RoomStatus.ACTIVE,
+                RoomStatus.ARCHIVED,
+                RoomStatus.COMPLETED,
+              ],
+            },
+          }),
     });
 
     if (!room) {
