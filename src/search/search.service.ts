@@ -21,8 +21,10 @@ export class SearchService {
   ): Promise<SearchMainResult> {
     const users = await this.searchUsers({ q, limit, type });
     const userIds = users.map((u) => u._id);
+
     const rooms = await this.roomsService.search({
       query: {
+        ...(type === 'help-desk' && { isHelpDesk: true }),
         $or: [
           {
             name: { $regex: q, $options: 'i' },
@@ -37,17 +39,23 @@ export class SearchService {
               },
               {
                 participants: {
-                  $in: userIds,
+                  $in: type === 'help-desk' ? [...userIds, userId] : userIds,
                 },
               },
             ],
           },
         ],
         status: RoomStatus.ACTIVE,
-        isGroup: true,
+        isGroup: type === 'help-desk' ? false : true,
       },
       limit,
     });
+    if (type === 'help-desk') {
+      return {
+        users: [],
+        rooms,
+      };
+    }
     return {
       users,
       rooms,

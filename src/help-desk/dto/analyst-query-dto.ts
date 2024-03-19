@@ -10,6 +10,6 @@ export enum AnalystType {
 export class AnalystQueryDto {
   @IsEnum(AnalystType)
   type: AnalystType;
-  fromDate?: string;
-  toDate?: string;
+  fromDate?: Date;
+  toDate?: Date;
 }

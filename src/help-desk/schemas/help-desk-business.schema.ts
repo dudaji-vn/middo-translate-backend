@@ -4,6 +4,7 @@ import { User } from 'src/users/schemas/user.schema';
 
 export enum StatusBusiness {
   DELETED = 'deleted',
+  ACTIVE = 'active',
 }
 
 @Schema({ _id: false, timestamps: true }) // _id: false because this is a subdocument

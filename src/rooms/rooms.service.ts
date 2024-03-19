@@ -15,15 +15,15 @@ import {
 import { selectPopulateField } from 'src/common/utils';
 import { socketConfig } from 'src/configs/socket.config';
 import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
+import { Message } from 'src/messages/schemas/messages.schema';
 import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
-import { User } from 'src/users/schemas/user.schema';
+import { RecommendQueryDto } from 'src/recommendation/dto/recommend-query-dto';
+import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { CreateRoomDto } from './dto';
+import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
-import { Message } from 'src/messages/schemas/messages.schema';
-import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
-import moment from 'moment';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -211,7 +211,7 @@ export class RoomsService {
     const roomRes = await room.populate([
       {
         path: 'participants',
-        select: `${userSelectFieldsString} + phoneNumber`,
+        select: `${userSelectFieldsString} + tempEmail status phoneNumber`,
       },
       {
         path: 'lastMessage',
@@ -225,8 +225,17 @@ export class RoomsService {
         select: userSelectFieldsString,
       },
     ]);
+
+    const data = roomRes.toObject();
+    data.participants = data.participants.map((user) => {
+      return {
+        ...user,
+        email:
+          user.status === UserStatus.ANONYMOUS ? user.tempEmail : user.email,
+      };
+    });
     return {
-      ...roomRes.toObject(),
+      ...data,
       isPinned: user?.pinRoomIds?.includes(id) || false,
     };
   }
@@ -549,16 +558,39 @@ export class RoomsService {
     ]);
   }
 
-  async findRecentChatRooms(userId: string, notGroup = false) {
+  async findRecentChatRooms(
+    userId: string,
+    notGroup = false,
+    query?: RecommendQueryDto,
+  ) {
     const rooms = await this.roomModel
       .find({
         participants: userId,
         ...(notGroup ? { isGroup: false } : {}),
         status: RoomStatus.ACTIVE,
+        isHelpDesk: { $ne: true },
+        ...(query?.type === 'help-desk' ? { isHelpDesk: true } : {}),
       })
       .sort({ newMessageAt: -1 })
       .limit(10)
-      .populate('participants');
+      .populate('participants')
+      .lean();
+    if (query?.type === 'help-desk') {
+      return rooms.map((item) => {
+        return {
+          ...item,
+          participants: item.participants.map((user) => {
+            return {
+              ...user,
+              email:
+                user.status === UserStatus.ANONYMOUS
+                  ? user.tempEmail
+                  : user.email,
+            };
+          }),
+        };
+      });
+    }
     return rooms;
   }
 
@@ -791,16 +823,31 @@ export class RoomsService {
   }
   getTotalClientCompletedConversation = async (
     userId: string,
-    fromDate: Date,
-    toDate: Date,
+    fromDate?: Date,
+    toDate?: Date,
   ) => {
     return await this.roomModel.countDocuments({
       admin: userId,
       status: RoomStatus.ACTIVE,
-      updatedAt: {
-        $gte: fromDate,
-        $lte: toDate,
-      },
+      ...(fromDate &&
+        toDate && {
+          updatedAt: {
+            $gte: fromDate,
+            $lte: toDate,
+          },
+        }),
     });
   };
+  async changeHelpDeskRoomStatusByUser(userId: string, status: RoomStatus) {
+    await this.roomModel.updateMany(
+      {
+        admin: userId,
+        isHelpDesk: true,
+      },
+      {
+        status: status,
+      },
+    );
+    return true;
+  }
 }
