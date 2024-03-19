@@ -126,7 +126,7 @@ export class HelpDeskService {
     );
     await this.roomsService.changeHelpDeskRoomStatusByUser(
       userId,
-      RoomStatus.ARCHIVED,
+      RoomStatus.DELETED,
     );
   }
   async rating(createRatingDto: CreateRatingDto) {
