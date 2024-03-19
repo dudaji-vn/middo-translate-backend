@@ -383,6 +383,10 @@ export class HelpDeskService {
         ),
       },
       averageRating: averageRating,
+      responseChat: {
+        averageTime: '1.5h',
+        rate: 30,
+      },
       chart: analytics,
     };
   }
