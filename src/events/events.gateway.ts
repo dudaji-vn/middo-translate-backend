@@ -624,6 +624,26 @@ export class EventsGateway
     }
     delete this.recognizeStreams[client.id];
   }
+
+  // typing event
+  @SubscribeMessage(socketConfig.events.typing.update.server)
+  handleStartTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    {
+      roomId,
+      isTyping,
+    }: {
+      roomId: string;
+      isTyping: boolean;
+    },
+  ) {
+    const userId = findUserIdBySocketId(this.clients, client.id);
+    this.server.to(roomId).emit(socketConfig.events.typing.update.client, {
+      userId,
+      isTyping,
+    });
+  }
 }
 
 const findUserIdBySocketId = (clients: any, socketId: string) => {
