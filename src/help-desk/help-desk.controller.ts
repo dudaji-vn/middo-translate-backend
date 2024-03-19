@@ -52,7 +52,7 @@ export class HelpDeskController {
   }
 
   @Public()
-  @Get('/business/:id')
+  @Get('business/:id')
   async getBusinessById(@ParamObjectId() id: string) {
     const result = await this.helpDeskService.getBusinessById(id);
     return { data: result };

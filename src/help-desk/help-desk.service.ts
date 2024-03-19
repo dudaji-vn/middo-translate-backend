@@ -7,6 +7,7 @@ import { generateSlug } from 'src/common/utils/generate-slug';
 import { MessagesService } from 'src/messages/messages.service';
 import { MessageType } from 'src/messages/schemas/messages.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
+import { RoomStatus } from 'src/rooms/schemas/room.schema';
 import { SearchQueryParamsDto } from 'src/search/dtos';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
@@ -77,6 +78,7 @@ export class HelpDeskService {
 
   async createOrEditBusiness(userId: string, info: Partial<HelpDeskBusiness>) {
     info.user = userId;
+    info.status = StatusBusiness.ACTIVE;
     const user = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
         user: userId,
@@ -121,6 +123,10 @@ export class HelpDeskService {
       {
         status: StatusBusiness.DELETED,
       },
+    );
+    await this.roomsService.changeHelpDeskRoomStatusByUser(
+      userId,
+      RoomStatus.ARCHIVED,
     );
   }
   async rating(createRatingDto: CreateRatingDto) {

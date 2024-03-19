@@ -15,15 +15,15 @@ import {
 import { selectPopulateField } from 'src/common/utils';
 import { socketConfig } from 'src/configs/socket.config';
 import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
+import { Message } from 'src/messages/schemas/messages.schema';
 import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
+import { RecommendQueryDto } from 'src/recommendation/dto/recommend-query-dto';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { CreateRoomDto } from './dto';
+import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
-import { Message } from 'src/messages/schemas/messages.schema';
-import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
-import { RecommendQueryDto } from 'src/recommendation/dto/recommend-query-dto';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -838,4 +838,16 @@ export class RoomsService {
         }),
     });
   };
+  async changeHelpDeskRoomStatusByUser(userId: string, status: RoomStatus) {
+    await this.roomModel.updateMany(
+      {
+        admin: userId,
+        isHelpDesk: true,
+      },
+      {
+        status: status,
+      },
+    );
+    return true;
+  }
 }
