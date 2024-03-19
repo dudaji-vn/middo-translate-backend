@@ -133,30 +133,37 @@ export class EventsGateway
   }
 
   // Room events
-  @OnEvent(socketConfig.events.room.update)
-  async handleUpdateRoom({ data, participants, roomId }: UpdateRoomPayload) {
-    const socketIds = participants
-      .map((p) => this.clients[p.toString()]?.socketIds || [])
-      .flat();
-    console.log('🚀 ~ handleUpdateRoom ~ socketIds', socketIds);
-    this.server.to(socketIds).emit(socketConfig.events.room.update, {
-      roomId,
-      data,
-    });
-  }
+
   @OnEvent(socketConfig.events.room.new)
   async handleNewRoom(room: Room) {
     const socketIds = room.participants
       .map((p) => this.clients[p._id.toString()]?.socketIds || [])
       .flat();
-    this.server.to(socketIds).emit(socketConfig.events.room.new, room);
+    this.server.to(socketIds).emit(socketConfig.events.inbox.new, room);
   }
+
+  @OnEvent(socketConfig.events.room.update)
+  async handleUpdateRoom({ data, participants, roomId }: UpdateRoomPayload) {
+    // update inbox
+    const socketIds = participants
+      .map((p) => this.clients[p.toString()]?.socketIds || [])
+      .flat();
+    this.server.to(socketIds).emit(socketConfig.events.inbox.update, {
+      roomId,
+      data,
+    });
+
+    // Update room
+    this.server.to(roomId).emit(socketConfig.events.room.update, data);
+  }
+
   @OnEvent(socketConfig.events.room.delete)
   async handleDeleteRoom({ roomId, participants }: UpdateRoomPayload) {
     const socketIds = participants
       .map((p) => this.clients[p.toString()]?.socketIds || [])
       .flat();
     this.server.to(socketIds).emit(socketConfig.events.room.delete, roomId);
+    this.server.to(socketIds).emit(socketConfig.events.inbox.delete, roomId);
   }
   @OnEvent(socketConfig.events.room.leave)
   async handleLeaveRoom({
@@ -167,6 +174,7 @@ export class EventsGateway
     userId: number;
   }) {
     const socketIds = this.clients[userId.toString()]?.socketIds || [];
+    this.server.to(socketIds).emit(socketConfig.events.inbox.delete, roomId);
     this.server.to(socketIds).emit(socketConfig.events.room.leave, roomId);
   }
   // Message events
