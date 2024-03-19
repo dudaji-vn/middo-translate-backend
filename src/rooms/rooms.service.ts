@@ -116,6 +116,16 @@ export class RoomsService {
       room.admin = room.participants[0];
     }
     await room.save();
+    await room.populate([
+      {
+        path: 'participants',
+        select: userSelectFieldsString,
+      },
+      {
+        path: 'admin',
+        select: userSelectFieldsString,
+      },
+    ]);
     await this.upPinIfExist(room._id.toString(), userId);
     this.eventEmitter.emit(socketConfig.events.room.leave, {
       roomId: room._id,
@@ -507,6 +517,11 @@ export class RoomsService {
       participants: [...new Set(participantIds)],
     });
 
+    await room.populate(
+      selectPopulateField<Room>(['participants']),
+      selectPopulateField<User>(['_id', 'name', 'avatar', 'email', 'language']),
+    );
+
     this.eventEmitter.emit(socketConfig.events.room.update, {
       roomId,
       participants: room.participants.map((p) => p._id),
@@ -539,14 +554,7 @@ export class RoomsService {
       (p) => String(p._id) !== removeUserId,
     );
     await room.save();
-    this.eventEmitter.emit(socketConfig.events.room.update, {
-      roomId,
-      participants: room.participants.map((p) => p._id),
-      data: {
-        participants: room.participants,
-      },
-    });
-    return room.populate([
+    await room.populate([
       {
         path: 'participants',
         select: userSelectFieldsString,
@@ -556,6 +564,14 @@ export class RoomsService {
         select: userSelectFieldsString,
       },
     ]);
+    this.eventEmitter.emit(socketConfig.events.room.update, {
+      roomId,
+      participants: room.participants.map((p) => p._id),
+      data: {
+        participants: room.participants,
+      },
+    });
+    return room;
   }
 
   async findRecentChatRooms(
