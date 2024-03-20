@@ -37,16 +37,11 @@ export class RoomsController {
   ): Promise<Response<Room>> {
     const room = await this.roomsService.createRoom(createRoomDto, userId);
     if (room.isGroup) {
-      this.messagesService.create(
-        {
-          clientTempId: '',
-          content: 'has created group',
-          type: MessageType.NOTIFICATION,
-          roomId: room._id.toString(),
-          media: [],
-        },
-        userId,
-      );
+      this.messagesService.createAction({
+        roomId: room._id.toString(),
+        action: ActionTypes.CREATE_GROUP,
+        senderId: userId,
+      });
     }
     return { data: room, message: 'Room created' };
   }

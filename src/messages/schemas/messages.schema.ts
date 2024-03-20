@@ -61,6 +61,7 @@ export enum ActionTypes {
   UPDATE_GROUP_NAME = 'updateGroupName',
   REMOVE_GROUP_NAME = 'removeGroupName',
   UPDATE_GROUP_AVATAR = 'updateGroupAvatar',
+  CREATE_GROUP = 'createGroup',
 }
 
 @Schema({
