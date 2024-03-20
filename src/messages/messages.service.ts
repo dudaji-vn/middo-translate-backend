@@ -18,6 +18,7 @@ import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { CreateMessageDto } from './dto';
 import {
+  ActionTypes,
   MediaTypes,
   Message,
   MessageType,
@@ -159,6 +160,7 @@ export class MessagesService {
     createdMessage.media = createMessageDto.media || [];
     createdMessage.language = createMessageDto.language || '';
     createdMessage.type = createMessageDto.type || MessageType.TEXT;
+    createdMessage.action = createMessageDto.action || ActionTypes.NONE;
 
     if (createdMessage.media.length > 0) {
       createdMessage.type = MessageType.MEDIA;
@@ -615,48 +617,19 @@ export class MessagesService {
     return message;
   }
 
-  async createSystem(
-    roomId: string,
-    content: string,
-    senderId: string,
-  ): Promise<Message> {
-    const message = await this.create(
-      {
-        roomId,
-        content,
-        type: MessageType.NOTIFICATION,
-        clientTempId: '',
-        media: [],
-        contentEnglish: '',
-      },
-      senderId,
-      true,
-    );
-    return message;
-  }
-  async createAction(
-    roomId: string,
-    senderId: string,
-    targetUserIds: string[],
-    action: 'addToGroup' | 'removeFromGroup' | 'pin' | 'unpin',
-  ): Promise<Message> {
-    let content = '';
-    switch (action) {
-      case 'addToGroup':
-        content = 'added';
-        break;
-      case 'removeFromGroup':
-        content = 'removed';
-        break;
-      case 'pin':
-        content = 'pinned a message';
-        break;
-      case 'unpin':
-        content = 'unpinned a message';
-        break;
-      default:
-        break;
-    }
+  async createAction({
+    roomId,
+    senderId,
+    targetUserIds = [],
+    action,
+    content,
+  }: {
+    roomId: string;
+    senderId: string;
+    targetUserIds?: string[];
+    action: ActionTypes;
+    content?: string;
+  }): Promise<Message> {
     const message = await this.create(
       {
         roomId,
@@ -666,6 +639,7 @@ export class MessagesService {
         media: [],
         contentEnglish: '',
         targetUserIds,
+        action,
       },
       senderId,
       true,
@@ -954,10 +928,18 @@ export class MessagesService {
     const isPinned = !!pinMessage;
     if (isPinned) {
       await pinMessage.deleteOne();
-      this.createAction(message.room._id.toString(), userId, [], 'unpin');
+      this.createAction({
+        roomId: message.room._id.toString(),
+        senderId: userId,
+        action: ActionTypes.UNPIN_MESSAGE,
+      });
     } else {
       const newPinMessage = new this.pinMessageModel();
-      this.createAction(message.room._id.toString(), userId, [], 'pin');
+      this.createAction({
+        roomId: message.room._id.toString(),
+        senderId: userId,
+        action: ActionTypes.PIN_MESSAGE,
+      });
       newPinMessage.message = message;
       newPinMessage.pinnedBy = user;
       newPinMessage.room = room;

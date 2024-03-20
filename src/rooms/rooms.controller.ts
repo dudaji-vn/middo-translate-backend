@@ -5,7 +5,6 @@ import {
   Get,
   Patch,
   Post,
-  Put,
   Query,
 } from '@nestjs/common';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
@@ -15,7 +14,11 @@ import { CreateRoomDto } from './dto';
 import { RoomsService } from './rooms.service';
 import { Room } from './schemas/room.schema';
 import { MessagesService } from 'src/messages/messages.service';
-import { Message, MessageType } from 'src/messages/schemas/messages.schema';
+import {
+  ActionTypes,
+  Message,
+  MessageType,
+} from 'src/messages/schemas/messages.schema';
 import { UpdateRoomDto, UpdateRoomStatusDto } from './dto/update-room.dto';
 import { HelpDeskService } from 'src/help-desk/help-desk.service';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
@@ -197,19 +200,28 @@ export class RoomsController {
       userId,
     );
     if (updateRoomDto.name) {
-      this.messagesService.createSystem(
-        id,
-        `change group name to ${updateRoomDto.name}`,
-        userId,
-      );
+      this.messagesService.createAction({
+        roomId: id,
+        senderId: userId,
+        action: ActionTypes.UPDATE_GROUP_NAME,
+        content: updateRoomDto.name,
+      });
     }
 
     if (isRemoveName) {
-      this.messagesService.createSystem(id, `removed group name`, userId);
+      this.messagesService.createAction({
+        roomId: id,
+        senderId: userId,
+        action: ActionTypes.REMOVE_GROUP_NAME,
+      });
     }
 
     if (updateRoomDto.avatar) {
-      this.messagesService.createSystem(id, `change group avatar`, userId);
+      this.messagesService.createAction({
+        roomId: id,
+        senderId: userId,
+        action: ActionTypes.UPDATE_GROUP_AVATAR,
+      });
     }
     return { data: room, message: 'Room updated' };
   }
@@ -225,7 +237,12 @@ export class RoomsController {
       participants,
       userId,
     );
-    this.messagesService.createAction(id, userId, participants, 'addToGroup');
+    this.messagesService.createAction({
+      roomId: id,
+      senderId: userId,
+      targetUserIds: participants,
+      action: ActionTypes.ADD_USER,
+    });
     return { data: room, message: 'Room updated' };
   }
 
@@ -240,12 +257,12 @@ export class RoomsController {
       currentUserId,
       userTargetId,
     );
-    this.messagesService.createAction(
-      id,
-      currentUserId,
-      [userTargetId],
-      'removeFromGroup',
-    );
+    this.messagesService.createAction({
+      roomId: id,
+      senderId: currentUserId,
+      targetUserIds: [userTargetId],
+      action: ActionTypes.REMOVE_USER,
+    });
     return { data: room, message: 'Room updated' };
   }
 
@@ -265,17 +282,11 @@ export class RoomsController {
   ): Promise<Response<null>> {
     const room = await this.roomsService.leaveRoom(id, userId);
     if (room.isGroup) {
-      this.messagesService.create(
-        {
-          clientTempId: '',
-          content: 'left group',
-          type: MessageType.NOTIFICATION,
-          roomId: room._id.toString(),
-          media: [],
-        },
-        userId,
-        true,
-      );
+      this.messagesService.createAction({
+        roomId: id,
+        senderId: userId,
+        action: ActionTypes.LEAVE_GROUP,
+      });
     }
     return { message: 'Room leaved', data: null };
   }

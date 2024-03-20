@@ -51,6 +51,18 @@ export type Media = {
   height?: number;
 };
 
+export enum ActionTypes {
+  NONE = 'none',
+  ADD_USER = 'addUser',
+  REMOVE_USER = 'removeUser',
+  LEAVE_GROUP = 'leaveGroup',
+  PIN_MESSAGE = 'pinMessage',
+  UNPIN_MESSAGE = 'unpinMessage',
+  UPDATE_GROUP_NAME = 'updateGroupName',
+  REMOVE_GROUP_NAME = 'removeGroupName',
+  UPDATE_GROUP_AVATAR = 'updateGroupAvatar',
+}
+
 @Schema({
   timestamps: true,
 })
@@ -71,6 +83,9 @@ export class Message {
     default: MessageType.TEXT,
   })
   type: MessageType;
+
+  @Prop({ type: String })
+  action: ActionTypes;
 
   @Prop({ type: Array, default: [] })
   media: Media[];
