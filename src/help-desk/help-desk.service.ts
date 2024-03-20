@@ -259,6 +259,7 @@ export class HelpDeskService {
       return [
         {
           $match: {
+            business: business._id,
             createdAt: {
               $gte: fromDate,
               $lte: toDate,
@@ -348,15 +349,14 @@ export class HelpDeskService {
         });
         break;
       case AnalystType.LAST_YEAR:
-        const dataLastYear = (await this.userModel.aggregate(queryDate)).map(
-          (item) => {
-            return {
-              label: item.month,
-              value: item.count,
-            };
-          },
-        );
-        analytics = dataLastYear;
+        const dataLastYear = await this.userModel.aggregate(queryDate);
+
+        analytics = this.addMissingMonths(dataLastYear).map((item) => {
+          return {
+            label: `01-${item.month}-${item.year}`,
+            value: item.count,
+          };
+        });
         break;
 
       case AnalystType.CUSTOM:
@@ -441,6 +441,57 @@ export class HelpDeskService {
     });
 
     return newData;
+  }
+  addMissingMonths(data: AnalystResponseDto[]) {
+    // Get the current month and year
+    const currentDate: Date = new Date();
+    const currentMonth: number = currentDate.getMonth();
+    const currentYear: number = currentDate.getFullYear();
+
+    // Calculate the start month and year
+    let startMonth: number = (currentMonth + 1) % 12; // Last month of last year
+    const startYear: number = currentYear - 1;
+    if (startMonth === 0) {
+      startMonth = 12;
+    }
+
+    // Create a list of months from the start month and year to the current month and year
+    const months = [];
+    for (let year = startYear; year <= currentYear; year++) {
+      for (
+        let month = year === startYear ? startMonth : 1;
+        month <= (year === currentYear ? currentMonth + 1 : 12);
+        month++
+      ) {
+        months.push({ count: 0, month, year });
+      }
+    }
+
+    // Iterate through each month and add it to the data if it doesn't exist
+    months.forEach(({ month, year }) => {
+      const monthExists: boolean = data.some(
+        (item) => item.month === month && item.year === year,
+      );
+      if (!monthExists) {
+        data.push({
+          count: 0,
+          month,
+          year,
+          date: '',
+          day: 1,
+        });
+      }
+    });
+
+    // Sort the data by year and month
+    data.sort((a, b) => {
+      if (a.year === b.year) {
+        return a.month - b.month;
+      }
+      return a.year - b.year;
+    });
+
+    return data;
   }
 
   async getAverageRatingById(
