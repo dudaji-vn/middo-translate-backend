@@ -7,12 +7,14 @@ import { NotificationModule } from 'src/notifications/notifications.module';
 import { RoomsController } from './rooms.controller';
 import { RoomsService } from './rooms.service';
 import { UsersModule } from 'src/users/users.module';
+import { HelpDeskModule } from 'src/help-desk/help-desk.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Room.name, schema: RoomSchema }]),
     UsersModule,
     NotificationModule,
+    HelpDeskModule,
     forwardRef(() => MessagesModule),
   ],
   providers: [RoomsService],

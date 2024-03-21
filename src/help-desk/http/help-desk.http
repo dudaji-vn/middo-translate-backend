@@ -1,0 +1,190 @@
+
+####
+PUT http://localhost:8080/api/help-desk/create-or-edit-business
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMjczMSwiZXhwIjoxNzEwNDA5MTMxfQ.Uc1Ow7yfRlsEmI9Z07N9IP0eVBo1VAqsArKivSlSu6E
+Content-Type: application/json
+
+{
+  "domains": ["https://test-ttalk.onrender.com","http://localhost:3001"],
+  "color": "redss",
+  "language": "vis",
+  "firstMessage": "Xin chào",
+  "firstMessageEnglish":"Hi, how can I help you?"
+}
+
+###
+POST  http://localhost:3000/api/help-desk/create-client
+Content-Type: application/json
+
+{ 
+  "businessId": "65effd002d3c6a72235bbe8e",
+  "name": "Nguyen Van A",
+  "language": "vi",
+  "email": "nguyenvana28710@gmail.com"
+}
+
+
+####
+GET http://localhost:8080/api/search/help-desk?q=hoquanglinh
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU1NDg3N2U5YzNlOGRjMDQ5ODMyMyIsImlhdCI6MTcwOTc5ODExMywiZXhwIjoxNzA5ODg0NTEzfQ.AfarcX8ZnA49i8QN6y_SbTQgu7eDYKYu2IzsGWq-N7c
+Content-Type: application/json
+
+###
+
+###
+GET http://localhost:8080/api/help-desk/my-business
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc 
+
+Content-Type: application/json
+
+###
+GET http://localhost:8080/api/help-desk/business/65f0075f2d3c6a722364d0c1
+
+
+
+###
+POST http://localhost:3000/api/rooms/create-help-desk-room
+Content-Type: application/json
+
+{
+  "participants": ["65e554877e9c3e8dc0498323","65e56cfb9cd38aca6cd26d3c"],
+  "businessId":"65ee74502d3c6a722301f9e7",
+  "senderId":"65e554877e9c3e8dc0498323"
+}
+
+
+
+####
+POST http://localhost:3000/api/messages/help-desk
+Content-Type: application/json
+
+{
+"clientTempId": "2024-03-12T03:30:36.257Z",
+"content": "Xin chào Tech Talk111",
+"contentEnglish":"Hello Tech talk",
+"language":"en",
+"roomId":"65f116313d5ce1d45917e031",
+"userId":"65f1162e3d5ce1d45917e02c"
+}
+
+
+//Business
+###
+POST http://localhost:3000/api/messages
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc 
+Content-Type: application/json
+
+{
+"clientTempId": "2024-03-12T03:30:36.257Z",
+"content": "Đây là trang website giúp mình học tiếng Anh",
+"contentEnglish":"This is a website help you learn English",
+"language":"en",
+"roomId":"65efd52b102918180ed719cf"
+}
+
+
+###
+
+
+####
+
+
+###
+
+
+
+###
+DELETE  http://localhost:3000/api/help-desk/65eec80a2d3c6a722349d697
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc 
+
+
+###
+GET  http://localhost:3000/api/rooms/anonymous/65f0286f833aa5c1d3d7b99d?userId=65f0286d833aa5c1d3d7b998
+
+
+###
+GET http://localhost:3000/api/rooms/anonymous/65f0286f833aa5c1d3d7b99d/message?userId=65f0286d833aa5c1d3d7b998&limit=16
+
+
+####
+GET http://localhost:8080/api/rooms?type=unread-help-desk
+
+GET http://localhost:8080/api/rooms?type=help-desk
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDIzNDM0NiwiZXhwIjoxNzEwMzIwNzQ2fQ.1VNT5TGw21_mbguR3Gnpy5ncvoKCRsrNqWjPHb4oU4I
+
+
+###
+POST  http://localhost:3000/api/help-desk/rating
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDIzNDM0NiwiZXhwIjoxNzEwMzIwNzQ2fQ.1VNT5TGw21_mbguR3Gnpy5ncvoKCRsrNqWjPHb4oU4I
+Content-Type: application/json
+
+{
+  "businessId": "65effd002d3c6a72235bbe8e",
+  "userId": "65f261b54abba3c51f9a5151",
+  "star": 3
+}
+
+### 
+GET http://localhost:8080/api/search/inboxes?q=h&type=help-desk
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDczMzIwNiwiZXhwIjoxNzEwODE5NjA2fQ.Wg8eR8VPDOwzTrSAWPZoP89RGWnvIn92vqNIlGbEfdc
+
+
+####
+PUT  http://localhost:3000/api/rooms/65f116313d5ce1d45917e031/change-status-room
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMDc5NCwiZXhwIjoxNzEwNDA3MTk0fQ.YT36-AG26v3deYwrzdLJxS204_cPhpVih07kNGvyumA
+Content-Type: application/json
+
+{
+  //status: deleted|archived|completed
+  "status": "completed"
+}
+
+
+###
+GET http://localhost:8080/api/rooms?type=help-desk&status=archived
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMDc5NCwiZXhwIjoxNzEwNDA3MTk0fQ.YT36-AG26v3deYwrzdLJxS204_cPhpVih07kNGvyumA
+
+
+###
+GET http://localhost:3000/api/help-desk/my-clients?q=ng
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMDc5NCwiZXhwIjoxNzEwNDA3MTk0fQ.YT36-AG26v3deYwrzdLJxS204_cPhpVih07kNGvyumA
+
+
+###
+GET http://localhost:3000/api/help-desk/analytics?type=last-week
+
+###
+PATCH  http://localhost:3000/api/help-desk/edit-client-profile
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDQ5MTQzNywiZXhwIjoxNzEwNTc3ODM3fQ.MHPmcpCwi5Izpe2pyyED1-16TK_rlXexVrtteg5tf0M
+Content-Type: application/json
+
+{
+"phoneNumber":"035295211",
+"userId":"65f25e2a4abba3c51f9a50f3"
+}
+
+
+###
+POST http://localhost:3000/api/help-desk/check-domain
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDQ5MTQzNywiZXhwIjoxNzEwNTc3ODM3fQ.MHPmcpCwi5Izpe2pyyED1-16TK_rlXexVrtteg5tf0M
+Content-Type: application/json
+
+{
+  "domain":"http://localhost:3001",
+  "businessId":"65effd002d3c6a72235bbe8e"
+}
+
+###
+GET http://localhost:3000/api/recommendation/chat?type=help-desk
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDczMzIwNiwiZXhwIjoxNzEwODE5NjA2fQ.Wg8eR8VPDOwzTrSAWPZoP89RGWnvIn92vqNIlGbEfdc
+
+###
+GET http://localhost:3000/api/rooms/65f25e2b4abba3c51f9a50f8
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDczMzIwNiwiZXhwIjoxNzEwODE5NjA2fQ.Wg8eR8VPDOwzTrSAWPZoP89RGWnvIn92vqNIlGbEfdc
+
+
+
+
+
+
+

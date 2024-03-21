@@ -1,6 +1,6 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, ObjectId } from 'mongoose';
+import { Model, ObjectId, Types } from 'mongoose';
 import { FindParams } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
 import { User, UserStatus } from './schemas/user.schema';
@@ -8,6 +8,7 @@ import { generateAvatar, selectPopulateField } from 'src/common/utils';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import * as bcrypt from 'bcrypt';
+import { UserHelpDeskResponse } from './dto/user-help-desk-response.dto';
 
 @Injectable()
 export class UsersService {
@@ -32,15 +33,19 @@ export class UsersService {
     }
     return user;
   }
-  async find({ q, limit }: FindParams): Promise<User[]> {
+  async find({ q, limit, type }: FindParams): Promise<User[]> {
     const users = await this.userModel
       .find({
         $or: [
           { name: { $regex: q, $options: 'i' } },
           { username: { $regex: q, $options: 'i' } },
-          { email: { $regex: q, $options: 'i' } },
+          {
+            ...(type === 'help-desk'
+              ? { tempEmail: { $regex: q, $options: 'i' } }
+              : { email: { $regex: q, $options: 'i' } }),
+          },
         ],
-        status: UserStatus.ACTIVE,
+        status: type === 'help-desk' ? UserStatus.ANONYMOUS : UserStatus.ACTIVE,
       })
       .limit(limit)
       .select({
@@ -48,10 +53,14 @@ export class UsersService {
         username: true,
         avatar: true,
         email: true,
+        tempEmail: true,
         pinRoomIds: true,
       })
       .lean();
-    return users;
+    return users.map((item) => ({
+      ...item,
+      email: type === 'help-desk' ? item.tempEmail : item.email,
+    }));
   }
   async findById(id: ObjectId | string) {
     const user = await this.userModel
@@ -95,7 +104,10 @@ export class UsersService {
       ignoreNotFound?: boolean;
     },
   ) {
-    const user = await this.userModel.findOne({ email }).lean();
+    const regex = new RegExp('^' + email.trim() + '$', 'i');
+    const user = await this.userModel
+      .findOne({ email: { $regex: regex } })
+      .lean();
     if (!user && options?.ignoreNotFound) {
       return {} as User;
     }
@@ -165,6 +177,11 @@ export class UsersService {
       }
       return user;
     } catch (error) {
+      Logger.error(
+        `SERVER_ERROR in line 172: ${error['message']}`,
+        '',
+        UsersService.name,
+      );
       throw error;
     }
   }
@@ -184,7 +201,76 @@ export class UsersService {
         password: newPassword,
       });
     } catch (error) {
+      Logger.error(
+        `SERVER_ERROR in line 196: ${error['message']}`,
+        '',
+        UsersService.name,
+      );
       throw error;
     }
+  }
+  async findByBusiness({
+    q,
+    limit,
+    businessId,
+    userId,
+  }: FindParams & { businessId: string; userId: string }): Promise<
+    UserHelpDeskResponse[]
+  > {
+    const query = [
+      {
+        $match: {
+          business: new Types.ObjectId(businessId),
+          $or: [
+            { name: { $regex: q, $options: 'i' } },
+            { username: { $regex: q, $options: 'i' } },
+            {
+              tempEmail: { $regex: q, $options: 'i' },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: 'rooms',
+          let: { userId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: ['$$userId', '$participants'],
+                },
+                isHelpDesk: true,
+                admin: new Types.ObjectId(userId),
+              },
+            },
+          ],
+          as: 'room',
+        },
+      },
+      {
+        $match: {
+          room: { $exists: true, $ne: [] },
+        },
+      },
+      {
+        $limit: limit || 1000,
+      },
+      {
+        $addFields: {
+          room: { $arrayElemAt: ['$room', 0] },
+        },
+      },
+      {
+        $project: {
+          name: 1,
+          email: '$tempEmail',
+          firstConnectDate: '$room.createdAt',
+          lastConnectDate: '$room.newMessageAt',
+        },
+      },
+    ];
+    const data = this.userModel.aggregate(query);
+    return data;
   }
 }

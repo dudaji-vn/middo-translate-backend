@@ -3,6 +3,8 @@ import { RoomsService } from 'src/rooms/rooms.service';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
+import { SearchQueryParamsDto } from 'src/search/dtos';
+import { RecommendQueryDto } from './dto/recommend-query-dto';
 
 @Injectable()
 export class RecommendationService {
@@ -29,11 +31,14 @@ export class RecommendationService {
     return users;
   }
 
-  async getRecommendBasedRecentlyChat(userId: string): Promise<Room[]> {
+  async getRecommendBasedRecentlyChat(
+    userId: string,
+    query?: RecommendQueryDto,
+  ): Promise<Room[]> {
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
-    return await this.roomSerVice.findRecentChatRooms(userId);
+    return await this.roomSerVice.findRecentChatRooms(userId, false, query);
   }
 }

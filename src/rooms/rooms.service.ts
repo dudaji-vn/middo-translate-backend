@@ -15,13 +15,15 @@ import {
 import { selectPopulateField } from 'src/common/utils';
 import { socketConfig } from 'src/configs/socket.config';
 import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
+import { Message } from 'src/messages/schemas/messages.schema';
 import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
-import { User } from 'src/users/schemas/user.schema';
+import { RecommendQueryDto } from 'src/recommendation/dto/recommend-query-dto';
+import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { CreateRoomDto } from './dto';
+import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
-import { Message } from 'src/messages/schemas/messages.schema';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -85,18 +87,16 @@ export class RoomsService {
     if (!room) {
       throw new Error('Room not found');
     }
-    room.status = RoomStatus.DELETED;
     await this.roomModel.updateOne(
       {
         _id: room._id,
       },
-      {
-        status: RoomStatus.DELETED,
-      },
+
+      { $push: { deleteFor: userId } },
     );
     this.eventEmitter.emit(socketConfig.events.room.delete, {
       roomId: room._id,
-      participants: room.participants.map((p) => p._id),
+      participants: [userId],
     });
     return room;
   }
@@ -116,6 +116,16 @@ export class RoomsService {
       room.admin = room.participants[0];
     }
     await room.save();
+    await room.populate([
+      {
+        path: 'participants',
+        select: userSelectFieldsString,
+      },
+      {
+        path: 'admin',
+        select: userSelectFieldsString,
+      },
+    ]);
     await this.upPinIfExist(room._id.toString(), userId);
     this.eventEmitter.emit(socketConfig.events.room.leave, {
       roomId: room._id,
@@ -134,6 +144,7 @@ export class RoomsService {
   async findByParticipantIds(
     participantIds: ObjectId[] | string[],
     inCludeDeleted = false,
+    isHelpDesk = false,
   ) {
     const room = await this.roomModel
       .findOne({
@@ -142,6 +153,7 @@ export class RoomsService {
           $size: participantIds.length,
         },
         ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
+        ...(isHelpDesk && { isHelpDesk: isHelpDesk }),
       })
       .populate({
         path: 'lastMessage',
@@ -179,7 +191,17 @@ export class RoomsService {
     let room = await this.roomModel.findOne({
       _id: id,
       participants: userId,
-      ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
+      ...(inCludeDeleted
+        ? {}
+        : {
+            status: {
+              $in: [
+                RoomStatus.ACTIVE,
+                RoomStatus.ARCHIVED,
+                RoomStatus.COMPLETED,
+              ],
+            },
+          }),
     });
 
     if (!room) {
@@ -209,7 +231,7 @@ export class RoomsService {
     const roomRes = await room.populate([
       {
         path: 'participants',
-        select: userSelectFieldsString,
+        select: `${userSelectFieldsString} + tempEmail status phoneNumber`,
       },
       {
         path: 'lastMessage',
@@ -223,19 +245,29 @@ export class RoomsService {
         select: userSelectFieldsString,
       },
     ]);
+
+    const data = roomRes.toObject();
+    data.participants = data.participants.map((user) => {
+      return {
+        ...user,
+        email:
+          user.status === UserStatus.ANONYMOUS ? user.tempEmail : user.email,
+      };
+    });
     return {
-      ...roomRes.toObject(),
+      ...data,
       isPinned: user?.pinRoomIds?.includes(id) || false,
     };
   }
 
   async findWithCursorPaginate(
     queryParams: ListQueryParamsCursor & {
-      type?: 'all' | 'group' | 'individual';
+      type?: 'all' | 'group' | 'individual' | 'help-desk' | 'unread-help-desk';
+      status?: RoomStatus;
     },
     userId: string,
   ): Promise<Pagination<Room, CursorPaginationInfo>> {
-    const { limit = 10, cursor, type } = queryParams;
+    const { limit = 10, cursor, type, status } = queryParams;
 
     const user = await this.usersService.findById(userId);
 
@@ -248,10 +280,17 @@ export class RoomsService {
       },
       participants: userId,
       status: {
-        $ne: RoomStatus.DELETED,
+        $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED],
       },
+      ...(status ? { status: status } : {}),
+      deleteFor: { $nin: [userId] },
+      isHelpDesk: { $ne: true },
       ...(type === 'group' ? { isGroup: true } : {}),
       ...(type === 'individual' ? { isGroup: false } : {}),
+      ...(type === 'help-desk' ? { isHelpDesk: true } : {}),
+      ...(type === 'unread-help-desk'
+        ? { isHelpDesk: true, readBy: { $nin: [user] } }
+        : {}),
     };
 
     const rooms = await this.roomModel
@@ -488,6 +527,11 @@ export class RoomsService {
       participants: [...new Set(participantIds)],
     });
 
+    await room.populate(
+      selectPopulateField<Room>(['participants']),
+      selectPopulateField<User>(['_id', 'name', 'avatar', 'email', 'language']),
+    );
+
     this.eventEmitter.emit(socketConfig.events.room.update, {
       roomId,
       participants: room.participants.map((p) => p._id),
@@ -520,14 +564,7 @@ export class RoomsService {
       (p) => String(p._id) !== removeUserId,
     );
     await room.save();
-    this.eventEmitter.emit(socketConfig.events.room.update, {
-      roomId,
-      participants: room.participants.map((p) => p._id),
-      data: {
-        participants: room.participants,
-      },
-    });
-    return room.populate([
+    await room.populate([
       {
         path: 'participants',
         select: userSelectFieldsString,
@@ -537,18 +574,49 @@ export class RoomsService {
         select: userSelectFieldsString,
       },
     ]);
+    this.eventEmitter.emit(socketConfig.events.room.update, {
+      roomId,
+      participants: room.participants.map((p) => p._id),
+      data: {
+        participants: room.participants,
+      },
+    });
+    return room;
   }
 
-  async findRecentChatRooms(userId: string, notGroup = false) {
+  async findRecentChatRooms(
+    userId: string,
+    notGroup = false,
+    query?: RecommendQueryDto,
+  ) {
     const rooms = await this.roomModel
       .find({
         participants: userId,
         ...(notGroup ? { isGroup: false } : {}),
         status: RoomStatus.ACTIVE,
+        isHelpDesk: { $ne: true },
+        ...(query?.type === 'help-desk' ? { isHelpDesk: true } : {}),
       })
       .sort({ newMessageAt: -1 })
       .limit(10)
-      .populate('participants');
+      .populate('participants')
+      .lean();
+    if (query?.type === 'help-desk') {
+      return rooms.map((item) => {
+        return {
+          ...item,
+          participants: item.participants.map((user) => {
+            return {
+              ...user,
+              email:
+                user.status === UserStatus.ANONYMOUS
+                  ? user.tempEmail
+                  : user.email,
+            };
+          }),
+        };
+      });
+    }
     return rooms;
   }
 
@@ -624,7 +692,6 @@ export class RoomsService {
       user.pinRoomIds = [...(user?.pinRoomIds || []), roomId];
     }
 
-    console.log(user.pinRoomIds);
     await this.usersService.update(user._id, {
       pinRoomIds: user.pinRoomIds,
     });
@@ -648,6 +715,7 @@ export class RoomsService {
         },
         status: RoomStatus.ACTIVE,
         participants: userId,
+        deleteFor: { $nin: [userId] },
       })
       .populate({
         path: 'lastMessage',
@@ -697,5 +765,115 @@ export class RoomsService {
       isPinned: true,
       lastMessage: convertMessageRemoved(room.lastMessage, userId),
     }));
+  }
+  async createHelpDeskRoom(
+    createRoomDto: CreateHelpDeskRoomDto,
+    creatorId: string,
+  ) {
+    const participants = await Promise.all(
+      [...new Set(createRoomDto.participants)].map((id) =>
+        this.usersService.findById(id),
+      ),
+    );
+
+    if (
+      participants.length < 2 &&
+      participants[0]?._id?.toString() !== creatorId
+    ) {
+      throw new BadRequestException('Participants must be 2 users');
+    }
+
+    const oldRoom = await this.findByParticipantIds(
+      participants.map((p) => p._id),
+      true,
+    );
+    if (oldRoom) {
+      return oldRoom;
+    }
+
+    const newRoom = new this.roomModel(createRoomDto);
+    newRoom.isHelpDesk = true;
+    newRoom.participants = participants;
+    newRoom.admin =
+      participants.find((p) => p._id.toString() === creatorId) || ({} as User);
+    newRoom.readBy = createRoomDto.participants;
+
+    const room = await this.roomModel.create(newRoom);
+    const responseRoom = await room.populate([
+      {
+        path: 'participants',
+        select: userSelectFieldsString,
+      },
+      {
+        path: 'admin',
+        select: userSelectFieldsString,
+      },
+    ]);
+    this.eventEmitter.emit(socketConfig.events.room.new, room);
+    return responseRoom;
+  }
+  async updateReadByLastMessageInRoom(roomId: ObjectId, userId: string) {
+    return await this.roomModel.findByIdAndUpdate(
+      roomId,
+      {
+        $addToSet: { readBy: userId },
+      },
+      { new: true },
+    );
+  }
+  async updateReadByWhenSendNewMessage(roomId: ObjectId, userId: string) {
+    return await this.roomModel.findByIdAndUpdate(
+      roomId,
+      {
+        readBy: [userId],
+      },
+      { new: true },
+    );
+  }
+
+  async changeRoomStatus(id: string, userId: string, status: RoomStatus) {
+    const room = await this.findByIdAndUserId(id, userId, true);
+    if (!room) {
+      throw new Error('Room not found');
+    }
+    room.status = status;
+    await this.roomModel.updateOne(
+      {
+        _id: room._id,
+      },
+      {
+        status: room.status,
+      },
+    );
+    return room;
+  }
+  getTotalClientCompletedConversation = async (
+    userId: string,
+    fromDate?: Date,
+    toDate?: Date,
+  ) => {
+    return await this.roomModel.countDocuments({
+      admin: userId,
+      status: RoomStatus.ACTIVE,
+      ...(fromDate &&
+        toDate && {
+          updatedAt: {
+            $gte: fromDate,
+            $lte: toDate,
+          },
+        }),
+    });
+  };
+  async changeHelpDeskRoomStatusByUser(userId: string, status: RoomStatus) {
+    await this.roomModel.updateMany(
+      {
+        admin: userId,
+        isHelpDesk: true,
+      },
+      {
+        status: status,
+      },
+    );
+    return true;
   }
 }

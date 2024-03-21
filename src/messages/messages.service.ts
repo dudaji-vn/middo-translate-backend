@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
 import {
   CursorPaginationInfo,
   ListQueryParamsCursor,
@@ -18,6 +18,7 @@ import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { CreateMessageDto } from './dto';
 import {
+  ActionTypes,
   MediaTypes,
   Message,
   MessageType,
@@ -30,6 +31,7 @@ import { ForwardMessageDto } from './dto/forward-message.dto';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { Call } from 'src/call/schemas/call.schema';
 import { PinMessage } from './schemas/pin-messages.schema';
+import { convert } from 'html-to-text';
 
 @Injectable()
 export class MessagesService {
@@ -75,7 +77,7 @@ export class MessagesService {
         populate: [
           {
             path: 'participants',
-            select: selectPopulateField<User>(['_id']),
+            select: selectPopulateField<User>(['_id', 'avatar', 'name']),
           },
         ],
       },
@@ -125,6 +127,10 @@ export class MessagesService {
         path: 'call',
         select: selectPopulateField<Call>(['endTime', '_id', 'type']),
       },
+      {
+        path: 'mentions',
+        select: selectPopulateField<User>(['_id', 'name', 'email']),
+      },
     ]);
     if (!message) {
       throw new Error('Message not found');
@@ -154,6 +160,7 @@ export class MessagesService {
     createdMessage.media = createMessageDto.media || [];
     createdMessage.language = createMessageDto.language || '';
     createdMessage.type = createMessageDto.type || MessageType.TEXT;
+    createdMessage.action = createMessageDto.action || ActionTypes.NONE;
 
     if (createdMessage.media.length > 0) {
       createdMessage.type = MessageType.MEDIA;
@@ -174,12 +181,29 @@ export class MessagesService {
       );
     }
 
+    if (createMessageDto.mentions && createMessageDto.mentions.length > 0) {
+      const mentions = createMessageDto.mentions.filter((id) =>
+        Types.ObjectId.isValid(id),
+      );
+      if (mentions.length > 0) {
+        createdMessage.mentions = await this.usersService.findManyByIds(
+          mentions,
+        );
+      }
+    }
+
     createdMessage.room = room;
     createdMessage.readBy = [user._id];
     createdMessage.deliveredTo = [user._id];
     if (createMessageDto.callId) {
       const call = await this.callModel.findById(createMessageDto.callId);
       if (call) createdMessage.call = call;
+    }
+    if (room.isHelpDesk) {
+      await this.roomsService.updateReadByWhenSendNewMessage(
+        room._id,
+        user._id.toString(),
+      );
     }
     const newMessage = await createdMessage.save();
 
@@ -212,6 +236,7 @@ export class MessagesService {
     this.roomsService.updateRoom(String(newMessage.room._id), {
       lastMessage: newMessageWithSender,
       newMessageAt: new Date(),
+      deleteFor: [],
     });
     this.eventEmitter.emit(socketConfig.events.message.new, socketPayload);
     this.sendMessageNotification(newMessageWithSender);
@@ -348,7 +373,11 @@ export class MessagesService {
             },
           ],
         },
-      ]);
+      ])
+      .populate(
+        'mentions',
+        selectPopulateField<User>(['_id', 'name', 'email']),
+      );
 
     return messages.map((message) => {
       return convertMessageRemoved(message, userId) as Message;
@@ -379,6 +408,7 @@ export class MessagesService {
     if (!room) {
       throw new NotFoundException('Room not found');
     }
+    const messageContent = convert(message.content);
 
     switch (message.type) {
       case MessageType.TEXT:
@@ -387,16 +417,16 @@ export class MessagesService {
             room.name !== '' ? room.name : 'your group'
           }`;
         }
-        body += `: ${message.content}`;
+        body += `: ${messageContent}`;
         break;
       case MessageType.MEDIA:
         body += ' sent media';
         break;
       case MessageType.NOTIFICATION:
-        body += ` ${message.content}`;
+        body += ` ${messageContent}`;
         break;
       case MessageType.ACTION:
-        body = ` ${message.content}`;
+        body = ` ${messageContent}`;
         break;
       default:
         break;
@@ -522,7 +552,11 @@ export class MessagesService {
             },
           ],
         },
-      ]);
+      ])
+      .populate(
+        'mentions',
+        selectPopulateField<User>(['_id', 'name', 'email']),
+      );
 
     return {
       items: messages.map((message) => {
@@ -583,48 +617,19 @@ export class MessagesService {
     return message;
   }
 
-  async createSystem(
-    roomId: string,
-    content: string,
-    senderId: string,
-  ): Promise<Message> {
-    const message = await this.create(
-      {
-        roomId,
-        content,
-        type: MessageType.NOTIFICATION,
-        clientTempId: '',
-        media: [],
-        contentEnglish: '',
-      },
-      senderId,
-      true,
-    );
-    return message;
-  }
-  async createAction(
-    roomId: string,
-    senderId: string,
-    targetUserIds: string[],
-    action: 'addToGroup' | 'removeFromGroup' | 'pin' | 'unpin',
-  ): Promise<Message> {
-    let content = '';
-    switch (action) {
-      case 'addToGroup':
-        content = 'added';
-        break;
-      case 'removeFromGroup':
-        content = 'removed';
-        break;
-      case 'pin':
-        content = 'pinned a message';
-        break;
-      case 'unpin':
-        content = 'unpinned a message';
-        break;
-      default:
-        break;
-    }
+  async createAction({
+    roomId,
+    senderId,
+    targetUserIds = [],
+    action,
+    content,
+  }: {
+    roomId: string;
+    senderId: string;
+    targetUserIds?: string[];
+    action: ActionTypes;
+    content?: string;
+  }): Promise<Message> {
     const message = await this.create(
       {
         roomId,
@@ -634,6 +639,7 @@ export class MessagesService {
         media: [],
         contentEnglish: '',
         targetUserIds,
+        action,
       },
       senderId,
       true,
@@ -768,7 +774,10 @@ export class MessagesService {
     if (!message) {
       throw new Error('Message not found');
     }
-
+    await this.roomsService.updateReadByLastMessageInRoom(
+      message.room._id,
+      userId,
+    );
     this.eventEmitter.emit(socketConfig.events.message.update, {
       roomId: String(message?.room),
       message: {
@@ -888,9 +897,15 @@ export class MessagesService {
         cloneForwardMessage.room = forwardMessage.room;
         cloneForwardMessage.isForwarded = true;
         const savedClone = await cloneForwardMessage.save();
-        message.forwardOfId = savedClone._id.toString();
-        message.roomId = room._id.toString();
-        this.create(message, senderId, true);
+        this.create(
+          {
+            ...message,
+            roomId: room._id.toString(),
+            forwardOfId: savedClone._id.toString(),
+          },
+          senderId,
+          true,
+        );
       }),
     );
   }
@@ -913,10 +928,18 @@ export class MessagesService {
     const isPinned = !!pinMessage;
     if (isPinned) {
       await pinMessage.deleteOne();
-      this.createAction(message.room._id.toString(), userId, [], 'unpin');
+      this.createAction({
+        roomId: message.room._id.toString(),
+        senderId: userId,
+        action: ActionTypes.UNPIN_MESSAGE,
+      });
     } else {
       const newPinMessage = new this.pinMessageModel();
-      this.createAction(message.room._id.toString(), userId, [], 'pin');
+      this.createAction({
+        roomId: message.room._id.toString(),
+        senderId: userId,
+        action: ActionTypes.PIN_MESSAGE,
+      });
       newPinMessage.message = message;
       newPinMessage.pinnedBy = user;
       newPinMessage.room = room;
@@ -966,6 +989,10 @@ export class MessagesService {
             {
               path: 'call',
             },
+            {
+              path: 'mentions',
+              select: selectPopulateField<User>(['_id', 'name', 'email']),
+            },
           ],
         },
         {
@@ -987,5 +1014,66 @@ export class MessagesService {
       };
     });
     return pinMessagesWithRemoved;
+  }
+
+  async initHelpDeskConversation(
+    createMessageDto: CreateMessageDto,
+    senderId: string,
+  ): Promise<Message> {
+    const user = await this.usersService.findById(senderId);
+
+    const room = await this.roomsService.findByIdAndUserId(
+      createMessageDto.roomId,
+      user._id.toString(),
+    );
+
+    const createdMessage = new this.messageModel();
+    createdMessage.sender = user;
+    createdMessage.content = createMessageDto.content || '';
+    createdMessage.contentEnglish = createMessageDto.contentEnglish || '';
+
+    createdMessage.room = room;
+    createdMessage.readBy = [user._id];
+    createdMessage.deliveredTo = [user._id];
+
+    const newMessage = await this.messageModel.findOneAndUpdate(
+      { room: room._id },
+      {
+        content: createMessageDto.content,
+        contentEnglish: createMessageDto.contentEnglish,
+        readBy: [user._id, createMessageDto.businessUserId],
+        deliveredTo: [user._id],
+        sender: senderId,
+      },
+      {
+        upsert: true,
+        new: true,
+      },
+    );
+    const newMessageWithSender = await newMessage.populate([
+      {
+        path: 'sender',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'language',
+        ]),
+      },
+      {
+        path: 'targetUsers',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'language',
+        ]),
+      },
+    ]);
+    this.roomsService.updateRoom(createMessageDto.roomId, {
+      lastMessage: newMessageWithSender,
+      newMessageAt: new Date(),
+    });
+    return newMessage;
   }
 }

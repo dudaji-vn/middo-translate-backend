@@ -36,3 +36,4 @@ lerna-debug.log*
 
 # .env
 .env
+speech-to-text-key.json

@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { HydratedDocument } from 'mongoose';
+import mongoose, { HydratedDocument, ObjectId } from 'mongoose';
 
 import { Message } from 'src/messages/schemas/messages.schema';
 import { User } from 'src/users/schemas/user.schema';
@@ -10,7 +10,10 @@ export enum RoomStatus {
   TEMPORARY = 'temporary',
   DELETED = 'deleted',
   CANNOT_MESSAGE = 'cannot_message',
+  ARCHIVED = 'archived',
+  COMPLETED = 'completed',
 }
+
 @Schema({
   timestamps: true,
 })
@@ -43,6 +46,12 @@ export class Room {
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: User.name })
   deletedBy: User;
 
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    default: [],
+  })
+  deleteFor: ObjectId[] | string[];
+
   @Prop({ type: Date })
   deletedAt: Date;
 
@@ -51,6 +60,15 @@ export class Room {
 
   @Prop({ type: Boolean, default: false })
   isSetName: boolean;
+
+  @Prop({ type: Boolean })
+  isHelpDesk: boolean;
+
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    default: [],
+  })
+  readBy: ObjectId[] | string[];
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);

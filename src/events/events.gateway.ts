@@ -21,7 +21,10 @@ import Meeting from './interface/meeting.interface';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { WatchingService } from 'src/watching/watching.service';
-
+import speech from '@google-cloud/speech';
+import { Logger } from '@nestjs/common';
+process.env.GOOGLE_APPLICATION_CREDENTIALS = './speech-to-text-key.json';
+const speechClient = new speech.SpeechClient();
 @WebSocketGateway({
   cors: '*',
   maxHttpBufferSize: 100000000,
@@ -29,10 +32,6 @@ import { WatchingService } from 'src/watching/watching.service';
 export class EventsGateway
   implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
 {
-  // constructor()
-  // private readonly eventEmitter: EventEmitter2, // private readonly roomsService: RoomsService, // private readonly usersService: UsersService,
-  // @InjectModel(Message) private readonly messageModel: Model<Message>,
-  // {}
   @WebSocketServer()
   public server: Server;
   private clients: {
@@ -51,13 +50,31 @@ export class EventsGateway
   }
 
   handleConnection(@ConnectedSocket() client: Socket) {
-    // console.log('socket ', client?.id);
+    console.log('socket  ', client?.id);
+    const userId = findUserIdBySocketId(this.clients, client.id);
+    console.log('userId', userId);
   }
-  // handleDisconnect(@ConnectedSocket() client: Socket) {
-  //   // console.log('socket ', client?.id);
-  // }
 
-  @SubscribeMessage('client.join')
+  handleDisconnect(@ConnectedSocket() client: Socket) {
+    this.leaveCall(client);
+    const socketId = client.id;
+    this.watchingService.deleteBySocketId(socketId);
+    this.stopRecognitionStream(client);
+    // remove socketId from clients
+    for (const userId in this.clients) {
+      this.clients[userId].socketIds = this.clients[userId].socketIds.filter(
+        (id) => id !== socketId,
+      );
+      if (this.clients[userId].socketIds.length === 0) {
+        delete this.clients[userId];
+      }
+    }
+    const userIds = Object.keys(this.clients);
+    console.log('socket disconnected', userIds);
+    this.server.emit(socketConfig.events.client.list, userIds);
+  }
+
+  @SubscribeMessage(socketConfig.events.client.join)
   joinAdminRoom(
     @ConnectedSocket() client: Socket,
     @MessageBody() userId: number,
@@ -69,6 +86,9 @@ export class EventsGateway
         client.id,
       ],
     };
+    const userIds = Object.keys(this.clients);
+    console.log('socket connected', userIds);
+    this.server.emit(socketConfig.events.client.list, userIds);
   }
 
   @SubscribeMessage(socketConfig.events.chat.join)
@@ -84,6 +104,8 @@ export class EventsGateway
     },
   ) {
     const userId = findUserIdBySocketId(this.clients, client.id);
+    console.log('Chat join', roomId, notifyToken, userId);
+
     if (userId && notifyToken) {
       this.watchingService.create({
         userId: userId,
@@ -111,29 +133,37 @@ export class EventsGateway
   }
 
   // Room events
-  @OnEvent(socketConfig.events.room.update)
-  async handleUpdateRoom({ data, participants, roomId }: UpdateRoomPayload) {
-    const socketIds = participants
-      .map((p) => this.clients[p.toString()]?.socketIds || [])
-      .flat();
-    this.server.to(socketIds).emit(socketConfig.events.room.update, {
-      roomId,
-      data,
-    });
-  }
+
   @OnEvent(socketConfig.events.room.new)
   async handleNewRoom(room: Room) {
     const socketIds = room.participants
       .map((p) => this.clients[p._id.toString()]?.socketIds || [])
       .flat();
-    this.server.to(socketIds).emit(socketConfig.events.room.new, room);
+    this.server.to(socketIds).emit(socketConfig.events.inbox.new, room);
   }
+
+  @OnEvent(socketConfig.events.room.update)
+  async handleUpdateRoom({ data, participants, roomId }: UpdateRoomPayload) {
+    // update inbox
+    const socketIds = participants
+      .map((p) => this.clients[p.toString()]?.socketIds || [])
+      .flat();
+    this.server.to(socketIds).emit(socketConfig.events.inbox.update, {
+      roomId,
+      data,
+    });
+
+    // Update room
+    this.server.to(roomId).emit(socketConfig.events.room.update, data);
+  }
+
   @OnEvent(socketConfig.events.room.delete)
   async handleDeleteRoom({ roomId, participants }: UpdateRoomPayload) {
     const socketIds = participants
       .map((p) => this.clients[p.toString()]?.socketIds || [])
       .flat();
     this.server.to(socketIds).emit(socketConfig.events.room.delete, roomId);
+    this.server.to(socketIds).emit(socketConfig.events.inbox.delete, roomId);
   }
   @OnEvent(socketConfig.events.room.leave)
   async handleLeaveRoom({
@@ -144,6 +174,7 @@ export class EventsGateway
     userId: number;
   }) {
     const socketIds = this.clients[userId.toString()]?.socketIds || [];
+    this.server.to(socketIds).emit(socketConfig.events.inbox.delete, roomId);
     this.server.to(socketIds).emit(socketConfig.events.room.leave, roomId);
   }
   // Message events
@@ -268,6 +299,7 @@ export class EventsGateway
       callerId: string;
       signal: any;
       isShareScreen: boolean;
+      isElectron: boolean;
     },
   ) {
     this.server.to(payload.id).emit(socketConfig.events.call.user_joined, {
@@ -275,6 +307,7 @@ export class EventsGateway
       callerId: payload.callerId,
       user: payload.user,
       isShareScreen: payload.isShareScreen,
+      isElectron: payload.isElectron,
     });
   }
   // Return signal event
@@ -439,6 +472,17 @@ export class EventsGateway
       .to(client.id)
       .emit(socketConfig.events.call.request_get_old_doodle_data, doodleData);
   }
+  // Send doodle share screen
+  @SubscribeMessage(socketConfig.events.call.send_doodle_share_screen)
+  handleSendDoodleShareScreen(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { image: string; user: any },
+  ) {
+    const roomId = this.socketToRoom[client.id];
+    this.server
+      .to(roomId)
+      .emit(socketConfig.events.call.send_doodle_share_screen, payload);
+  }
   // Send caption
   @SubscribeMessage(socketConfig.events.call.send_caption)
   handleSendCaption(
@@ -501,13 +545,105 @@ export class EventsGateway
     this.leaveCall(client);
   }
 
-  // User disconnect
-  handleDisconnect(@ConnectedSocket() client: Socket) {
-    this.leaveCall(client);
-    const socketId = client.id;
-    this.watchingService.deleteBySocketId(socketId);
-  }
   // End events for call
+
+  // SPEECH TO TEXT
+  private recognizeStreams: Record<string, any> = {};
+  @SubscribeMessage(socketConfig.events.speech_to_text.start)
+  handleStartSpeechToText(
+    @MessageBody() language_code: string,
+    @ConnectedSocket() client: Socket,
+  ) {
+    this.recognizeStreams[client.id] = null;
+    this.startRecognitionStream(client, language_code);
+  }
+  @SubscribeMessage(socketConfig.events.speech_to_text.stop)
+  handleStopSpeechToText(@ConnectedSocket() client: Socket) {
+    this.stopRecognitionStream(client);
+  }
+  @SubscribeMessage(socketConfig.events.speech_to_text.send_audio)
+  handleSendAudio(
+    @MessageBody() audioData: any,
+    @ConnectedSocket() client: Socket,
+  ) {
+    const recognizeStream = this.recognizeStreams[client.id];
+    if (!recognizeStream) return;
+    try {
+      recognizeStream.write(audioData.audio);
+    } catch (err) {
+      Logger.error('Error calling google api ' + err, 'SPEECH_TO_TEXT');
+    }
+  }
+  startRecognitionStream(client: Socket, language_code?: string) {
+    try {
+      this.recognizeStreams[client.id] = speechClient
+        .streamingRecognize({
+          config: {
+            encoding: 'LINEAR16',
+            sampleRateHertz: 16000,
+            languageCode: language_code || 'en-US',
+            enableWordTimeOffsets: true,
+            enableAutomaticPunctuation: true,
+            enableWordConfidence: true,
+            model: 'command_and_search',
+            useEnhanced: true,
+          },
+          interimResults: true,
+        })
+        .on('error', console.log)
+        .on('data', (data) => {
+          const result = data.results[0];
+          const isFinal = result.isFinal;
+
+          const transcription = data.results
+            .map((result: any) => result.alternatives[0].transcript)
+            .join('\n');
+          this.server
+            .to(client.id)
+            .emit(socketConfig.events.speech_to_text.receive_audio_text, {
+              text: transcription,
+              isFinal: isFinal,
+            });
+          // if end of utterance, let's restart stream
+          // this is a small hack to keep restarting the stream on the server and keep the connection with Google api
+          // Google api disconects the stream every five minutes
+          if (data.results[0] && data.results[0].isFinal) {
+            this.stopRecognitionStream(client);
+            this.startRecognitionStream(client, language_code);
+          }
+        });
+    } catch (err) {
+      Logger.error('Error streaming google api ' + err, 'SPEECH_TO_TEXT');
+    }
+  }
+
+  stopRecognitionStream(client: Socket) {
+    const recognizeStream = this.recognizeStreams[client.id];
+    if (recognizeStream) {
+      recognizeStream.end();
+    }
+    delete this.recognizeStreams[client.id];
+  }
+
+  // typing event
+  @SubscribeMessage(socketConfig.events.typing.update.server)
+  handleStartTyping(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    {
+      roomId,
+      isTyping,
+    }: {
+      roomId: string;
+      isTyping: boolean;
+    },
+  ) {
+    const userId = findUserIdBySocketId(this.clients, client.id);
+    this.server.to(roomId).emit(socketConfig.events.typing.update.client, {
+      userId,
+      isTyping,
+    });
+  }
 }
 
 const findUserIdBySocketId = (clients: any, socketId: string) => {

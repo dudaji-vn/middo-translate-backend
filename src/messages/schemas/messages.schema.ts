@@ -51,6 +51,19 @@ export type Media = {
   height?: number;
 };
 
+export enum ActionTypes {
+  NONE = 'none',
+  ADD_USER = 'addUser',
+  REMOVE_USER = 'removeUser',
+  LEAVE_GROUP = 'leaveGroup',
+  PIN_MESSAGE = 'pinMessage',
+  UNPIN_MESSAGE = 'unpinMessage',
+  UPDATE_GROUP_NAME = 'updateGroupName',
+  REMOVE_GROUP_NAME = 'removeGroupName',
+  UPDATE_GROUP_AVATAR = 'updateGroupAvatar',
+  CREATE_GROUP = 'createGroup',
+}
+
 @Schema({
   timestamps: true,
 })
@@ -71,6 +84,9 @@ export class Message {
     default: MessageType.TEXT,
   })
   type: MessageType;
+
+  @Prop({ type: String })
+  action: ActionTypes;
 
   @Prop({ type: Array, default: [] })
   media: Media[];
@@ -106,6 +122,13 @@ export class Message {
     default: [],
   })
   targetUsers: User[];
+
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    default: [],
+  })
+  mentions: User[];
+
   @Prop({ type: String })
   language: string;
 
@@ -125,6 +148,9 @@ export class Message {
   parent: Message;
   @Prop({ type: Boolean, default: false })
   hasChild: boolean;
+
+  @Prop({ type: Boolean, default: false })
+  isComplete: boolean;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

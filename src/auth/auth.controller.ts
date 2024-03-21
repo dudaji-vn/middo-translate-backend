@@ -258,7 +258,6 @@ export class AuthController {
     @JwtUserId() userId: string,
     @Body() data: SignOutDto,
   ): Promise<Response<null>> {
-    console.log('sign out', userId, data);
     await this.authService.signOut(userId, data);
     return {
       message: 'ok',

@@ -1,5 +1,10 @@
 export const socketConfig = {
   events: {
+    client: {
+      join: 'client.join',
+      list: 'client.list',
+      leave: 'client.leave',
+    },
     message: {
       new: 'message.new',
       update: 'message.update',
@@ -19,6 +24,11 @@ export const socketConfig = {
       leave: 'room.leave',
       delete: 'room.delete',
       new: 'room.new',
+    },
+    inbox: {
+      new: 'inbox.new',
+      update: 'inbox.update',
+      delete: 'inbox.delete',
     },
     chat: {
       join: 'chat.join',
@@ -46,6 +56,7 @@ export const socketConfig = {
       start_doodle: 'call.start_doodle',
       end_doodle: 'call.end_doodle',
       draw_doodle: 'call.draw_doodle',
+      send_doodle_share_screen: 'call.send_doodle_share_screen',
       request_get_old_doodle_data: 'call.request_get_old_doodle_data',
       send_old_doodle_data: 'call.send_old_doodle_data',
       starting_new_call: 'call.starting_new_call',
@@ -53,6 +64,19 @@ export const socketConfig = {
       invite_to_call: 'call.invite_to_call',
       send_caption: 'call.send_caption',
       update: 'call.update',
+    },
+    speech_to_text: {
+      start: 'speech_to_text.start',
+      stop: 'speech_to_text.stop',
+      send_audio: 'speech_to_text.send_audio',
+      receive_audio_text: 'speech_to_text.receive_audio_text',
+    },
+
+    typing: {
+      update: {
+        server: 'typing.update.server',
+        client: 'typing.update.client',
+      },
     },
   },
 };

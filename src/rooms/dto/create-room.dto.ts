@@ -33,4 +33,8 @@ export class CreateRoomDto {
   @IsString()
   @IsOptional()
   readonly name?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isHelpDesk?: boolean;
 }
