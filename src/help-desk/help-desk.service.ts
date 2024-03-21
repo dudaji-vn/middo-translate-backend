@@ -379,14 +379,20 @@ export class HelpDeskService {
     return {
       client: {
         count: totalClientsWithTime,
-        rate: Math.round((totalClientsWithTime * 100) / totalClients),
+        rate:
+          totalClients === 0
+            ? 0
+            : Math.round((totalClientsWithTime * 100) / totalClients),
       },
       completedConversation: {
         count: totalCompletedConversationWithTime,
-        rate: Math.round(
-          (totalCompletedConversationWithTime * 100) /
-            totalCompletedConversation,
-        ),
+        rate:
+          totalCompletedConversation === 0
+            ? 0
+            : Math.round(
+                (totalCompletedConversationWithTime * 100) /
+                  totalCompletedConversation,
+              ),
       },
       averageRating: averageRating,
       responseChat: {
