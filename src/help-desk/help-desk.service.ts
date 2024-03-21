@@ -158,7 +158,7 @@ export class HelpDeskService {
     return true;
   }
   async getClientsByUser(query: SearchQueryParamsDto, userId: string) {
-    const { q, limit } = query;
+    const { q, limit, currentPage } = query;
     const business = await this.helpDeskBusinessModel.findOne({ user: userId });
     if (!business) {
       throw new BadRequestException('Business not found');
@@ -166,6 +166,7 @@ export class HelpDeskService {
     const data = await this.userService.findByBusiness({
       q,
       limit,
+      currentPage,
       businessId: business._id.toString(),
       userId: userId,
     });
@@ -379,14 +380,20 @@ export class HelpDeskService {
     return {
       client: {
         count: totalClientsWithTime,
-        rate: Math.round((totalClientsWithTime * 100) / totalClients),
+        rate:
+          totalClients === 0
+            ? 0
+            : Math.round((totalClientsWithTime * 100) / totalClients),
       },
       completedConversation: {
         count: totalCompletedConversationWithTime,
-        rate: Math.round(
-          (totalCompletedConversationWithTime * 100) /
-            totalCompletedConversation,
-        ),
+        rate:
+          totalCompletedConversation === 0
+            ? 0
+            : Math.round(
+                (totalCompletedConversationWithTime * 100) /
+                  totalCompletedConversation,
+              ),
       },
       averageRating: averageRating,
       responseChat: {
