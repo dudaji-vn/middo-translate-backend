@@ -158,7 +158,7 @@ export class HelpDeskService {
     return true;
   }
   async getClientsByUser(query: SearchQueryParamsDto, userId: string) {
-    const { q, limit } = query;
+    const { q, limit, currentPage } = query;
     const business = await this.helpDeskBusinessModel.findOne({ user: userId });
     if (!business) {
       throw new BadRequestException('Business not found');
@@ -166,6 +166,7 @@ export class HelpDeskService {
     const data = await this.userService.findByBusiness({
       q,
       limit,
+      currentPage,
       businessId: business._id.toString(),
       userId: userId,
     });

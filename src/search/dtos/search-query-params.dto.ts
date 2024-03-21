@@ -8,10 +8,17 @@ export class SearchQueryParamsDto {
   @IsString()
   @Validate(SpecialCharacterValidator)
   q: string;
+
   @IsOptional()
   @IsInt()
   @Transform(({ value }) => parseInt(value))
   limit: number;
+
   @IsOptional()
   type: SearchType;
+
+  @IsOptional()
+  @IsInt()
+  @Transform(({ value }) => parseInt(value))
+  currentPage: number;
 }
