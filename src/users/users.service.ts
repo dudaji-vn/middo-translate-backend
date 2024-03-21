@@ -211,12 +211,24 @@ export class UsersService {
   }
   async findByBusiness({
     q,
-    limit,
+    limit = 20,
     businessId,
     userId,
-  }: FindParams & { businessId: string; userId: string }): Promise<
-    UserHelpDeskResponse[]
-  > {
+    currentPage = 1,
+  }: FindParams & {
+    businessId: string;
+    userId: string;
+  }): Promise<UserHelpDeskResponse> {
+    const totalPagePromise = this.userModel.countDocuments({
+      business: new Types.ObjectId(businessId),
+      $or: [
+        { name: { $regex: q, $options: 'i' } },
+        { username: { $regex: q, $options: 'i' } },
+        {
+          tempEmail: { $regex: q, $options: 'i' },
+        },
+      ],
+    });
     const query = [
       {
         $match: {
@@ -254,7 +266,10 @@ export class UsersService {
         },
       },
       {
-        $limit: limit || 1000,
+        $skip: (currentPage - 1) * limit,
+      },
+      {
+        $limit: limit,
       },
       {
         $addFields: {
@@ -270,7 +285,14 @@ export class UsersService {
         },
       },
     ];
-    const data = this.userModel.aggregate(query);
-    return data;
+    const dataPromise = this.userModel.aggregate(query) as any;
+    const [totalPage, data] = await Promise.all([
+      totalPagePromise,
+      dataPromise,
+    ]);
+    return {
+      totalPage: totalPage,
+      items: data,
+    };
   }
 }
