@@ -111,10 +111,10 @@ export class HelpDeskService {
       .findOne({ user: userId, status: { $ne: StatusBusiness.DELETED } })
       .lean();
     if (!business) {
-      throw new BadRequestException('business not found');
+      throw new BadRequestException('Business not found');
     }
     if (business.user.toString() !== userId) {
-      throw new BadRequestException('you are not admin of business');
+      throw new BadRequestException('You are not admin of business');
     }
     await this.helpDeskBusinessModel.updateOne(
       {
@@ -195,7 +195,7 @@ export class HelpDeskService {
     return true;
   }
   async analyst(params: AnalystQueryDto, userId: string) {
-    const business = await this.helpDeskBusinessModel.findOne({ user: userId });
+    const business = await this.getBusinessByUser(userId);
     if (!business) {
       throw new BadRequestException('Business not found');
     }
