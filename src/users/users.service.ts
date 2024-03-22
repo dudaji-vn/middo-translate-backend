@@ -219,7 +219,7 @@ export class UsersService {
     businessId: string;
     userId: string;
   }): Promise<UserHelpDeskResponse> {
-    const totalPagePromise = this.userModel.countDocuments({
+    const totalItemsPromise = this.userModel.countDocuments({
       business: new Types.ObjectId(businessId),
       $or: [
         { name: { $regex: q, $options: 'i' } },
@@ -286,12 +286,13 @@ export class UsersService {
       },
     ];
     const dataPromise = this.userModel.aggregate(query) as any;
-    const [totalPage, data] = await Promise.all([
-      totalPagePromise,
+    const [totalItems, data] = await Promise.all([
+      totalItemsPromise,
       dataPromise,
     ]);
+
     return {
-      totalPage: totalPage,
+      totalPage: Math.ceil(totalItems / limit),
       items: data,
     };
   }
