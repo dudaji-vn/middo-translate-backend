@@ -902,4 +902,29 @@ export class RoomsService {
     );
     return this.roomModel.aggregate(query);
   }
+  async getAverageResponseChat() {
+    const query = [
+      {
+        $match: {
+          status: RoomStatus.ACTIVE,
+          updatedAt: { $exists: true },
+          newMessageAt: { $exists: true },
+        },
+      },
+      {
+        $project: {
+          timeDifference: {
+            $subtract: ['$newMessageAt', '$updatedAt'],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          averageDifference: { $avg: '$timeDifference' },
+        },
+      },
+    ];
+    return await this.roomModel.aggregate(query);
+  }
 }

@@ -22,6 +22,7 @@ import {
 } from './schemas/help-desk-business.schema';
 import { queryReportByType } from 'src/common/utils/query-report';
 import { RatingQueryDto } from './dto/chart-query-dto';
+import { duration } from 'moment';
 
 @Injectable()
 export class HelpDeskService {
@@ -238,11 +239,14 @@ export class HelpDeskService {
         business.user.toString(),
       );
 
-    const averageRatingPromise = await this.getAverageRatingById(
+    const averageRatingPromise = this.getAverageRatingById(
       business._id,
       fromDateBy[type],
       toDateBy[type],
     );
+
+    const averageResponseChatPromise =
+      this.roomsService.getAverageResponseChat();
 
     const [
       totalClientsWithTime,
@@ -250,12 +254,14 @@ export class HelpDeskService {
       totalCompletedConversationWithTime,
       totalCompletedConversation,
       averageRating,
+      averageResponseChat,
     ] = await Promise.all([
       totalClientsWithTimePromise,
       totalClientsPromise,
       totalCompletedConversationWithTimePromise,
       totalCompletedConversationPromise,
       averageRatingPromise,
+      averageResponseChatPromise,
     ]);
 
     let newClientsChart = await this.getChartClient(
@@ -415,13 +421,15 @@ export class HelpDeskService {
       },
       averageRating: averageRating,
       responseChat: {
-        averageTime: '1.5h',
+        averageTime: duration(
+          averageResponseChat[0].averageDifference,
+        ).humanize(),
         rate: 30,
       },
       chart: {
         client: newClientsChart,
         completedConversation: completedConversationsChart,
-        ratingChart: ratingsChart,
+        averageRating: ratingsChart,
         responseChat: ratingsChart,
       },
     };
@@ -644,5 +652,8 @@ export class HelpDeskService {
     ];
     const queryDate = queryReportByType(type, queryByBusiness);
     return await this.userModel.aggregate(queryDate);
+  }
+  async getResponseChat() {
+    return [];
   }
 }
