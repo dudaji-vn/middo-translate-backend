@@ -467,7 +467,7 @@ export class MessagesService {
       (id) => !userIgnoredNotification.includes(id),
     );
     const link = `${envConfig.app.url}/${
-      room.isHelpDesk ? 'business/conversation' : 'talk'
+      room.isHelpDesk ? 'business/conversations' : 'talk'
     }/${room._id}`;
     this.notificationService.sendNotification(
       targetUserIds,
@@ -939,7 +939,7 @@ export class MessagesService {
       message.reactions.push(newReaction);
       if (message.sender._id.toString() !== userId) {
         const link = `${envConfig.app.url}/${
-          message.room.isHelpDesk ? 'business/conversation' : 'talk'
+          message.room.isHelpDesk ? 'business/conversations' : 'talk'
         }/${message.room._id}`;
         this.notificationService.sendNotification(
           [message.sender._id.toString()],
