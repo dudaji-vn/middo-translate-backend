@@ -276,6 +276,7 @@ export class UsersService {
         $project: {
           name: 1,
           email: '$tempEmail',
+          phoneNumber: '$phoneNumber',
           firstConnectDate: '$room.createdAt',
           lastConnectDate: '$room.newMessageAt',
         },
