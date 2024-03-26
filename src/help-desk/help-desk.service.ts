@@ -21,7 +21,7 @@ import {
   StatusBusiness,
 } from './schemas/help-desk-business.schema';
 import { queryReportByType } from 'src/common/utils/query-report';
-import { RatingQueryDto } from './dto/chart-query-dto';
+import { ChartQueryDto, RatingQueryDto } from './dto/chart-query-dto';
 import { duration } from 'moment';
 
 @Injectable()
@@ -245,8 +245,41 @@ export class HelpDeskService {
       toDateBy[type],
     );
 
-    const averageResponseChatPromise =
-      this.roomsService.getAverageResponseChat();
+    const averageResponseChatPromiseWithTimePromise =
+      this.roomsService.getAverageResponseChat(
+        business.user.toString(),
+        fromDateBy[type],
+        toDateBy[type],
+      );
+
+    const averageResponseChatPromise = this.roomsService.getAverageResponseChat(
+      business.user.toString(),
+    );
+    const newClientsChartPromise = await this.getChartClient(
+      business._id,
+      type,
+      fromDateBy[type],
+      toDateBy[type],
+    );
+    const completedConversationsChartPromise =
+      await this.roomsService.getChartCompletedConversation({
+        type: type,
+        userId: business.user.toString(),
+        fromDate: fromDateBy[type],
+        toDate: toDateBy[type],
+      });
+    const ratingsChartPromise = await this.getChartRating({
+      businessId: business._id,
+      type: type,
+      fromDate: fromDateBy[type],
+      toDate: toDateBy[type],
+    });
+    const responseChartPromise = await this.getChartAverageResponseChat({
+      type: type,
+      userId: business.user.toString(),
+      fromDate: fromDateBy[type],
+      toDate: toDateBy[type],
+    });
 
     const [
       totalClientsWithTime,
@@ -254,6 +287,7 @@ export class HelpDeskService {
       totalCompletedConversationWithTime,
       totalCompletedConversation,
       averageRating,
+      averageResponseChatWithTime,
       averageResponseChat,
     ] = await Promise.all([
       totalClientsWithTimePromise,
@@ -261,28 +295,22 @@ export class HelpDeskService {
       totalCompletedConversationWithTimePromise,
       totalCompletedConversationPromise,
       averageRatingPromise,
+      averageResponseChatPromiseWithTimePromise,
       averageResponseChatPromise,
     ]);
 
-    let newClientsChart = await this.getChartClient(
-      business._id,
-      type,
-      fromDateBy[type],
-      toDateBy[type],
-    );
-    let completedConversationsChart =
-      await this.roomsService.getChartCompletedConversation({
-        type: type,
-        userId: business.user.toString(),
-        fromDate: fromDateBy[type],
-        toDate: toDateBy[type],
-      });
-    let ratingsChart = await this.getChartRating({
-      businessId: business._id,
-      type: type,
-      fromDate: fromDateBy[type],
-      toDate: toDateBy[type],
-    });
+    let [
+      newClientsChart,
+      completedConversationsChart,
+      ratingsChart,
+      responseChart,
+    ] = await Promise.all([
+      newClientsChartPromise,
+      completedConversationsChartPromise,
+      ratingsChartPromise,
+      responseChartPromise,
+    ]);
+
     switch (type) {
       case AnalystType.LAST_WEEK:
         newClientsChart = this.addMissingDates(
@@ -307,6 +335,16 @@ export class HelpDeskService {
         });
         ratingsChart = this.addMissingDates(
           ratingsChart,
+          fromDateBy[type],
+          toDateBy[type],
+        ).map((item) => {
+          return {
+            label: moment(item.date, 'DD/MM/YYYY').format('dddd'),
+            value: item.count,
+          };
+        });
+        responseChart = this.addMissingDates(
+          responseChart,
           fromDateBy[type],
           toDateBy[type],
         ).map((item) => {
@@ -348,6 +386,16 @@ export class HelpDeskService {
             value: item.count,
           };
         });
+        responseChart = this.addMissingDates(
+          responseChart,
+          fromDateBy[type],
+          toDateBy[type],
+        ).map((item) => {
+          return {
+            label: item.date,
+            value: item.count,
+          };
+        });
         break;
       case AnalystType.LAST_YEAR:
         newClientsChart = this.addMissingMonths(newClientsChart).map((item) => {
@@ -365,6 +413,12 @@ export class HelpDeskService {
           };
         });
         ratingsChart = this.addMissingMonths(ratingsChart).map((item) => {
+          return {
+            label: `01-${item.month}-${item.year}`,
+            value: item.count,
+          };
+        });
+        responseChart = this.addMissingMonths(responseChart).map((item) => {
           return {
             label: `01-${item.month}-${item.year}`,
             value: item.count,
@@ -397,10 +451,19 @@ export class HelpDeskService {
             value: item.count,
           };
         });
+        responseChart = responseChart.map((item) => {
+          return {
+            label: item.date,
+            value: item.count,
+          };
+        });
 
         break;
     }
 
+    const averageChatDurationWithTime =
+      averageResponseChatWithTime[0]?.averageDifference || 0;
+    const averageChatDuration = averageResponseChat[0].averageDifference;
     return {
       client: {
         count: totalClientsWithTime,
@@ -421,16 +484,16 @@ export class HelpDeskService {
       },
       averageRating: averageRating,
       responseChat: {
-        averageTime: duration(
-          averageResponseChat[0].averageDifference,
-        ).humanize(),
-        rate: 30,
+        averageTime: `${duration(averageChatDurationWithTime).minutes()} mins`,
+        rate:
+          ((averageChatDuration - averageChatDurationWithTime) * 100) /
+          averageChatDuration,
       },
       chart: {
         client: newClientsChart,
         completedConversation: completedConversationsChart,
         averageRating: ratingsChart,
-        responseChat: ratingsChart,
+        responseChat: responseChart,
       },
     };
   }
@@ -655,5 +718,8 @@ export class HelpDeskService {
   }
   async getResponseChat() {
     return [];
+  }
+  async getChartAverageResponseChat(payload: ChartQueryDto) {
+    return this.roomsService.getChartAverageResponseChat(payload);
   }
 }

@@ -24,9 +24,9 @@ import { CreateRoomDto } from './dto';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
-import { queryReportByType } from '../common/utils/query-report';
-import { AnalystType } from '../help-desk/dto/analyst-query-dto';
-import { ChartQueryDto } from '../help-desk/dto/chart-query-dto';
+import { queryReportByType } from 'src/common/utils/query-report';
+import { AnalystType } from 'src/help-desk/dto/analyst-query-dto';
+import { ChartQueryDto } from 'src/help-desk/dto/chart-query-dto';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -902,19 +902,29 @@ export class RoomsService {
     );
     return this.roomModel.aggregate(query);
   }
-  async getAverageResponseChat() {
+  async getAverageResponseChat(userId: string, fromDate?: Date, toDate?: Date) {
     const query = [
       {
         $match: {
+          admin: new mongoose.Types.ObjectId(userId),
           status: RoomStatus.ACTIVE,
-          updatedAt: { $exists: true },
-          newMessageAt: { $exists: true },
+          ...(fromDate &&
+            toDate && {
+              createdAt: {
+                $gte: fromDate,
+                $lte: toDate,
+              },
+              newMessageAt: {
+                $gte: fromDate,
+                $lte: toDate,
+              },
+            }),
         },
       },
       {
         $project: {
           timeDifference: {
-            $subtract: ['$newMessageAt', '$updatedAt'],
+            $subtract: ['$newMessageAt', '$createdAt'],
           },
         },
       },
@@ -923,6 +933,78 @@ export class RoomsService {
           _id: null,
           averageDifference: { $avg: '$timeDifference' },
         },
+      },
+    ];
+    return await this.roomModel.aggregate(query);
+  }
+  async getChartAverageResponseChat(payload: ChartQueryDto) {
+    const { userId, fromDate, toDate, type } = payload;
+    const query = [
+      {
+        $match: {
+          admin: new mongoose.Types.ObjectId(userId),
+          status: RoomStatus.ACTIVE,
+          ...(fromDate &&
+            toDate && {
+              createdAt: {
+                $gte: fromDate,
+                $lte: toDate,
+              },
+              newMessageAt: {
+                $gte: fromDate,
+                $lte: toDate,
+              },
+            }),
+        },
+      },
+      {
+        $project: {
+          day: {
+            $dayOfMonth: '$createdAt',
+          },
+          month: {
+            $month: '$createdAt',
+          },
+          year: {
+            $year: '$createdAt',
+          },
+          timeDifference: {
+            $subtract: ['$newMessageAt', '$createdAt'],
+          },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            ...(type !== AnalystType.LAST_YEAR && { day: '$day' }),
+            year: '$year',
+            month: '$month',
+          },
+          averageDifference: { $avg: '$timeDifference' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          date: {
+            $concat: [
+              { $toString: '$_id.day' },
+              '-',
+              { $toString: '$_id.month' },
+              '-',
+              { $toString: '$_id.year' },
+            ],
+          },
+          day: '$_id.day',
+          month: '$_id.month',
+          year: '$_id.year',
+          count: { $round: [{ $divide: ['$averageDifference', 60000] }, 2] },
+        },
+      },
+      {
+        $sort: {
+          day: 1,
+        } as any,
       },
     ];
     return await this.roomModel.aggregate(query);
