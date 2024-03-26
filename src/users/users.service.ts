@@ -227,6 +227,9 @@ export class UsersService {
         {
           tempEmail: { $regex: q, $options: 'i' },
         },
+        {
+          phoneNumber: { $regex: q, $options: 'i' },
+        },
       ],
     });
     const query = [
@@ -238,6 +241,9 @@ export class UsersService {
             { username: { $regex: q, $options: 'i' } },
             {
               tempEmail: { $regex: q, $options: 'i' },
+            },
+            {
+              phoneNumber: { $regex: q, $options: 'i' },
             },
           ],
         },
