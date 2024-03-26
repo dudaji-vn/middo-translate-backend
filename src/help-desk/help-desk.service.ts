@@ -486,8 +486,12 @@ export class HelpDeskService {
       responseChat: {
         averageTime: `${duration(averageChatDurationWithTime).minutes()} mins`,
         rate:
-          ((averageChatDuration - averageChatDurationWithTime) * 100) /
-          averageChatDuration,
+          averageChatDuration === 0
+            ? 0
+            : Math.round(
+                ((averageChatDuration - averageChatDurationWithTime) * 100) /
+                  averageChatDuration,
+              ),
       },
       chart: {
         client: newClientsChart,
