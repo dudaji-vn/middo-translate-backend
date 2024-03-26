@@ -211,7 +211,7 @@ export class UsersService {
   }
   async findByBusiness({
     q,
-    limit = 20,
+    limit = 5,
     businessId,
     userId,
     currentPage = 1,
@@ -260,11 +260,7 @@ export class UsersService {
           as: 'room',
         },
       },
-      {
-        $match: {
-          room: { $exists: true, $ne: [] },
-        },
-      },
+
       {
         $skip: (currentPage - 1) * limit,
       },
