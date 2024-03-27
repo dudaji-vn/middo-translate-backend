@@ -635,10 +635,14 @@ export class HelpDeskService {
 
     return result.length > 0 && result[0]
       ? {
-          count: result[0].averageRating ? result[0].averageRating : 0,
+          count: result[0].averageRating
+            ? result[0].averageRating.toFixed(1)
+            : 0,
           rate:
             result[0].numberPeopleRating && result[0].averageRating
-              ? `${result[0].averageRating}/${result[0].numberPeopleRating}`
+              ? `${result[0].averageRating.toFixed(1)}/${
+                  result[0].numberPeopleRating
+                }`
               : '0/0',
         }
       : {
