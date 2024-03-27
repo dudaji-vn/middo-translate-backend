@@ -482,7 +482,10 @@ export class HelpDeskService {
                   totalCompletedConversation,
               ),
       },
-      averageRating: averageRating,
+      averageRating: {
+        count: averageRating.count,
+        rate: averageRating.rate,
+      },
       responseChat: {
         averageTime: `${(averageChatDurationWithTime / 60000).toFixed(2)} mins`,
         rate:
@@ -603,7 +606,10 @@ export class HelpDeskService {
     businessId: ObjectId,
     fromDate: Date,
     toDate: Date,
-  ): Promise<number> {
+  ): Promise<{
+    count: number;
+    rate: string;
+  }> {
     const result = await this.helpDeskBusinessModel.aggregate([
       {
         $match: {
@@ -622,11 +628,23 @@ export class HelpDeskService {
         $group: {
           _id: '$_id',
           averageRating: { $avg: '$ratings.star' },
+          numberPeopleRating: { $sum: 1 },
         },
       },
     ]);
 
-    return result.length > 0 ? result[0].averageRating : 0;
+    return result.length > 0 && result[0]
+      ? {
+          count: result[0].averageRating ? result[0].averageRating : 0,
+          rate:
+            result[0].numberPeopleRating && result[0].averageRating
+              ? `${result[0].averageRating}/${result[0].numberPeopleRating}`
+              : '0/0',
+        }
+      : {
+          count: 0,
+          rate: '0/0',
+        };
   }
 
   async getChartRating(payload: RatingQueryDto) {
