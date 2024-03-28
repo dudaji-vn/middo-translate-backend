@@ -857,7 +857,7 @@ export class RoomsService {
   ) {
     return await this.roomModel.countDocuments({
       admin: userId,
-      status: RoomStatus.ACTIVE,
+      status: RoomStatus.COMPLETED,
       ...(fromDate &&
         toDate && {
           updatedAt: {
@@ -907,6 +907,7 @@ export class RoomsService {
       {
         $match: {
           admin: new mongoose.Types.ObjectId(userId),
+          isHelpDesk: true,
           status: RoomStatus.ACTIVE,
           ...(fromDate &&
             toDate && {
@@ -922,9 +923,23 @@ export class RoomsService {
         },
       },
       {
+        $lookup: {
+          from: 'messages',
+          localField: '_id',
+          foreignField: 'room',
+          as: 'messages',
+        },
+      },
+
+      {
+        $addFields: {
+          secondMessage: { $arrayElemAt: ['$messages', 1] },
+        },
+      },
+      {
         $project: {
           timeDifference: {
-            $subtract: ['$newMessageAt', '$createdAt'],
+            $subtract: ['$secondMessage.createdAt', '$createdAt'],
           },
         },
       },
@@ -944,6 +959,7 @@ export class RoomsService {
         $match: {
           admin: new mongoose.Types.ObjectId(userId),
           status: RoomStatus.ACTIVE,
+          isHelpDesk: true,
           ...(fromDate &&
             toDate && {
               createdAt: {
@@ -958,6 +974,20 @@ export class RoomsService {
         },
       },
       {
+        $lookup: {
+          from: 'messages',
+          localField: '_id',
+          foreignField: 'room',
+          as: 'messages',
+        },
+      },
+
+      {
+        $addFields: {
+          secondMessage: { $arrayElemAt: ['$messages', 1] },
+        },
+      },
+      {
         $project: {
           day: {
             $dayOfMonth: '$createdAt',
@@ -969,7 +999,7 @@ export class RoomsService {
             $year: '$createdAt',
           },
           timeDifference: {
-            $subtract: ['$newMessageAt', '$createdAt'],
+            $subtract: ['$secondMessage.createdAt', '$createdAt'],
           },
         },
       },
