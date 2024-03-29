@@ -1028,7 +1028,13 @@ export class RoomsService {
           day: '$_id.day',
           month: '$_id.month',
           year: '$_id.year',
-          count: '$averageDifference',
+          count: {
+            $cond: {
+              if: { $eq: ['$averageDifference', null] },
+              then: 0,
+              else: '$averageDifference',
+            },
+          },
         },
       },
       {
