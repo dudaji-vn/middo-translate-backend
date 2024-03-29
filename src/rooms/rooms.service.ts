@@ -1028,7 +1028,7 @@ export class RoomsService {
           day: '$_id.day',
           month: '$_id.month',
           year: '$_id.year',
-          count: { $round: [{ $divide: ['$averageDifference', 60000] }, 2] },
+          count: '$averageDifference',
         },
       },
       {
