@@ -487,7 +487,7 @@ export class HelpDeskService {
         rate: averageRating.rate,
       },
       responseChat: {
-        averageTime: `${(averageChatDurationWithTime / 60000).toFixed(2)} mins`,
+        averageTime: averageChatDurationWithTime,
         rate:
           averageChatDuration === 0
             ? 0
