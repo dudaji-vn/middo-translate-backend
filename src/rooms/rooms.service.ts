@@ -887,7 +887,7 @@ export class RoomsService {
         {
           $match: {
             admin: new mongoose.Types.ObjectId(userId),
-            status: RoomStatus.ACTIVE,
+            status: RoomStatus.COMPLETED,
             ...(fromDate &&
               toDate && {
                 updatedAt: {
