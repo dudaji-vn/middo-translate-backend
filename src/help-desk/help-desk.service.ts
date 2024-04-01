@@ -20,6 +20,9 @@ import {
   Rating,
   StatusBusiness,
 } from './schemas/help-desk-business.schema';
+import { queryReportByType } from 'src/common/utils/query-report';
+import { ChartQueryDto, RatingQueryDto } from './dto/chart-query-dto';
+import { duration } from 'moment';
 
 @Injectable()
 export class HelpDeskService {
@@ -236,11 +239,47 @@ export class HelpDeskService {
         business.user.toString(),
       );
 
-    const averageRatingPromise = await this.getAverageRatingById(
+    const averageRatingPromise = this.getAverageRatingById(
       business._id,
       fromDateBy[type],
       toDateBy[type],
     );
+
+    const averageResponseChatPromiseWithTimePromise =
+      this.roomsService.getAverageResponseChat(
+        business.user.toString(),
+        fromDateBy[type],
+        toDateBy[type],
+      );
+
+    const averageResponseChatPromise = this.roomsService.getAverageResponseChat(
+      business.user.toString(),
+    );
+    const newClientsChartPromise = await this.getChartClient(
+      business._id,
+      type,
+      fromDateBy[type],
+      toDateBy[type],
+    );
+    const completedConversationsChartPromise =
+      await this.roomsService.getChartCompletedConversation({
+        type: type,
+        userId: business.user.toString(),
+        fromDate: fromDateBy[type],
+        toDate: toDateBy[type],
+      });
+    const ratingsChartPromise = await this.getChartRating({
+      businessId: business._id,
+      type: type,
+      fromDate: fromDateBy[type],
+      toDate: toDateBy[type],
+    });
+    const responseChartPromise = await this.getChartAverageResponseChat({
+      type: type,
+      userId: business.user.toString(),
+      fromDate: fromDateBy[type],
+      toDate: toDateBy[type],
+    });
 
     const [
       totalClientsWithTime,
@@ -248,84 +287,64 @@ export class HelpDeskService {
       totalCompletedConversationWithTime,
       totalCompletedConversation,
       averageRating,
+      averageResponseChatWithTime,
+      averageResponseChat,
     ] = await Promise.all([
       totalClientsWithTimePromise,
       totalClientsPromise,
       totalCompletedConversationWithTimePromise,
       totalCompletedConversationPromise,
       averageRatingPromise,
+      averageResponseChatPromiseWithTimePromise,
+      averageResponseChatPromise,
     ]);
 
-    const queryCustomDate = (fromDate: Date, toDate: Date) => {
-      return [
-        {
-          $match: {
-            business: business._id,
-            createdAt: {
-              $gte: fromDate,
-              $lte: toDate,
-            },
-          },
-        },
-        {
-          $project: {
-            day: {
-              $dayOfMonth: '$createdAt',
-            },
-            month: {
-              $month: '$createdAt',
-            },
-            year: {
-              $year: '$createdAt',
-            },
-          },
-        },
-        {
-          $group: {
-            _id: {
-              ...(type !== AnalystType.LAST_YEAR && { day: '$day' }),
-              year: '$year',
-              month: '$month',
-            },
-            count: {
-              $sum: 1,
-            },
-          },
-        },
+    let [
+      newClientsChart,
+      completedConversationsChart,
+      ratingsChart,
+      responseChart,
+    ] = await Promise.all([
+      newClientsChartPromise,
+      completedConversationsChartPromise,
+      ratingsChartPromise,
+      responseChartPromise,
+    ]);
 
-        {
-          $project: {
-            _id: 0,
-            date: {
-              $concat: [
-                { $toString: '$_id.day' },
-                '-',
-                { $toString: '$_id.month' },
-                '-',
-                { $toString: '$_id.year' },
-              ],
-            },
-            day: '$_id.day',
-            month: '$_id.month',
-            year: '$_id.year',
-            count: '$count',
-          },
-        },
-        {
-          $sort: {
-            day: 1,
-          } as any,
-        },
-      ];
-    };
-
-    const queryDate = queryCustomDate(fromDateBy[type], toDateBy[type]);
-    let analytics;
     switch (type) {
       case AnalystType.LAST_WEEK:
-        const dataLastWeek = await this.userModel.aggregate(queryDate);
-        analytics = this.addMissingDates(
-          dataLastWeek,
+        newClientsChart = this.addMissingDates(
+          newClientsChart,
+          fromDateBy[type],
+          toDateBy[type],
+        ).map((item) => {
+          return {
+            label: moment(item.date, 'DD/MM/YYYY').format('dddd'),
+            value: item.count,
+          };
+        });
+        completedConversationsChart = this.addMissingDates(
+          completedConversationsChart,
+          fromDateBy[type],
+          toDateBy[type],
+        ).map((item) => {
+          return {
+            label: moment(item.date, 'DD/MM/YYYY').format('dddd'),
+            value: item.count,
+          };
+        });
+        ratingsChart = this.addMissingDates(
+          ratingsChart,
+          fromDateBy[type],
+          toDateBy[type],
+        ).map((item) => {
+          return {
+            label: moment(item.date, 'DD/MM/YYYY').format('dddd'),
+            value: item.count,
+          };
+        });
+        responseChart = this.addMissingDates(
+          responseChart,
           fromDateBy[type],
           toDateBy[type],
         ).map((item) => {
@@ -337,9 +356,38 @@ export class HelpDeskService {
         break;
 
       case AnalystType.LAST_MONTH:
-        const dataLastMonth = await this.userModel.aggregate(queryDate);
-        analytics = this.addMissingDates(
-          dataLastMonth,
+        newClientsChart = this.addMissingDates(
+          newClientsChart,
+          fromDateBy[type],
+          toDateBy[type],
+        ).map((item) => {
+          return {
+            label: item.date,
+            value: item.count,
+          };
+        });
+        completedConversationsChart = this.addMissingDates(
+          completedConversationsChart,
+          fromDateBy[type],
+          toDateBy[type],
+        ).map((item) => {
+          return {
+            label: item.date,
+            value: item.count,
+          };
+        });
+        ratingsChart = this.addMissingDates(
+          ratingsChart,
+          fromDateBy[type],
+          toDateBy[type],
+        ).map((item) => {
+          return {
+            label: item.date,
+            value: item.count,
+          };
+        });
+        responseChart = this.addMissingDates(
+          responseChart,
           fromDateBy[type],
           toDateBy[type],
         ).map((item) => {
@@ -350,9 +398,27 @@ export class HelpDeskService {
         });
         break;
       case AnalystType.LAST_YEAR:
-        const dataLastYear = await this.userModel.aggregate(queryDate);
-
-        analytics = this.addMissingMonths(dataLastYear).map((item) => {
+        newClientsChart = this.addMissingMonths(newClientsChart).map((item) => {
+          return {
+            label: `01-${item.month}-${item.year}`,
+            value: item.count,
+          };
+        });
+        completedConversationsChart = this.addMissingMonths(
+          completedConversationsChart,
+        ).map((item) => {
+          return {
+            label: `01-${item.month}-${item.year}`,
+            value: item.count,
+          };
+        });
+        ratingsChart = this.addMissingMonths(ratingsChart).map((item) => {
+          return {
+            label: `01-${item.month}-${item.year}`,
+            value: item.count,
+          };
+        });
+        responseChart = this.addMissingMonths(responseChart).map((item) => {
           return {
             label: `01-${item.month}-${item.year}`,
             value: item.count,
@@ -364,8 +430,14 @@ export class HelpDeskService {
         if (!fromDate || !toDate) {
           throw new BadRequestException('fromDate and toDate are required');
         }
-        const queryCustom = queryCustomDate(fromDateBy[type], toDateBy[type]);
-        const dataCustom = (await this.userModel.aggregate(queryCustom)).map(
+
+        newClientsChart = newClientsChart.map((item) => {
+          return {
+            label: item.date,
+            value: item.count,
+          };
+        });
+        completedConversationsChart = completedConversationsChart.map(
           (item) => {
             return {
               label: item.date,
@@ -373,10 +445,25 @@ export class HelpDeskService {
             };
           },
         );
-        analytics = dataCustom;
+        ratingsChart = ratingsChart.map((item) => {
+          return {
+            label: item.date,
+            value: item.count,
+          };
+        });
+        responseChart = responseChart.map((item) => {
+          return {
+            label: item.date,
+            value: item.count,
+          };
+        });
+
         break;
     }
 
+    const averageChatDurationWithTime =
+      averageResponseChatWithTime[0]?.averageDifference || 0;
+    const averageChatDuration = averageResponseChat[0].averageDifference;
     return {
       client: {
         count: totalClientsWithTime,
@@ -395,12 +482,26 @@ export class HelpDeskService {
                   totalCompletedConversation,
               ),
       },
-      averageRating: averageRating,
-      responseChat: {
-        averageTime: '1.5h',
-        rate: 30,
+      averageRating: {
+        count: averageRating.count,
+        rate: averageRating.rate,
       },
-      chart: analytics,
+      responseChat: {
+        averageTime: averageChatDurationWithTime,
+        rate:
+          averageChatDuration === 0
+            ? 0
+            : Math.round(
+                ((averageChatDuration - averageChatDurationWithTime) * 100) /
+                  averageChatDuration,
+              ),
+      },
+      chart: {
+        client: newClientsChart,
+        completedConversation: completedConversationsChart,
+        averageRating: ratingsChart,
+        responseChat: responseChart,
+      },
     };
   }
 
@@ -502,14 +603,17 @@ export class HelpDeskService {
   }
 
   async getAverageRatingById(
-    id: ObjectId,
+    businessId: ObjectId,
     fromDate: Date,
     toDate: Date,
-  ): Promise<number> {
+  ): Promise<{
+    count: number;
+    rate: string;
+  }> {
     const result = await this.helpDeskBusinessModel.aggregate([
       {
         $match: {
-          _id: id,
+          _id: businessId,
         },
       },
       {
@@ -524,10 +628,124 @@ export class HelpDeskService {
         $group: {
           _id: '$_id',
           averageRating: { $avg: '$ratings.star' },
+          numberPeopleRating: { $sum: 1 },
         },
       },
     ]);
 
-    return result.length > 0 ? result[0].averageRating : 0;
+    return result.length > 0 && result[0]
+      ? {
+          count: result[0].averageRating
+            ? result[0].averageRating.toFixed(1)
+            : 0,
+          rate:
+            result[0].numberPeopleRating && result[0].averageRating
+              ? `${result[0].averageRating.toFixed(1)}/${
+                  result[0].numberPeopleRating
+                }`
+              : '0/0',
+        }
+      : {
+          count: 0,
+          rate: '0/0',
+        };
+  }
+
+  async getChartRating(payload: RatingQueryDto) {
+    const { businessId, fromDate, toDate, type } = payload;
+    const pipeRating = [
+      {
+        $match: {
+          _id: businessId,
+        },
+      },
+      {
+        $unwind: '$ratings',
+      },
+      {
+        $match: {
+          'ratings.createdAt': { $gte: fromDate, $lte: toDate },
+        },
+      },
+      {
+        $project: {
+          day: {
+            $dayOfMonth: '$ratings.createdAt',
+          },
+          month: {
+            $month: '$ratings.createdAt',
+          },
+          year: {
+            $year: '$ratings.createdAt',
+          },
+          star: '$ratings.star',
+        },
+      },
+      {
+        $group: {
+          _id: {
+            ...(type !== AnalystType.LAST_YEAR && { day: '$day' }),
+            year: '$year',
+            month: '$month',
+          },
+          count: {
+            $avg: '$star',
+          },
+        },
+      },
+
+      {
+        $project: {
+          _id: 0,
+          date: {
+            $concat: [
+              { $toString: '$_id.day' },
+              '-',
+              { $toString: '$_id.month' },
+              '-',
+              { $toString: '$_id.year' },
+            ],
+          },
+          day: '$_id.day',
+          month: '$_id.month',
+          year: '$_id.year',
+          count: '$count',
+        },
+      },
+      {
+        $sort: {
+          day: 1,
+        } as any,
+      },
+    ];
+
+    return this.helpDeskBusinessModel.aggregate(pipeRating);
+  }
+
+  async getChartClient(
+    businessId: ObjectId,
+    type: AnalystType,
+    fromDate: Date,
+    toDate: Date,
+  ) {
+    const queryByBusiness = [
+      {
+        $match: {
+          business: businessId,
+          createdAt: {
+            $gte: fromDate,
+            $lte: toDate,
+          },
+        },
+      },
+    ];
+    const queryDate = queryReportByType(type, queryByBusiness);
+    return await this.userModel.aggregate(queryDate);
+  }
+  async getResponseChat() {
+    return [];
+  }
+  async getChartAverageResponseChat(payload: ChartQueryDto) {
+    return this.roomsService.getChartAverageResponseChat(payload);
   }
 }

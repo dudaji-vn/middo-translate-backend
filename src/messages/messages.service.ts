@@ -32,6 +32,7 @@ import { Room } from 'src/rooms/schemas/room.schema';
 import { Call } from 'src/call/schemas/call.schema';
 import { PinMessage } from './schemas/pin-messages.schema';
 import { convert } from 'html-to-text';
+import { generateSystemMessageContent } from './utils/generate-action-message-content';
 
 @Injectable()
 export class MessagesService {
@@ -271,6 +272,17 @@ export class MessagesService {
     createdMessage.deliveredTo = [user._id];
     createdMessage.parent = parentMessage;
     const newMessage = await createdMessage.save();
+    await newMessage.populate([
+      {
+        path: 'sender',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'language',
+        ]),
+      },
+    ]);
     const socketPayload: ReplyMessagePayload = {
       replyToMessageId: id,
       message: newMessage,
@@ -279,6 +291,7 @@ export class MessagesService {
       socketConfig.events.message.reply.new,
       socketPayload,
     );
+    this.sendReplyMessageNotification(newMessage);
     await this.update(id, { hasChild: true });
     return newMessage;
   }
@@ -408,7 +421,9 @@ export class MessagesService {
     if (!room) {
       throw new NotFoundException('Room not found');
     }
-    const messageContent = convert(message.content);
+    const messageContent = convert(message.content, {
+      selectors: [{ selector: 'a', options: { ignoreHref: true } }],
+    });
 
     switch (message.type) {
       case MessageType.TEXT:
@@ -426,7 +441,13 @@ export class MessagesService {
         body += ` ${messageContent}`;
         break;
       case MessageType.ACTION:
-        body = ` ${messageContent}`;
+        body += generateSystemMessageContent({
+          action: message.action,
+          content: messageContent,
+        });
+        break;
+      case MessageType.CALL:
+        body += ' started a call';
         break;
       default:
         break;
@@ -445,12 +466,85 @@ export class MessagesService {
     targetUserIds = targetUserIds.filter(
       (id) => !userIgnoredNotification.includes(id),
     );
-    const link = `${envConfig.app.url}/talk/${room._id}`;
+    const link = `${envConfig.app.url}/${
+      room.isHelpDesk ? 'business/conversations' : 'talk'
+    }/${room._id}`;
     this.notificationService.sendNotification(
       targetUserIds,
       title,
       body,
       room._id.toString(),
+      link,
+    );
+  }
+  async sendReplyMessageNotification(message: Message) {
+    const title = envConfig.app.name;
+    let body = message.sender.name + ' replied in a discussion';
+    const parentMessage = await this.findById(message.parent._id.toString());
+    const messageContent = convert(message.content);
+    switch (message.type) {
+      case MessageType.TEXT:
+        body += `: ${messageContent}`;
+        break;
+      case MessageType.MEDIA:
+        body += ' sent media';
+        break;
+      case MessageType.NOTIFICATION:
+        body += ` ${messageContent}`;
+        break;
+      case MessageType.ACTION:
+        body += generateSystemMessageContent({
+          action: message.action,
+          content: messageContent,
+        });
+        break;
+      default:
+        break;
+    }
+
+    const roomId = message.room._id.toString();
+
+    const allReplies = await this.getReplies(
+      message.parent._id.toString(),
+      message.sender._id.toString(),
+    );
+
+    let targetUserIds = allReplies.reduce((acc, reply) => {
+      acc.push(reply.sender._id.toString());
+      return acc;
+    }, [] as string[]);
+
+    targetUserIds.push(parentMessage.sender._id.toString());
+
+    allReplies.forEach((reply) => {
+      targetUserIds.push(
+        ...reply.mentions.map((mention) => mention._id.toString()),
+      );
+    });
+    parentMessage.mentions.forEach((mention) => {
+      targetUserIds.push(mention._id.toString());
+    });
+
+    // unique targetUserIds
+    targetUserIds = [...new Set(targetUserIds)];
+
+    targetUserIds = targetUserIds.filter(
+      (id) => id !== message.sender._id.toString(),
+    );
+
+    const userIgnoredNotification =
+      await this.notificationService.getUsersIgnoringRoom(roomId);
+
+    targetUserIds = targetUserIds.filter(
+      (id) => !userIgnoredNotification.includes(id),
+    );
+
+    const link = `${envConfig.app.url}/talk/${roomId}?r_tab=discussion&ms_id=${message.parent._id}`;
+    this.notificationService.sendNotification(
+      targetUserIds,
+      title,
+      body,
+      roomId,
       link,
     );
   }
@@ -810,6 +904,7 @@ export class MessagesService {
           'language',
         ]),
       )
+      .populate('room', selectPopulateField<Room>(['_id', 'isHelpDesk']))
       .populate('parent');
     if (!message) {
       throw new Error('Message not found');
@@ -843,7 +938,9 @@ export class MessagesService {
       newReaction.emoji = emoji;
       message.reactions.push(newReaction);
       if (message.sender._id.toString() !== userId) {
-        const link = `${envConfig.app.url}/talk/${message.room._id}`;
+        const link = `${envConfig.app.url}/${
+          message.room.isHelpDesk ? 'business/conversations' : 'talk'
+        }/${message.room._id}`;
         this.notificationService.sendNotification(
           [message.sender._id.toString()],
           envConfig.app.name,

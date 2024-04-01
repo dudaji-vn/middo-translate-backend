@@ -29,6 +29,7 @@ import { GetJwtInfo } from 'src/common/decorators/get-jwt-info.decorator';
 import { GoogleOauthGuard } from './guards/google-oauth.guard';
 import { envConfig } from 'src/configs/env.config';
 import { SignOutDto } from './dto/sign-out.dto';
+import { VerifyTokenGoogle } from './dto/verify-token-google.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -262,6 +263,16 @@ export class AuthController {
     return {
       message: 'ok',
       data: null,
+    };
+  }
+
+  @Public()
+  @Post('verify-token-google')
+  async verifyToken(@Body() payload: VerifyTokenGoogle) {
+    const { token } = payload;
+    const data = await this.authService.verifyTokenGoogle(token);
+    return {
+      data: data,
     };
   }
 }

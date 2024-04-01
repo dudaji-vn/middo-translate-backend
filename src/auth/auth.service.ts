@@ -1,6 +1,11 @@
 import * as bcrypt from 'bcrypt';
 
-import { HttpException, Injectable, Logger } from '@nestjs/common';
+import {
+  HttpException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -13,15 +18,22 @@ import { UsersService } from 'src/users/users.service';
 import { envConfig } from 'src/configs/env.config';
 import { NotificationService } from 'src/notifications/notifications.service';
 import { SignOutDto } from './dto/sign-out.dto';
+import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class AuthService {
+  private readonly oauthClient;
   constructor(
     private readonly jwtService: JwtService,
     private readonly usersService: UsersService,
     private readonly mailService: MailService,
     private readonly notificationService: NotificationService,
-  ) {}
+  ) {
+    this.oauthClient = new OAuth2Client(
+      envConfig.google.clientID,
+      envConfig.google.clientSecret,
+    );
+  }
   async createAccessToken(payload: { id: string }) {
     return this.jwtService.signAsync(payload, {
       secret: envConfig.jwt.accessToken.secret,
@@ -254,5 +266,38 @@ export class AuthService {
     );
     await this.notificationService.deleteToken(userId, notifyToken);
     return;
+  }
+
+  async verifyTokenGoogle(token: string) {
+    try {
+      const ticket = await this.oauthClient.verifyIdToken({
+        idToken: token,
+        audience: envConfig.google.clientID,
+      });
+      if (!ticket || !ticket.getPayload()) {
+        throw new UnauthorizedException('Token is not valid');
+      }
+      const email = ticket.getPayload()?.email;
+      if (!email) {
+        throw new UnauthorizedException('Cannot read email');
+      }
+      const user = await this.usersService.findByEmail(email, {
+        ignoreNotFound: true,
+      });
+
+      const accessToken = await this.createAccessToken({
+        id: user._id.toString(),
+      });
+      const refreshToken = await this.createRefreshToken({
+        id: user._id.toString(),
+      });
+      return {
+        accessToken,
+        refreshToken,
+        user,
+      };
+    } catch (err) {
+      throw new UnauthorizedException();
+    }
   }
 }

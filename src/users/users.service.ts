@@ -211,7 +211,7 @@ export class UsersService {
   }
   async findByBusiness({
     q,
-    limit = 20,
+    limit = 5,
     businessId,
     userId,
     currentPage = 1,
@@ -219,13 +219,16 @@ export class UsersService {
     businessId: string;
     userId: string;
   }): Promise<UserHelpDeskResponse> {
-    const totalPagePromise = this.userModel.countDocuments({
+    const totalItemsPromise = this.userModel.countDocuments({
       business: new Types.ObjectId(businessId),
       $or: [
         { name: { $regex: q, $options: 'i' } },
         { username: { $regex: q, $options: 'i' } },
         {
           tempEmail: { $regex: q, $options: 'i' },
+        },
+        {
+          phoneNumber: { $regex: q, $options: 'i' },
         },
       ],
     });
@@ -238,6 +241,9 @@ export class UsersService {
             { username: { $regex: q, $options: 'i' } },
             {
               tempEmail: { $regex: q, $options: 'i' },
+            },
+            {
+              phoneNumber: { $regex: q, $options: 'i' },
             },
           ],
         },
@@ -260,11 +266,7 @@ export class UsersService {
           as: 'room',
         },
       },
-      {
-        $match: {
-          room: { $exists: true, $ne: [] },
-        },
-      },
+
       {
         $skip: (currentPage - 1) * limit,
       },
@@ -280,18 +282,20 @@ export class UsersService {
         $project: {
           name: 1,
           email: '$tempEmail',
+          phoneNumber: '$phoneNumber',
           firstConnectDate: '$room.createdAt',
           lastConnectDate: '$room.newMessageAt',
         },
       },
     ];
     const dataPromise = this.userModel.aggregate(query) as any;
-    const [totalPage, data] = await Promise.all([
-      totalPagePromise,
+    const [totalItems, data] = await Promise.all([
+      totalItemsPromise,
       dataPromise,
     ]);
+
     return {
-      totalPage: totalPage,
+      totalPage: Math.ceil(totalItems / limit),
       items: data,
     };
   }
