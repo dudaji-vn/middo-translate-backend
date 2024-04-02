@@ -952,7 +952,7 @@ export class MessagesService {
     }
     await message.save();
     this.eventEmitter.emit(socketConfig.events.message.update, {
-      roomId: String(message?.room),
+      roomId: String(message?.room._id),
       message: {
         _id: message._id,
         parent: message.parent,
