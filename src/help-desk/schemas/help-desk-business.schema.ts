@@ -1,10 +1,17 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
 import { User } from 'src/users/schemas/user.schema';
+import { Media } from 'src/messages/schemas/messages.schema';
 
 export enum StatusBusiness {
   DELETED = 'deleted',
   ACTIVE = 'active',
+}
+export enum TreeNodeType {
+  BUTTON = 'button',
+  MESSAGE = 'message',
+  LINK = 'link',
+  FORM = 'form',
 }
 
 @Schema({ _id: false, timestamps: true }) // _id: false because this is a subdocument
@@ -15,7 +22,23 @@ export class Rating extends Document {
   user: User;
 }
 
+@Schema()
+export class ScriptChat extends Document {
+  @Prop({ type: String, required: true })
+  content: string;
+  @Prop({ type: String, required: true })
+  language: string;
+  @Prop({ type: String, default: 'message' })
+  type: TreeNodeType;
+  @Prop({ type: Array, default: [] })
+  media: Media[];
+  @Prop({ type: [SchemaFactory.createForClass(ScriptChat)], default: [] })
+  childrens: ScriptChat[];
+}
+export const ScriptChatSchema = SchemaFactory.createForClass(ScriptChat);
+
 export const RatingSchema = SchemaFactory.createForClass(Rating);
+
 @Schema({
   timestamps: true,
 })
@@ -50,6 +73,9 @@ export class HelpDeskBusiness {
 
   @Prop({ type: [RatingSchema], default: [] })
   ratings: Rating[];
+
+  @Prop({ type: ScriptChatSchema })
+  scriptChat: ScriptChat;
 }
 
 export const HelpDeskBusinessSchema =

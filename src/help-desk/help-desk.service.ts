@@ -23,6 +23,7 @@ import {
 import { queryReportByType } from 'src/common/utils/query-report';
 import { ChartQueryDto, RatingQueryDto } from './dto/chart-query-dto';
 import { duration } from 'moment';
+import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
 
 @Injectable()
 export class HelpDeskService {
@@ -79,9 +80,9 @@ export class HelpDeskService {
     };
   }
 
-  async createOrEditBusiness(userId: string, info: Partial<HelpDeskBusiness>) {
-    info.user = userId;
+  async createOrEditBusiness(userId: string, info: CreateOrEditBusinessDto) {
     info.status = StatusBusiness.ACTIVE;
+
     const user = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
         user: userId,

@@ -1,15 +1,26 @@
 
 ####
 PUT http://localhost:8080/api/help-desk/create-or-edit-business
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMjczMSwiZXhwIjoxNzEwNDA5MTMxfQ.Uc1Ow7yfRlsEmI9Z07N9IP0eVBo1VAqsArKivSlSu6E
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU2Y2ZiOWNkMzhhY2E2Y2QyNmQzYyIsImlhdCI6MTcxMjA0NTQyNCwiZXhwIjoxNzEyMTMxODI0fQ.3WWKYCWy41oRDv8KeMsAOvDwdG_JfDxga-LAMvhkPuA
 Content-Type: application/json
 
 {
-  "domains": ["https://test-ttalk.onrender.com","http://localhost:3001"],
+  "domains": ["https://test-ttalk.onrender.com", "http://localhost:3001"],
   "color": "redss",
   "language": "vis",
   "firstMessage": "Xin chào",
-  "firstMessageEnglish":"Hi, how can I help you?"
+  "firstMessageEnglish": "Hi, how can I help you123?",
+  "scriptChat": {
+    "content": "Root Node",
+    "type": "button",
+    "childrens": [
+      {
+        "content": "Child Node 1",
+        "type": "message",
+        "childrens": []
+      }
+    ]
+  }
 }
 
 ###
