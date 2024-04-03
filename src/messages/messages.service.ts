@@ -264,8 +264,20 @@ export class MessagesService {
     createdMessage.media = createMessageDto.media || [];
     createdMessage.language = createMessageDto.language || '';
     createdMessage.type = createMessageDto.type || MessageType.TEXT;
+
     if (createdMessage.media.length > 0) {
       createdMessage.type = MessageType.MEDIA;
+    }
+
+    if (createMessageDto.mentions && createMessageDto.mentions.length > 0) {
+      const mentions = createMessageDto.mentions.filter((id) =>
+        Types.ObjectId.isValid(id),
+      );
+      if (mentions.length > 0) {
+        createdMessage.mentions = await this.usersService.findManyByIds(
+          mentions,
+        );
+      }
     }
     createdMessage.room = room;
     createdMessage.readBy = [user._id];
@@ -291,6 +303,7 @@ export class MessagesService {
       socketConfig.events.message.reply.new,
       socketPayload,
     );
+
     this.sendReplyMessageNotification(newMessage);
     await this.update(id, { hasChild: true });
     return newMessage;
@@ -503,7 +516,6 @@ export class MessagesService {
     }
 
     const roomId = message.room._id.toString();
-
     const allReplies = await this.getReplies(
       message.parent._id.toString(),
       message.sender._id.toString(),
@@ -516,14 +528,21 @@ export class MessagesService {
 
     targetUserIds.push(parentMessage.sender._id.toString());
 
+    // push all mentions in replies
     allReplies.forEach((reply) => {
       targetUserIds.push(
         ...reply.mentions.map((mention) => mention._id.toString()),
       );
     });
+    // push all mentions in parent message
     parentMessage.mentions.forEach((mention) => {
       targetUserIds.push(mention._id.toString());
     });
+
+    // push all mentions in current message
+    targetUserIds.push(
+      ...message.mentions.map((mention) => mention._id.toString()),
+    );
 
     // unique targetUserIds
     targetUserIds = [...new Set(targetUserIds)];
@@ -531,6 +550,8 @@ export class MessagesService {
     targetUserIds = targetUserIds.filter(
       (id) => id !== message.sender._id.toString(),
     );
+
+    console.log(targetUserIds, 'targetUserIds');
 
     const userIgnoredNotification =
       await this.notificationService.getUsersIgnoringRoom(roomId);
