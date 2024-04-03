@@ -28,8 +28,6 @@ export class ScriptChat extends Document {
   id: string;
   @Prop({ type: String, required: true })
   content: string;
-  @Prop({ type: String, required: true })
-  language: string;
   @Prop({ type: String, default: 'message' })
   type: TreeNodeType;
   @Prop({ type: Array, default: [] })
