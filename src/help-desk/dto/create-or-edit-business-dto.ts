@@ -59,7 +59,7 @@ export class CreateOrEditBusinessDto {
   @ApiProperty()
   @ValidateNested()
   @Type(() => ScriptChatDto)
-  scriptChat: ScriptChatDto;
+  scriptChat: ScriptChatDto | null;
 
   status: StatusBusiness;
 }

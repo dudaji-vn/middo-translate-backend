@@ -85,8 +85,11 @@ export class HelpDeskService {
 
   async createOrEditBusiness(userId: string, info: CreateOrEditBusinessDto) {
     info.status = StatusBusiness.ACTIVE;
-    info.scriptChat = await this.insertTreeChatScript(info.scriptChat);
-    console.log(info.scriptChat);
+    if (info.scriptChat) {
+      info.scriptChat = await this.insertTreeChatScript(info.scriptChat);
+    } else {
+      info.scriptChat = null;
+    }
 
     const user = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
