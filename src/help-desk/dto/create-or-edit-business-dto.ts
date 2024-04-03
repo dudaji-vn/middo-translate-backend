@@ -3,14 +3,17 @@ import {
   ArrayMaxSize,
   IsArray,
   IsEnum,
+  IsObject,
   IsString,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 import { Media } from 'src/messages/schemas/messages.schema';
 import {
   StatusBusiness,
   TreeNodeType,
 } from '../schemas/help-desk-business.schema';
+import { Type } from 'class-transformer';
 
 export class ScriptChatDto {
   parentId: string | null;
@@ -19,16 +22,14 @@ export class ScriptChatDto {
   @IsString()
   content: string;
 
-  @IsString()
-  language: string;
-
   @IsEnum(TreeNodeType)
   type: TreeNodeType;
 
-  @IsArray()
   media: Media[];
 
   @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ScriptChatDto)
   childrens: ScriptChatDto[];
 }
 export class CreateOrEditBusinessDto {
@@ -56,6 +57,8 @@ export class CreateOrEditBusinessDto {
   firstMessageEnglish: string;
 
   @ApiProperty()
+  @ValidateNested()
+  @Type(() => ScriptChatDto)
   scriptChat: ScriptChatDto;
 
   status: StatusBusiness;

@@ -765,7 +765,6 @@ export class HelpDeskService {
       media: nodeData.media,
       parentId: parent ? parent.id : null,
       childrens: [],
-      language: nodeData.language,
       id: generateSlug(),
     };
 
