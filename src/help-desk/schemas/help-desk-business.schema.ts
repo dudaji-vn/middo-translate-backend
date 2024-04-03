@@ -22,8 +22,10 @@ export class Rating extends Document {
   user: User;
 }
 
-@Schema()
+@Schema({ _id: false })
 export class ScriptChat extends Document {
+  @Prop({ type: String, required: true })
+  id: string;
   @Prop({ type: String, required: true })
   content: string;
   @Prop({ type: String, required: true })
@@ -32,8 +34,18 @@ export class ScriptChat extends Document {
   type: TreeNodeType;
   @Prop({ type: Array, default: [] })
   media: Media[];
-  @Prop({ type: [SchemaFactory.createForClass(ScriptChat)], default: [] })
+
+  @Prop({
+    type: [{ type: mongoose.Types.ObjectId, ref: 'ScriptChat' }],
+    default: [],
+    ref: 'ScriptChat',
+  })
   childrens: ScriptChat[];
+
+  @Prop({
+    type: String,
+  })
+  parentId: string;
 }
 export const ScriptChatSchema = SchemaFactory.createForClass(ScriptChat);
 

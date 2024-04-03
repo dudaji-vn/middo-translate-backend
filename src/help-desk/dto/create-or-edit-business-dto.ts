@@ -13,6 +13,9 @@ import {
 } from '../schemas/help-desk-business.schema';
 
 export class ScriptChatDto {
+  parentId: string | null;
+  id: string | null;
+
   @IsString()
   content: string;
 

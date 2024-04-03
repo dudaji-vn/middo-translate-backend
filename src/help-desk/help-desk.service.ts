@@ -22,8 +22,11 @@ import {
 } from './schemas/help-desk-business.schema';
 import { queryReportByType } from 'src/common/utils/query-report';
 import { ChartQueryDto, RatingQueryDto } from './dto/chart-query-dto';
-import { duration } from 'moment';
-import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
+
+import {
+  CreateOrEditBusinessDto,
+  ScriptChatDto,
+} from './dto/create-or-edit-business-dto';
 
 @Injectable()
 export class HelpDeskService {
@@ -82,6 +85,8 @@ export class HelpDeskService {
 
   async createOrEditBusiness(userId: string, info: CreateOrEditBusinessDto) {
     info.status = StatusBusiness.ACTIVE;
+    info.scriptChat = await this.insertTreeChatScript(info.scriptChat);
+    console.log(info.scriptChat);
 
     const user = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
@@ -748,5 +753,33 @@ export class HelpDeskService {
   }
   async getChartAverageResponseChat(payload: ChartQueryDto) {
     return this.roomsService.getChartAverageResponseChat(payload);
+  }
+
+  async insertNodeChatScript(
+    nodeData: ScriptChatDto,
+    parent: ScriptChatDto | null = null,
+  ) {
+    const newNode = {
+      content: nodeData.content,
+      type: nodeData.type,
+      media: nodeData.media,
+      parentId: parent ? parent.id : null,
+      childrens: [],
+      language: nodeData.language,
+      id: generateSlug(),
+    };
+
+    if (parent) {
+      parent.childrens.push(newNode);
+    }
+
+    for (const childData of nodeData.childrens) {
+      await this.insertNodeChatScript(childData, newNode);
+    }
+    return newNode;
+  }
+
+  async insertTreeChatScript(rootNodeData: ScriptChatDto) {
+    return await this.insertNodeChatScript(rootNodeData);
   }
 }
