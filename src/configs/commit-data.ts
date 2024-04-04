@@ -1,2 +1,2 @@
-export const COMMIT_SHA_BACKEND = '1d799308fa115765e3d15ff33773182db9815143'
-export const LATEST_TAG = 'v0.0.8'
+export const COMMIT_SHA_BACKEND = '';
+export const LATEST_TAG = '';
