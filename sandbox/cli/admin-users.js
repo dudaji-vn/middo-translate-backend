@@ -1,13 +1,13 @@
+/* eslint-disable no-undef */
 const { MongoClient } = require('mongodb');
 const Table = require('cli-table');
-require('dotenv').config()
+require('dotenv').config();
 const url = process.env.DATABASE_URI;
 const dbName = process.env.DATABASE_NAME;
 
 async function _getUsers(client) {
     await client.connect();
     const db = client.db(dbName);
-
     const c = db.collection('users');
     const r = await c.find({}).toArray();
 
@@ -23,7 +23,6 @@ async function _getUsers(client) {
     return true;
 }
 
-
 function getUsers() {
     const client = new MongoClient(url);
     _getUsers(client)
@@ -32,5 +31,5 @@ function getUsers() {
 }
 
 module.exports = {
-    getUsers,
+    getUsers
 }

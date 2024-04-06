@@ -1,3 +1,4 @@
+/* eslint-disable no-undef */
 const { MongoClient } = require('mongodb');
 const Table = require('cli-table');
 require('dotenv').config()
@@ -12,7 +13,7 @@ async function _getDailyMsgStat(client) {
 
     const pipeline = [
         { $group: { _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }, count: { $sum: 1 } } },
-        { $sort: { _id : -1 }}
+        { $sort: { _id: -1 } }
     ];
 
     const cursor = await c.aggregate(pipeline);
