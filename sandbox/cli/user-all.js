@@ -16,8 +16,10 @@ async function signIn(email, password) {
     }).then((res) => res.json());
 
     const accessToken = response?.data?.accessToken;
+    const user = response?.data?.user;
+    console.log(user._id);
     // const refreshToken = response?.data?.refreshToken;
-    return accessToken;
+    return { token: accessToken, userId: user._id };
 }
 
 async function getRooms(token) {
