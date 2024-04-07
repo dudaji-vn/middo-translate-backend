@@ -4,22 +4,43 @@ const { format, transports } = require('winston');
 const path = require('path');
 const PROJECT_ROOT = path.join(__dirname);
 
+const popLocationInfoItShouldCalledOnedInGlobalFormatter = format(function (info) {
+    const location = info.message.shift();
+    info.location = location;
+    return info;
+});
+
+const dudajiFormat = format.printf(function (info) {
+    const { timestamp, level, location, message } = info;
+    return `${timestamp} [${location}] ${level}: ${message}`;
+});
+
+const timezoned = () => {
+    return new Date().toLocaleString();
+}
+
 const logger = winston.createLogger({
     format: format.combine(
-        format.timestamp(),
-        format.colorize(),
-        format.simple(),
+        popLocationInfoItShouldCalledOnedInGlobalFormatter()
     ),
     transports: [
         new winston.transports.File({
+            level: 'debug',
             format: format.combine(
-                format.timestamp(),
-                format.uncolorize(),
+                format.timestamp({ format: timezoned }),
+                format.splat(),
                 format.prettyPrint()
             ),
-            filename: 'cli.log'
+            filename: path.join(PROJECT_ROOT, 'cli.log')
         }),
-        new transports.Console()
+        new transports.Console({
+            level: 'info',
+            format: format.combine(
+                format.timestamp({ format: timezoned }),
+                format.colorize(),
+                dudajiFormat,
+            ),
+        })
     ]
 })
 
@@ -33,19 +54,19 @@ logger.stream = {
 // code and still possible to replace winston in the future.
 
 module.exports.debug = module.exports.log = function () {
-    logger.debug(formatLogArguments(arguments))
+    logger.debug(pushLocationInfo(arguments))
 }
 
 module.exports.info = function () {
-    logger.info(formatLogArguments(arguments))
+    logger.info(pushLocationInfo(arguments))
 }
 
 module.exports.warn = function () {
-    logger.warn(formatLogArguments(arguments))
+    logger.warn(pushLocationInfo(arguments))
 }
 
 module.exports.error = function () {
-    logger.error(formatLogArguments(arguments))
+    logger.error(pushLocationInfo(arguments))
 }
 
 module.exports.stream = logger.stream
@@ -53,22 +74,13 @@ module.exports.stream = logger.stream
 /**
  * Attempts to add file and line number info to the given log arguments.
  */
-function formatLogArguments(args) {
+function pushLocationInfo(args) {
     args = Array.prototype.slice.call(args);
     var stackInfo = getStackInfo(1)
 
     if (stackInfo) {
-        // get file path relative to project root
-        var calleeStr = '(' + stackInfo.relativePath + ':' + stackInfo.line + ')'
+        var calleeStr = stackInfo.relativePath + ':' + stackInfo.line;
         args.unshift(calleeStr);
-        // if (typeof args[0] === 'string') {
-        //     args[0] = calleeStr + ' ' + args[0];
-        //     // args[0] = `log${arrow} ${args[0]}`;
-        // } else {
-        //     // const logging = highlight('Logging below\u2B07 ');
-        //     // console.log(calleeStrHl, logging);
-        //     // console.log(JSON.stringify(args, null, 2));
-        // }
     }
     return args
 }

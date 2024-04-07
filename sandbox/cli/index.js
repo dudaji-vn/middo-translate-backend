@@ -2,17 +2,92 @@
 "use strict";
 
 const { io } = require("socket.io-client");
-
 const commander = require("commander");
 const { exec } = require("child_process");
 const fs = require("fs");
+const logger = require('./logger.js');
+const { getUsers, getDailyMsgStat } = require('./admin.js');
+
 const program = new commander.Command();
 
-const { signIn, getRooms, postMsg } = require('./user-all.js');
-const { getUsers } = require('./admin-users.js');
-const { getDailyMsgStat } = require('./admin-msgs.js');
+async function signIn(email, password) {
+    const url = `http://${process.env.BACKEND_ADDRESS}/api/auth/sign-in`;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
 
-const logger = require('./logger.js');
+        body: JSON.stringify({
+            email,
+            password,
+        }),
+    }).then((res) => res.json());
+    logger.debug(response);
+    const accessToken = response?.data?.accessToken;
+    const user = response?.data?.user;
+    return { token: accessToken, userId: user._id };
+}
+
+async function getRooms(token) {
+    // const accessToken = response?.data?.accessToken;
+    // const refreshToken = response?.data?.refreshToken;
+    const url = `http://${process.env.BACKEND_ADDRESS}/api/rooms?limit=100&type=all`;
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+        }
+    }).then((res) => res.json());
+    return response.data.items;
+}
+
+async function postMsg(token, roomId, msg) {
+    const body = {
+        roomId,
+        content: msg,
+        clientTempId: token,
+    };
+
+    const url = `http://${process.env.BACKEND_ADDRESS}/api/messages`;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+    }).then((res) => res.json());
+    return response;
+}
+
+async function connectSocket(email) {
+    const socket = io(`http://${process.env.BACKEND_ADDRESS}`);
+    socket.on('connect', () => {
+        const userId = fs.readFileSync(`.${email}.id`, 'utf8').trim();
+        logger.info('connect', userId);
+        socket.emit('client.join', userId);
+    })
+
+    socket.on('disconnect', () => {
+        logger.info('disconnect');
+    })
+
+    socket.on("connect_error", (error) => {
+        logger.info(error.message);
+    });
+
+    socket.on("client.list", (data) => {
+        logger.info("on(client.list)", data);
+    });
+
+    socket.on("message.new", (data) => {
+        logger.info("on(message.new)", data);
+    });
+    socket.connect();
+    return socket;
+}
 
 program.name('middo-cli').description('CLI for middo').version('0.0.1');
 
@@ -35,6 +110,10 @@ program.command('sign-in')
     .action(async function (options) {
         const { email, password } = options
         const { token, userId } = await signIn(email, password);
+        // logger.info(`token: ${token}, userId: ${userId}`);
+        if (token && userId) {
+            logger.info(`success sign-in`);
+        }
         await exec(`echo ${token} > .${email}.token`);
         await exec(`echo ${userId} > .${email}.id`);
     });
@@ -76,33 +155,6 @@ program.command('post-msg')
 
         logger.info(response);
     });
-
-async function connectSocket(email) {
-    const socket = io(`http://${process.env.BACKEND_ADDRESS}`);
-    socket.on('connect', () => {
-        const userId = fs.readFileSync(`.${email}.id`, 'utf8').trim();
-        logger.info('connect', userId);
-        socket.emit('client.join', userId);
-    })
-
-    socket.on('disconnect', () => {
-        logger.info('disconnect');
-    })
-
-    socket.on("connect_error", (error) => {
-        logger.info(error.message);
-    });
-
-    socket.on("client.list", (data) => {
-        logger.info("on(client.list)", data);
-    });
-
-    socket.on("message.new", (data) => {
-        logger.info("on(message.new)", data);
-    });
-    socket.connect();
-    return socket;
-}
 
 program.command('socket-connect')
     .description('socket connect')
