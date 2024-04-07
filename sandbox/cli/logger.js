@@ -11,65 +11,76 @@ const popLocationInfoItShouldCalledOnedInGlobalFormatter = format(function (info
 });
 
 const dudajiFormat = format.printf(function (info) {
-    const { timestamp, level, location, message } = info;
-    return `${timestamp} [${location}] ${level}: ${message}`;
+    const { timestamp, label, level, location, message } = info;
+    return `${timestamp} [${location}] ${label} ${level}: ${message}`;
 });
 
 const timezoned = () => {
     return new Date().toLocaleString();
 }
 
-const logger = winston.createLogger({
-    format: format.combine(
-        popLocationInfoItShouldCalledOnedInGlobalFormatter()
-    ),
-    transports: [
-        new winston.transports.File({
-            level: 'debug',
-            format: format.combine(
-                format.timestamp({ format: timezoned }),
-                format.splat(),
-                format.prettyPrint()
-            ),
-            filename: path.join(PROJECT_ROOT, 'cli.log')
-        }),
-        new transports.Console({
-            level: 'info',
-            format: format.combine(
-                format.timestamp({ format: timezoned }),
-                format.colorize(),
-                dudajiFormat,
-            ),
-        })
-    ]
-})
+const getLabelLogger = function (label) {
+    const _l = winston.createLogger({
+        format: format.combine(
+            popLocationInfoItShouldCalledOnedInGlobalFormatter()
+        ),
+        transports: [
+            new winston.transports.File({
+                level: 'debug',
+                format: format.combine(
+                    format.label({ label }),
+                    format.timestamp({ format: timezoned }),
+                    format.splat(),
+                    format.prettyPrint()
+                ),
+                filename: path.join(PROJECT_ROOT, 'cli.log')
+            }),
+            new transports.Console({
+                level: 'info',
+                format: format.combine(
+                    format.label({ label }),
+                    format.timestamp({ format: timezoned }),
+                    format.colorize(),
+                    dudajiFormat,
+                ),
+            })
+        ]
+    })
 
-logger.stream = {
-    write: function (message) {
-        logger.info(message)
+    _l.stream = {
+        write: function (message) {
+            _l.info(message)
+        }
     }
+
+    const l = { _logger: _l };
+
+    l.debug = l.log = function () {
+        _l.debug(pushLocationInfo(arguments));
+    }
+
+    l.info = function () {
+        _l.info(pushLocationInfo(arguments));
+    }
+
+    l.warn = function () {
+        _l.warn(pushLocationInfo(arguments));
+    }
+
+    l.error = function () {
+        _l.error(pushLocationInfo(arguments));
+    }
+    l.stream = _l.stream;
+
+    return l;
 }
 
-// A custom logger interface that wraps winston, making it easy to instrument
-// code and still possible to replace winston in the future.
+const logger = getLabelLogger('');
 
-module.exports.debug = module.exports.log = function () {
-    logger.debug(pushLocationInfo(arguments))
-}
-
-module.exports.info = function () {
-    logger.info(pushLocationInfo(arguments))
-}
-
-module.exports.warn = function () {
-    logger.warn(pushLocationInfo(arguments))
-}
-
-module.exports.error = function () {
-    logger.error(pushLocationInfo(arguments))
-}
-
-module.exports.stream = logger.stream
+module.exports = {
+    logger,
+    getLabelLogger,
+};
 
 /**
  * Attempts to add file and line number info to the given log arguments.
