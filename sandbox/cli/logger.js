@@ -4,7 +4,7 @@ const { format, transports } = require('winston');
 const path = require('path');
 const PROJECT_ROOT = path.join(__dirname);
 
-const popLocationInfoItShouldCalledOnedInGlobalFormatter = format(function (info) {
+const popLocationInfoItShouldCalledOnceInGlobalFormatter = format(function (info) {
     const location = info.message.shift();
     info.location = location;
     return info;
@@ -22,7 +22,7 @@ const timezoned = () => {
 const getLabelLogger = function (label) {
     const _l = winston.createLogger({
         format: format.combine(
-            popLocationInfoItShouldCalledOnedInGlobalFormatter()
+            popLocationInfoItShouldCalledOnceInGlobalFormatter()
         ),
         transports: [
             new winston.transports.File({
