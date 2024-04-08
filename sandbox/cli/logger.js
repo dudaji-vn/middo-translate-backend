@@ -12,7 +12,12 @@ const popLocationInfoItShouldCalledOnceInGlobalFormatter = format(function (info
 
 const dudajiFormat = format.printf(function (info) {
     const { timestamp, label, level, location, message } = info;
-    return `${timestamp} [${location}] ${label} ${level}: ${message}`;
+    if (label) {
+        return `${timestamp} [${location}] ${label} ${level}: ${message}`;
+    }
+    else {
+        return `${timestamp} [${location}] ${level}: ${message}`;
+    }
 });
 
 const timezoned = () => {
@@ -33,7 +38,7 @@ const getLabelLogger = function (label) {
                     format.splat(),
                     format.prettyPrint()
                 ),
-                filename: path.join(PROJECT_ROOT, 'cli.log')
+                filename: path.join(PROJECT_ROOT, `cli.${label}.log`)
             }),
             new transports.Console({
                 level: 'info',

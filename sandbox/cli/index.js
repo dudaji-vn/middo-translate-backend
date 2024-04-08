@@ -5,8 +5,11 @@ const { io } = require("socket.io-client");
 const commander = require("commander");
 const { exec } = require("child_process");
 const fs = require("fs");
-const { logger } = require('./logger.js');
+
 const { getUsers, getDailyMsgStat } = require('./admin.js');
+const { logger } = require('./logger.js');
+// const { getLabelLogger } = require('./logger.js');
+// const logger = getLabelLogger('custom');
 
 const program = new commander.Command();
 
