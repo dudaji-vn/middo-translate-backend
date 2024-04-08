@@ -80,7 +80,7 @@ const getLabelLogger = function (label) {
     return l;
 }
 
-const logger = getLabelLogger('');
+const logger = getLabelLogger('main');
 
 module.exports = {
     logger,
