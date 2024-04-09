@@ -15,22 +15,9 @@ import {
 } from '../schemas/help-desk-business.schema';
 import { Type } from 'class-transformer';
 
-export class ScriptChatDto {
-  parentId: string | null;
-  id: string | null;
-
-  @IsString()
-  content: string;
-
-  @IsEnum(TreeNodeType)
-  type: TreeNodeType;
-
-  media: Media[];
-
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ScriptChatDto)
-  childrens: ScriptChatDto[];
+export class ChatFlowDto {
+  edges: any;
+  nodes: any;
 }
 export class CreateOrEditBusinessDto {
   @ApiProperty()
@@ -58,8 +45,8 @@ export class CreateOrEditBusinessDto {
 
   @ApiProperty()
   @ValidateNested()
-  @Type(() => ScriptChatDto)
-  scriptChat: ScriptChatDto | null;
+  @Type(() => ChatFlowDto)
+  chatFlow: ChatFlowDto | null;
 
   status: StatusBusiness;
 }
