@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
-import { Model, ObjectId } from 'mongoose';
+import { Model, ObjectId, Types } from 'mongoose';
 import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import { MessagesService } from 'src/messages/messages.service';
@@ -17,6 +17,7 @@ import { CreateRatingDto } from './dto/create-rating.dto';
 import { EditClientDto } from './dto/edit-client-dto';
 import {
   HelpDeskBusiness,
+  MemberStatus,
   Rating,
   StatusBusiness,
 } from './schemas/help-desk-business.schema';
@@ -25,8 +26,9 @@ import { ChartQueryDto, RatingQueryDto } from './dto/chart-query-dto';
 
 import {
   CreateOrEditBusinessDto,
-  ScriptChatDto,
+  ChatFlowDto,
 } from './dto/create-or-edit-business-dto';
+import { CreateOrEditSpaceDto } from './dto/create-or-edit-space-dto';
 
 @Injectable()
 export class HelpDeskService {
@@ -85,11 +87,6 @@ export class HelpDeskService {
 
   async createOrEditBusiness(userId: string, info: CreateOrEditBusinessDto) {
     info.status = StatusBusiness.ACTIVE;
-    if (info.scriptChat) {
-      info.scriptChat = await this.insertTreeChatScript(info.scriptChat);
-    } else {
-      info.scriptChat = null;
-    }
 
     const user = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
@@ -99,6 +96,67 @@ export class HelpDeskService {
       { new: true, upsert: true },
     );
     return user;
+  }
+  async createOrEditSpace(userId: string, space: CreateOrEditSpaceDto) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    space.members = space.members.filter((item) => item.email !== user.email);
+    const business = await this.helpDeskBusinessModel.findOneAndUpdate(
+      {
+        user: userId,
+      },
+      space,
+      { new: true, upsert: true },
+    );
+    return business;
+  }
+
+  async getSpacesBy(userId: string, type: 'my-spaces' | 'joined-spaces') {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    let dataPromise;
+    switch (type) {
+      case 'my-spaces':
+        dataPromise = this.helpDeskBusinessModel.find({
+          user: userId,
+        });
+        break;
+      case 'joined-spaces':
+        dataPromise = this.helpDeskBusinessModel.find({
+          members: {
+            $elemMatch: {
+              email: user.email,
+              status: MemberStatus.JOINED,
+            },
+          },
+        });
+        break;
+      default:
+        dataPromise = this.helpDeskBusinessModel.find({
+          $or: [
+            {
+              members: {
+                $elemMatch: {
+                  email: user.email,
+                  status: MemberStatus.INVITED,
+                },
+              },
+            },
+            {
+              user: userId,
+            },
+          ],
+        });
+    }
+    return {
+      data: await dataPromise.select(
+        'name avatar backgroundImage joinedAt createdAt',
+      ),
+    };
   }
 
   async getBusinessByUser(userId: string) {
@@ -758,30 +816,63 @@ export class HelpDeskService {
     return this.roomsService.getChartAverageResponseChat(payload);
   }
 
-  async insertNodeChatScript(
-    nodeData: ScriptChatDto,
-    parent: ScriptChatDto | null = null,
-  ) {
-    const newNode = {
-      content: nodeData.content,
-      type: nodeData.type,
-      media: nodeData.media,
-      parentId: parent ? parent.id : null,
-      childrens: [],
-      id: generateSlug(),
-    };
+  // async insertNodeChatScript(
+  //   nodeData: ChatFlowDto,
+  //   parent: ChatFlowDto | null = null,
+  // ) {
+  //   const newNode = {
+  //     content: nodeData.content,
+  //     type: nodeData.type,
+  //     media: nodeData.media,
+  //     parentId: parent ? parent.id : null,
+  //     contentEnglish: nodeData.contentEnglish,
+  //     childrens: [],
+  //     id: generateSlug(),
+  //   };
 
-    if (parent) {
-      parent.childrens.push(newNode);
-    }
+  //   if (parent) {
+  //     parent.childrens.push(newNode);
+  //   }
 
-    for (const childData of nodeData.childrens) {
-      await this.insertNodeChatScript(childData, newNode);
-    }
-    return newNode;
-  }
+  //   for (const childData of nodeData.childrens) {
+  //     await this.insertNodeChatScript(childData, newNode);
+  //   }
+  //   return newNode;
+  // }
 
-  async insertTreeChatScript(rootNodeData: ScriptChatDto) {
-    return await this.insertNodeChatScript(rootNodeData);
-  }
+  // async insertTreeChatScript(rootNodeData: ChatFlowDto) {
+  //   return await this.insertNodeChatScript(rootNodeData);
+  // }
+
+  // async getRecommendChatByBusinessAndParentId(
+  //   businessId: string,
+  //   parentId: string,
+  // ) {
+  //   const business = await this.helpDeskBusinessModel
+  //     .findById(businessId)
+  //     .select('-members');
+  //   if (!business) {
+  //     throw new BadRequestException('business not found');
+  //   }
+  //   const result = await this.findScriptByParentId(
+  //     business.chatFlowSchema,
+  //     parentId,
+  //   );
+  //   return result;
+  // }
+  // async findScriptByParentId(
+  //   data: ChatFlowDto,
+  //   parentId: string,
+  // ): Promise<ChatFlowDto[] | undefined> {
+  //   if (data.childrens.length === 0) {
+  //     return [];
+  //   }
+  //   const result = data.childrens.filter((item) => item.parentId === parentId);
+  //   if (result.length > 0) {
+  //     return result;
+  //   }
+  //   for (const item of data.childrens) {
+  //     return this.findScriptByParentId(item, parentId);
+  //   }
+  // }
 }
