@@ -1,7 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
 import { User } from 'src/users/schemas/user.schema';
-import { Media } from 'src/messages/schemas/messages.schema';
+import { ChatFlow, ChatFlowSchema } from './chat-flow.schema';
 
 export enum StatusBusiness {
   DELETED = 'deleted',
@@ -14,6 +14,16 @@ export enum TreeNodeType {
   FORM = 'form',
 }
 
+export enum MemberStatus {
+  INVITED = 'invited',
+  JOINED = 'joined',
+}
+
+export enum ROLE {
+  ADMIN = 'admin',
+  MEMBER = 'member',
+}
+
 @Schema({ _id: false, timestamps: true }) // _id: false because this is a subdocument
 export class Rating extends Document {
   @Prop({ type: Number, required: true })
@@ -23,31 +33,26 @@ export class Rating extends Document {
 }
 
 @Schema({ _id: false })
-export class ScriptChat extends Document {
-  @Prop({ type: String, required: true })
-  id: string;
-  @Prop({ type: String, required: true })
-  content: string;
-  @Prop({ type: String, default: 'message' })
-  type: TreeNodeType;
-  @Prop({ type: Array, default: [] })
-  media: Media[];
+export class Member {
+  @Prop({ type: String, default: MemberStatus.INVITED })
+  status: MemberStatus;
 
-  @Prop({
-    type: [{ type: mongoose.Types.ObjectId, ref: 'ScriptChat' }],
-    default: [],
-    ref: 'ScriptChat',
-  })
-  childrens: ScriptChat[];
+  @Prop({ type: String, default: ROLE.MEMBER })
+  role: ROLE;
 
-  @Prop({
-    type: String,
-  })
-  parentId: string;
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
+  user: User;
+
+  @Prop({ type: String })
+  email: string;
+
+  @Prop({ type: Date })
+  joinedAt: Date;
 }
-export const ScriptChatSchema = SchemaFactory.createForClass(ScriptChat);
 
 export const RatingSchema = SchemaFactory.createForClass(Rating);
+
+export const MemberSchema = SchemaFactory.createForClass(Member);
 
 @Schema({
   timestamps: true,
@@ -62,6 +67,27 @@ export class HelpDeskBusiness {
     unique: true,
   })
   user: User | string;
+
+  @Prop({
+    type: String,
+  })
+  name: string;
+
+  @Prop({
+    type: String,
+  })
+  avatar: string;
+
+  @Prop({
+    type: String,
+  })
+  backgroundImage: string;
+
+  @Prop({
+    type: [MemberSchema],
+    default: [],
+  })
+  members: Member;
 
   @Prop({ type: Array })
   domains: string[];
@@ -84,8 +110,8 @@ export class HelpDeskBusiness {
   @Prop({ type: [RatingSchema], default: [] })
   ratings: Rating[];
 
-  @Prop({ type: ScriptChatSchema })
-  scriptChat: ScriptChat;
+  @Prop({ type: ChatFlowSchema })
+  chatFlow: ChatFlow;
 }
 
 export const HelpDeskBusinessSchema =
