@@ -87,6 +87,9 @@ export class HelpDeskService {
 
   async createOrEditBusiness(userId: string, info: CreateOrEditBusinessDto) {
     info.status = StatusBusiness.ACTIVE;
+    if (!info.chatFlow) {
+      info.chatFlow = null;
+    }
 
     const user = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
