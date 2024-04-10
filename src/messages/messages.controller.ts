@@ -60,6 +60,19 @@ export class MessagesController {
     };
   }
 
+  @Patch(':id/translate')
+  async translateMessage(
+    @ParamObjectId() id: string,
+    @JwtUserId() userId: string,
+    @Body() { to }: { to: string },
+  ) {
+    const message = await this.messagesService.translate(id, userId, to);
+    return {
+      data: message,
+      message: 'Message translated',
+    };
+  }
+
   @Patch(':id/seen')
   async seenMessage(@ParamObjectId() id: string, @JwtUserId() userId: string) {
     await this.messagesService.seen(id, userId);
