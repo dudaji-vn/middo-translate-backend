@@ -3,6 +3,7 @@ import mongoose, { Document, HydratedDocument, ObjectId } from 'mongoose';
 import { Call } from 'src/call/schemas/call.schema';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { User } from 'src/users/schemas/user.schema';
+import { NodeChatFlowDto } from 'src/help-desk/dto/node-chat-dto';
 
 @Schema({ _id: false }) // _id: false because this is a subdocument
 export class Reaction extends Document {
@@ -32,8 +33,7 @@ export enum MessageType {
   FORWARD = 'forward',
   NOTIFICATION = 'notification',
   ACTION = 'action',
-  BUTTON = 'button',
-  FORM = 'form',
+  FLOW_ACTIONS = 'flow-actions',
 }
 
 export enum MediaTypes {
@@ -103,7 +103,7 @@ export class Message {
   media: Media[];
 
   @Prop({ type: Array, default: [] })
-  actions: Action[];
+  actions: NodeChatFlowDto[];
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Room', index: true })
   room: Room;

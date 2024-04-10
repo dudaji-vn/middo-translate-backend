@@ -1,12 +1,13 @@
+import { Type } from 'class-transformer';
+import { NodeChatFlowDto } from 'src/help-desk/dto/node-chat-dto';
 import {
-  Action,
   ActionTypes,
   Media,
   MessageType,
   SenderType,
 } from '../schemas/messages.schema';
 
-import { IsMongoId } from 'class-validator';
+import { IsMongoId, ValidateNested } from 'class-validator';
 
 export class CreateMessageDto {
   content?: string;
@@ -24,5 +25,8 @@ export class CreateMessageDto {
   businessUserId?: string;
   action?: ActionTypes;
   senderType?: SenderType;
-  actions?: Action[];
+
+  @ValidateNested({ each: true })
+  @Type(() => NodeChatFlowDto)
+  actions?: NodeChatFlowDto[];
 }
