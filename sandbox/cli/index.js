@@ -1,45 +1,206 @@
+/* eslint-disable no-undef */
 "use strict";
 
+const { io } = require("socket.io-client");
 const commander = require("commander");
+const { exec } = require("child_process");
+const fs = require("fs");
+
+const { getUsers, getDailyMsgStat } = require('./admin.js');
+const { logger } = require('./logger.js');
+// const { getLabelLogger } = require('./logger.js');
+// const logger = getLabelLogger('custom');
+
 const program = new commander.Command();
 
-const { getUsers } = require('./users.js');
-const { getDailyMsgStat } = require('./msgs.js');
-const { get } = require("http");
+async function signIn(email, password) {
+    const url = `http://${process.env.BACKEND_ADDRESS}/api/auth/sign-in`;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
 
-program
-    .name('middo-cli')
-    .description('CLI for middo')
-    .version('0.0.1');
+        body: JSON.stringify({
+            email,
+            password,
+        }),
+    }).then((res) => res.json());
+    logger.debug(response);
+    const accessToken = response?.data?.accessToken;
+    const user = response?.data?.user;
+    return { token: accessToken, userId: user._id };
+}
 
-program.command('get-users')
-    .description('Get users')
-    .action(function () {
-        getUsers();
+async function getRooms(token) {
+    // const accessToken = response?.data?.accessToken;
+    // const refreshToken = response?.data?.refreshToken;
+    const url = `http://${process.env.BACKEND_ADDRESS}/api/rooms?limit=100&type=all`;
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+        }
+    }).then((res) => res.json());
+    return response.data.items;
+}
+
+async function postMsg(token, roomId, msg) {
+    const body = {
+        roomId,
+        content: msg,
+        clientTempId: token,
+    };
+
+    const url = `http://${process.env.BACKEND_ADDRESS}/api/messages`;
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(body)
+    }).then((res) => res.json());
+    return response;
+}
+
+async function connectSocket(email) {
+    const socket = io(`http://${process.env.BACKEND_ADDRESS}`);
+    socket.on('connect', () => {
+        const userId = fs.readFileSync(`.${email}.id`, 'utf8').trim();
+        logger.info('connect', userId);
+        socket.emit('client.join', userId);
+    })
+
+    socket.on('disconnect', () => {
+        logger.info('disconnect');
+    })
+
+    socket.on("connect_error", (error) => {
+        logger.info(error.message);
     });
 
-program.command('get-daily-msg-stat')
-    .description('Get daily msg stat')
-    .action(function () {
-        getDailyMsgStat();
+    socket.on("client.list", (data) => {
+        logger.info("on(client.list)", data);
     });
+
+    socket.on("message.new", (data) => {
+        logger.info("on(message.new)", data);
+    });
+    socket.connect();
+    return socket;
+}
+
+program.name('middo-cli').description('CLI for middo').version('0.0.1');
+
+program.command('get-users').description('Get users').action(function () { getUsers(); });
+
+program.command('get-daily-msg-stat').description('Get daily msg stat').action(function () { getDailyMsgStat(); });
 
 program.command('get-google-stat')
     .description('Get google api call stat')
     .action(async function () {
         const url = `http://${process.env.BACKEND_ADDRESS}/api/google-api-stat`
-        const res = await fetch(url).then(res=>res.json());
-        console.log(res);
+        const res = await fetch(url).then(res => res.json());
+        logger.info(res);
+    });
+
+program.command('sign-in')
+    .description('Sign in')
+    .option('-e, --email <type>', 'email address')
+    .option('-p, --password <type>', 'password')
+    .action(async function (options) {
+        const { email, password } = options
+        const { token, userId } = await signIn(email, password);
+        // logger.info(`token: ${token}, userId: ${userId}`);
+        if (token && userId) {
+            logger.info(`success sign-in`);
+        }
+        await exec(`echo ${token} > .${email}.token`);
+        await exec(`echo ${userId} > .${email}.id`);
+    });
+
+program.command('get-rooms')
+    .description('get rooms')
+    .option('-e, --email <type>', 'email address')
+    .action(async function (options) {
+        const { email } = options
+        const filename = `.${email}.token`;
+        const token = fs.readFileSync(filename, 'utf8').trim();
+        const rooms = await getRooms(token);
+        const summary = rooms.map((item) => {
+            return { roomId: item._id, lastMessage: item.lastMessage.contentEnglish };
+        });
+        logger.info(summary);
+    });
+
+program.command('set-target-room')
+    .description('set target room')
+    .option('-r, --room <type>', 'room id')
+    .action(async function (options) {
+        const { room } = options
+        const filename = `.room.id`;
+        await exec(`echo ${room} > ${filename}`);
+    });
+
+program.command('post-msg')
+    .description('post msg')
+    .option('-e, --email <type>', 'email')
+    .option('-m, --msg <type>', 'msg')
+    .action(async function (options) {
+        const { email, msg } = options;
+        const filename = `.${email}.token`;
+        const token = fs.readFileSync(filename, 'utf8').trim();
+        const roomId = fs.readFileSync('.room.id', 'utf8').trim();
+
+        const response = await postMsg(token, roomId, msg);
+
+        logger.info(response);
+    });
+
+program.command('socket-connect')
+    .description('socket connect')
+    .option('-e, --email <type>', 'email')
+    .option('-p, --port <type>', 'listen port for get command')
+    .action(async function (options) {
+        const { email, port } = options;
+        const socket = await connectSocket(email);
+        const express = require('express');
+        const bodyParser = require('body-parser');
+        const app = express();
+
+        app.use(bodyParser.json());
+
+        app.listen(port, () => {
+            logger.info(`Server is running on port ${port}`);
+        });
+
+        app.post('/join', (req, res) => {
+            logger.info('join', req.body);
+            const { room } = req.body;
+            socket.emit('chat.join', { roomId: room, notifyToken: '' });
+            res.json({});
+        });
+    });
+
+program.command('socket-join')
+    .description('socket join')
+    .option('-e, --email <type>', 'email')
+    .option('-r, --room <type>', 'room id')
+    .option('-p, --port <type>', 'listen port for get command')
+    .action(async function (options) {
+        const { email, port, room } = options;
+        const body = { email, room };
+        const url = `http://localhost:${port}/join`;
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body)
+        }).then((res) => res.json());
+        return response;
     });
 
 program.parse();
-
-// program.command('split')
-//     .description('Split a string into substrings and display as an array')
-//     .argument('<string>', 'string to split')
-//     .option('--first', 'display just the first substring')
-//     .option('-s, --separator <char>', 'separator character', ',')
-//     .action(function (str, options) {
-//         var limit = options.first ? 1 : undefined;
-//         console.log(str.split(options.separator, limit));
-//     });
