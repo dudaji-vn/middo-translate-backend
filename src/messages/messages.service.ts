@@ -33,6 +33,7 @@ import { Call } from 'src/call/schemas/call.schema';
 import { PinMessage } from './schemas/pin-messages.schema';
 import { convert } from 'html-to-text';
 import { generateSystemMessageContent } from './utils/generate-action-message-content';
+import { multipleTranslate } from './utils/translate';
 import { logger } from 'src/common/utils/logger';
 
 @Injectable()
@@ -164,6 +165,15 @@ export class MessagesService {
     createdMessage.type = createMessageDto.type || MessageType.TEXT;
     createdMessage.action = createMessageDto.action || ActionTypes.NONE;
 
+    if (createdMessage.content) {
+      const data = await multipleTranslate({
+        content: createdMessage.content,
+        sourceLang: createdMessage.language,
+        targetLangs: ['en', ...room.participants.map((p: any) => p.language)],
+      });
+      createdMessage.translations = data;
+    }
+
     if (createdMessage.media.length > 0) {
       createdMessage.type = MessageType.MEDIA;
     }
@@ -244,6 +254,39 @@ export class MessagesService {
     this.sendMessageNotification(newMessageWithSender);
     return newMessageWithSender;
   }
+
+  async translate(id: string, userId: string, to: string) {
+    const message = await this.findById(id);
+    if (!message) {
+      throw new NotFoundException('Message not found');
+    }
+    const room = await this.roomsService.findByIdAndUserId(
+      message.room._id.toString(),
+      userId,
+    );
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+    if (room.isHelpDesk) {
+      throw new Error('Cannot translate in helpdesk room');
+    }
+    if (message.translations && message.translations[to]) {
+      return message;
+    }
+    const data = await multipleTranslate({
+      content: message.content,
+      sourceLang: message.language,
+      targetLangs: [to],
+    });
+    message.translations = {
+      ...message.translations,
+      ...data,
+    };
+    this.update(id, {
+      translations: message.translations,
+    });
+    return message;
+  }
   // reply to message
   async reply(
     id: string,
@@ -268,6 +311,15 @@ export class MessagesService {
 
     if (createdMessage.media.length > 0) {
       createdMessage.type = MessageType.MEDIA;
+    }
+
+    if (createdMessage.content) {
+      const data = await multipleTranslate({
+        content: createdMessage.content,
+        sourceLang: createdMessage.language,
+        targetLangs: ['en', ...room.participants.map((p: any) => p.language)],
+      });
+      createdMessage.translations = data;
     }
 
     if (createMessageDto.mentions && createMessageDto.mentions.length > 0) {
@@ -551,9 +603,7 @@ export class MessagesService {
     targetUserIds = targetUserIds.filter(
       (id) => id !== message.sender._id.toString(),
     );
-
     logger.info('targetUserIds', targetUserIds);
-
     const userIgnoredNotification =
       await this.notificationService.getUsersIgnoringRoom(roomId);
 

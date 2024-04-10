@@ -151,6 +151,10 @@ export class Message {
 
   @Prop({ type: Boolean, default: false })
   isComplete: boolean;
+
+  // a filed for translation records wit type json
+  @Prop({ type: mongoose.Schema.Types.Mixed })
+  translations: any;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);
