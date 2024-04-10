@@ -34,6 +34,7 @@ import { PinMessage } from './schemas/pin-messages.schema';
 import { convert } from 'html-to-text';
 import { generateSystemMessageContent } from './utils/generate-action-message-content';
 import { multipleTranslate } from './utils/translate';
+import { logger } from 'src/common/utils/logger';
 
 @Injectable()
 export class MessagesService {
@@ -602,7 +603,7 @@ export class MessagesService {
     targetUserIds = targetUserIds.filter(
       (id) => id !== message.sender._id.toString(),
     );
-
+    logger.info('targetUserIds', targetUserIds);
     const userIgnoredNotification =
       await this.notificationService.getUsersIgnoringRoom(roomId);
 

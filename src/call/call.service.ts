@@ -9,6 +9,7 @@ import { MessagesService } from 'src/messages/messages.service';
 import { MessageType } from 'src/messages/schemas/messages.schema';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { socketConfig } from 'src/configs/socket.config';
+import { logger } from 'src/common/utils/logger';
 @Injectable()
 export class CallService {
   constructor(
@@ -86,7 +87,7 @@ export class CallService {
         type: JOIN_TYPE.NEW_CALL,
       };
     } catch (error) {
-      Logger.error(
+      logger.error(
         `SERVER_ERROR in line 90: ${error['message']}`,
         '',
         CallService.name,
@@ -105,7 +106,7 @@ export class CallService {
       }
       return { status: STATUS.MEETING_STARTED, call: call };
     } catch (error) {
-      Logger.error(
+      logger.error(
         `SERVER_ERROR in line 109: ${error['message']}`,
         '',
         CallService.name,
@@ -122,10 +123,10 @@ export class CallService {
       }
       call.endTime = new Date();
       const newCall = await call.save();
-      Logger.log(`end call ${JSON.stringify(newCall)}`, CallService.name);
+      logger.info(`end call ${JSON.stringify(newCall)}`, CallService.name);
       this.eventEmitter.emit(socketConfig.events.call.update, newCall);
     } catch (error) {
-      Logger.error(
+      logger.error(
         `SERVER_ERROR in line 119: ${error['message']}`,
         '',
         CallService.name,
@@ -144,7 +145,7 @@ export class CallService {
       }
       return { status: STATUS.MEETING_STARTED };
     } catch (error) {
-      Logger.error(
+      logger.error(
         `SERVER_ERROR in line 138: ${error['message']}`,
         '',
         CallService.name,

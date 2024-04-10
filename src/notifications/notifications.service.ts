@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Notification } from './schemas/notifications.schema';
@@ -7,6 +7,7 @@ import { RoomNotification } from './schemas/room-notifications.schema';
 import { envConfig } from 'src/configs/env.config';
 import { Expo, ExpoPushMessage } from 'expo-server-sdk';
 import { WatchingService } from 'src/watching/watching.service';
+import { logger } from 'src/common/utils/logger';
 
 @Injectable()
 export class NotificationService {
@@ -91,9 +92,9 @@ export class NotificationService {
         for (const chunk of chunks) {
           try {
             const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-            Logger.log(JSON.stringify(ticketChunk));
+            logger.info(JSON.stringify(ticketChunk));
           } catch (error) {
-            Logger.error(
+            logger.error(
               `SERVER_ERROR in line 95: ${error['message']}`,
               '',
               NotificationService.name,
@@ -102,7 +103,7 @@ export class NotificationService {
         }
       }
     } catch (error) {
-      Logger.error(
+      logger.error(
         `SERVER_ERROR in line 106: ${error['message']}`,
         '',
         NotificationService.name,

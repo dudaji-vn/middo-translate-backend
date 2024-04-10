@@ -22,7 +22,8 @@ import { Room } from 'src/rooms/schemas/room.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { WatchingService } from 'src/watching/watching.service';
 import speech from '@google-cloud/speech';
-import { Logger } from '@nestjs/common';
+// import { Logger } from '@nestjs/common';
+import { logger } from 'src/common/utils/logger';
 process.env.GOOGLE_APPLICATION_CREDENTIALS = './speech-to-text-key.json';
 const speechClient = new speech.SpeechClient();
 @WebSocketGateway({
@@ -50,9 +51,9 @@ export class EventsGateway
   }
 
   handleConnection(@ConnectedSocket() client: Socket) {
-    console.log('socket  ', client?.id);
+    logger.info('socket', client?.id);
     const userId = findUserIdBySocketId(this.clients, client.id);
-    console.log('userId', userId);
+    logger.info('userId', userId);
   }
 
   handleDisconnect(@ConnectedSocket() client: Socket) {
@@ -70,7 +71,7 @@ export class EventsGateway
       }
     }
     const userIds = Object.keys(this.clients);
-    console.log('socket disconnected', userIds);
+    logger.info('socket disconnected', userIds);
     this.server.emit(socketConfig.events.client.list, userIds);
   }
 
@@ -87,7 +88,7 @@ export class EventsGateway
       ],
     };
     const userIds = Object.keys(this.clients);
-    console.log('socket connected', userIds);
+    logger.info('socket connected', userIds);
     this.server.emit(socketConfig.events.client.list, userIds);
   }
 
@@ -104,7 +105,7 @@ export class EventsGateway
     },
   ) {
     const userId = findUserIdBySocketId(this.clients, client.id);
-    console.log('Chat join', roomId, notifyToken, userId);
+    logger.info('Chat join', roomId, notifyToken, userId);
 
     if (userId && notifyToken) {
       this.watchingService.create({
@@ -571,7 +572,7 @@ export class EventsGateway
     try {
       recognizeStream.write(audioData.audio);
     } catch (err) {
-      Logger.error('Error calling google api ' + err, 'SPEECH_TO_TEXT');
+      logger.error('Error calling google api ' + err, 'SPEECH_TO_TEXT');
     }
   }
   startRecognitionStream(client: Socket, language_code?: string) {
@@ -613,7 +614,7 @@ export class EventsGateway
           }
         });
     } catch (err) {
-      Logger.error('Error streaming google api ' + err, 'SPEECH_TO_TEXT');
+      logger.error('Error streaming google api ' + err, 'SPEECH_TO_TEXT');
     }
   }
 

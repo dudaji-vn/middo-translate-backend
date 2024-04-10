@@ -10,8 +10,9 @@ import {
 import { Socket } from 'socket.io';
 
 import { Server } from 'socket.io';
-import { Logger } from '@nestjs/common';
+//import { Logger } from '@nestjs/common';
 import { socketConfig } from 'src/configs/socket.config';
+import { logger } from 'src/common/utils/logger';
 
 @WebSocketGateway({ namespace: 'call', cors: '*' })
 export class CallGateway implements OnGatewayInit, OnGatewayDisconnect {
@@ -24,7 +25,7 @@ export class CallGateway implements OnGatewayInit, OnGatewayDisconnect {
     @MessageBody() { peerId, roomId }: { peerId: string; roomId: string },
   ) {
     client.join(roomId);
-    Logger.log(`join room ${roomId}`, CallGateway.name);
+    logger.info(`join room ${roomId}`, CallGateway.name);
     this.activeSockets.push({ roomId, id: client.id, peerId });
     this.server.to(roomId).emit('call.join', this.activeSockets);
   }
@@ -37,6 +38,6 @@ export class CallGateway implements OnGatewayInit, OnGatewayDisconnect {
   }
 
   public afterInit(server: Server): void {
-    Logger.log('Init', CallGateway.name);
+    logger.info('Init', CallGateway.name);
   }
 }

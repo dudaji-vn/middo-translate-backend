@@ -11,12 +11,13 @@ import { envConfig } from './configs/env.config';
 import { WinstonModule } from 'nest-winston';
 import { transports, format } from 'winston';
 import { consoleFormat } from 'winston-console-format';
-import { Logger } from '@nestjs/common';
+// import { Logger } from '@nestjs/common';
+import { logger } from './common/utils/logger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     logger: WinstonModule.createLogger({
-      level: 'silly',
+      level: 'error',
       format: format.combine(
         format.timestamp(),
         format.ms(),
@@ -82,7 +83,7 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
   await app.listen(envConfig.port);
-  const logger = new Logger('main');
-  logger.log(`Application is running on: ${await app.getUrl()}`);
+  // const logger = new Logger('main');
+  logger.info(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();
