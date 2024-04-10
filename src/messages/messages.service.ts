@@ -33,6 +33,7 @@ import { Call } from 'src/call/schemas/call.schema';
 import { PinMessage } from './schemas/pin-messages.schema';
 import { convert } from 'html-to-text';
 import { generateSystemMessageContent } from './utils/generate-action-message-content';
+import { logger } from 'src/common/utils/logger';
 
 @Injectable()
 export class MessagesService {
@@ -551,7 +552,7 @@ export class MessagesService {
       (id) => id !== message.sender._id.toString(),
     );
 
-    console.log(targetUserIds, 'targetUserIds');
+    logger.info('targetUserIds', targetUserIds);
 
     const userIgnoredNotification =
       await this.notificationService.getUsersIgnoringRoom(roomId);

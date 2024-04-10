@@ -9,6 +9,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import * as bcrypt from 'bcrypt';
 import { UserHelpDeskResponse } from './dto/user-help-desk-response.dto';
+import { logger } from 'src/common/utils/logger';
 
 @Injectable()
 export class UsersService {
@@ -177,7 +178,7 @@ export class UsersService {
       }
       return user;
     } catch (error) {
-      Logger.error(
+      logger.error(
         `SERVER_ERROR in line 172: ${error['message']}`,
         '',
         UsersService.name,
@@ -201,7 +202,7 @@ export class UsersService {
         password: newPassword,
       });
     } catch (error) {
-      Logger.error(
+      logger.error(
         `SERVER_ERROR in line 196: ${error['message']}`,
         '',
         UsersService.name,

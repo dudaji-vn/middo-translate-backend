@@ -3,7 +3,6 @@ import * as bcrypt from 'bcrypt';
 import {
   HttpException,
   Injectable,
-  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
@@ -19,6 +18,7 @@ import { envConfig } from 'src/configs/env.config';
 import { NotificationService } from 'src/notifications/notifications.service';
 import { SignOutDto } from './dto/sign-out.dto';
 import { OAuth2Client } from 'google-auth-library';
+import { logger } from 'src/common/utils/logger';
 
 @Injectable()
 export class AuthService {
@@ -260,7 +260,7 @@ export class AuthService {
   }
 
   async signOut(userId: string, { notifyToken }: SignOutDto) {
-    Logger.log(
+    logger.info(
       `sign out: userId:${userId}, notifyToken:${notifyToken}`,
       AuthService.name,
     );
