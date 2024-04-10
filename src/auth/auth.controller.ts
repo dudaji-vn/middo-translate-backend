@@ -30,6 +30,7 @@ import { GoogleOauthGuard } from './guards/google-oauth.guard';
 import { envConfig } from 'src/configs/env.config';
 import { SignOutDto } from './dto/sign-out.dto';
 import { VerifyTokenGoogle } from './dto/verify-token-google.dto';
+import { logger } from 'src/common/utils/logger';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -89,7 +90,7 @@ export class AuthController {
     >
   > {
     const res = await this.authService.signIn(signInDto);
-    console.log(res.user);
+    logger.info(res.user);
     return {
       message: 'ok',
       data: {
