@@ -1,4 +1,10 @@
-import { ActionTypes, Media, MessageType } from '../schemas/messages.schema';
+import {
+  Action,
+  ActionTypes,
+  Media,
+  MessageType,
+  SenderType,
+} from '../schemas/messages.schema';
 
 import { IsMongoId } from 'class-validator';
 
@@ -17,4 +23,6 @@ export class CreateMessageDto {
   mentions?: string[];
   businessUserId?: string;
   action?: ActionTypes;
+  senderType?: SenderType;
+  actions?: Action[];
 }
