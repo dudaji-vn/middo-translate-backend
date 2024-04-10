@@ -1,5 +1,6 @@
 import { Prop, SchemaFactory, Schema } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+import { Media } from 'src/messages/schemas/messages.schema';
 
 // export type FlowItemType =
 //   | 'button'
@@ -40,7 +41,7 @@ export class DataNodeChatFlow {
   @Prop({ type: String })
   label: string;
   @Prop({ type: Array })
-  imgs?: string[];
+  media: Media[];
 
   @Prop({ type: Array })
   link?: string;

@@ -1,19 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
-  IsEnum,
-  IsObject,
   IsString,
   MinLength,
   ValidateNested,
 } from 'class-validator';
-import { Media } from 'src/messages/schemas/messages.schema';
-import {
-  StatusBusiness,
-  TreeNodeType,
-} from '../schemas/help-desk-business.schema';
-import { Type } from 'class-transformer';
+import { StatusBusiness } from '../schemas/help-desk-business.schema';
 
 export class ChatFlowDto {
   edges: any;

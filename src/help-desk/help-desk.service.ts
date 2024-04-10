@@ -1,9 +1,10 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
-import { Model, ObjectId, Types } from 'mongoose';
+import { Model, ObjectId } from 'mongoose';
 import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
+import { queryReportByType } from 'src/common/utils/query-report';
 import { MessagesService } from 'src/messages/messages.service';
 import { MessageType } from 'src/messages/schemas/messages.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
@@ -13,6 +14,7 @@ import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { AnalystQueryDto, AnalystType } from './dto/analyst-query-dto';
 import { AnalystResponseDto } from './dto/analyst-response-dto';
+import { ChartQueryDto, RatingQueryDto } from './dto/chart-query-dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
 import { EditClientDto } from './dto/edit-client-dto';
 import {
@@ -21,13 +23,8 @@ import {
   Rating,
   StatusBusiness,
 } from './schemas/help-desk-business.schema';
-import { queryReportByType } from 'src/common/utils/query-report';
-import { ChartQueryDto, RatingQueryDto } from './dto/chart-query-dto';
 
-import {
-  CreateOrEditBusinessDto,
-  ChatFlowDto,
-} from './dto/create-or-edit-business-dto';
+import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
 import { CreateOrEditSpaceDto } from './dto/create-or-edit-space-dto';
 
 @Injectable()
