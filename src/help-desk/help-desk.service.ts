@@ -84,7 +84,10 @@ export class HelpDeskService {
 
   async createOrEditBusiness(userId: string, info: CreateOrEditBusinessDto) {
     info.status = StatusBusiness.ACTIVE;
-    if (!info.chatFlow) {
+    if (info.chatFlow) {
+      info.firstMessage = '';
+      info.firstMessageEnglish = '';
+    } else {
       info.chatFlow = null;
     }
 
