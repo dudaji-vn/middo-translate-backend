@@ -23,6 +23,7 @@ import {
   Message,
   MessageType,
   Reaction,
+  SenderType,
 } from './schemas/messages.schema';
 import { convertMessageRemoved } from './utils/convert-message-removed';
 import { NotificationService } from 'src/notifications/notifications.service';
@@ -161,6 +162,7 @@ export class MessagesService {
     createdMessage.content = createMessageDto.content || '';
     createdMessage.contentEnglish = createMessageDto.contentEnglish || '';
     createdMessage.media = createMessageDto.media || [];
+    createdMessage.actions = createMessageDto.actions || [];
     createdMessage.language = createMessageDto.language || '';
     createdMessage.type = createMessageDto.type || MessageType.TEXT;
     createdMessage.action = createMessageDto.action || ActionTypes.NONE;
@@ -212,6 +214,8 @@ export class MessagesService {
       if (call) createdMessage.call = call;
     }
     if (room.isHelpDesk) {
+      createdMessage.senderType =
+        createMessageDto.senderType || SenderType.USER;
       await this.roomsService.updateReadByWhenSendNewMessage(
         room._id,
         user._id.toString(),

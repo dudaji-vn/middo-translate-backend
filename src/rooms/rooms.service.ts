@@ -27,6 +27,9 @@ import { Room, RoomStatus } from './schemas/room.schema';
 import { queryReportByType } from 'src/common/utils/query-report';
 import { AnalystType } from 'src/help-desk/dto/analyst-query-dto';
 import { ChartQueryDto } from 'src/help-desk/dto/chart-query-dto';
+import { HelpDeskService } from '../help-desk/help-desk.service';
+import { HelpDeskModule } from '../help-desk/help-desk.module';
+import { HelpDeskBusiness } from '../help-desk/schemas/help-desk-business.schema';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -35,6 +38,8 @@ export class RoomsService {
     private readonly usersService: UsersService,
     private readonly eventEmitter: EventEmitter2,
     @InjectModel(Room.name) private readonly roomModel: Model<Room>,
+    @InjectModel(HelpDeskBusiness.name)
+    private readonly helpDeskBusinessModel: Model<HelpDeskBusiness>,
   ) {}
   async createRoom(createRoomDto: CreateRoomDto, creatorId: string) {
     const participants = await Promise.all(
@@ -257,8 +262,13 @@ export class RoomsService {
           user.status === UserStatus.ANONYMOUS ? user.tempEmail : user.email,
       };
     });
+    let chatFlow = null;
+    if (data.isHelpDesk) {
+      chatFlow = await this.getChatFlowByUser(data.admin._id.toString());
+    }
     return {
       ...data,
+      chatFlow: chatFlow,
       isPinned: user?.pinRoomIds?.includes(id) || false,
     };
   }
@@ -1044,5 +1054,14 @@ export class RoomsService {
       },
     ];
     return await this.roomModel.aggregate(query);
+  }
+  async getChatFlowByUser(userId: string) {
+    const business = await this.helpDeskBusinessModel
+      .findOne({ user: userId })
+      .lean();
+    if (!business) {
+      throw new BadRequestException('Business not found');
+    }
+    return business.chatFlow;
   }
 }

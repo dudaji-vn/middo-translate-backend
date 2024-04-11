@@ -1,9 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document, HydratedDocument, ObjectId } from 'mongoose';
 import { Call } from 'src/call/schemas/call.schema';
-
 import { Room } from 'src/rooms/schemas/room.schema';
 import { User } from 'src/users/schemas/user.schema';
+import { NodeChatFlowDto } from 'src/help-desk/dto/node-chat-dto';
 
 @Schema({ _id: false }) // _id: false because this is a subdocument
 export class Reaction extends Document {
@@ -33,6 +33,7 @@ export enum MessageType {
   FORWARD = 'forward',
   NOTIFICATION = 'notification',
   ACTION = 'action',
+  FLOW_ACTIONS = 'flow-actions',
 }
 
 export enum MediaTypes {
@@ -51,6 +52,11 @@ export type Media = {
   height?: number;
 };
 
+export type Action = {
+  content: string;
+  link?: string;
+};
+
 export enum ActionTypes {
   NONE = 'none',
   ADD_USER = 'addUser',
@@ -62,6 +68,11 @@ export enum ActionTypes {
   REMOVE_GROUP_NAME = 'removeGroupName',
   UPDATE_GROUP_AVATAR = 'updateGroupAvatar',
   CREATE_GROUP = 'createGroup',
+}
+
+export enum SenderType {
+  BOT = 'bot',
+  USER = 'user',
 }
 
 @Schema({
@@ -90,6 +101,9 @@ export class Message {
 
   @Prop({ type: Array, default: [] })
   media: Media[];
+
+  @Prop({ type: Array, default: [] })
+  actions: NodeChatFlowDto[];
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Room', index: true })
   room: Room;
@@ -155,6 +169,8 @@ export class Message {
   // a filed for translation records wit type json
   @Prop({ type: mongoose.Schema.Types.Mixed })
   translations: any;
+  @Prop({ type: String })
+  senderType: SenderType;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);
