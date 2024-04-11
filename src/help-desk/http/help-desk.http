@@ -1,7 +1,13 @@
+@SERVER_URL = http://localhost:3000
+@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU2Y2ZiOWNkMzhhY2E2Y2QyNmQzYyIsImlhdCI6MTcxMjcyMzUxMSwiZXhwIjoxNzEyODA5OTExfQ.f19JiMrQpqUzmkbfdEhP0xQzc5KH8GA6LMmSY88aln0
+
+@ROOM_ID =65f1815531cfdbe13c0a85c5
+
+@BUSINESS_ID=65effd002d3c6a72235bbe8e
 
 ####
-PUT http://localhost:8080/api/help-desk/create-or-edit-business
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU2Y2ZiOWNkMzhhY2E2Y2QyNmQzYyIsImlhdCI6MTcxMjA0NTQyNCwiZXhwIjoxNzEyMTMxODI0fQ.3WWKYCWy41oRDv8KeMsAOvDwdG_JfDxga-LAMvhkPuA
+PUT {{SERVER_URL}}/api/help-desk/create-or-edit-business
+Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
@@ -10,23 +16,26 @@ Content-Type: application/json
   "language": "vis",
   "firstMessage": "Xin chào",
   "firstMessageEnglish": "Hi, how can I help you123?",
-  "scriptChat": {
-    "content": "Root Node",
+  "chatFlow": {
+    "content": "Root Node111",
+    "contentEnglish":"Hello",
     "type": "button",
+    "media":[],
     "childrens": [
       {
-        "content": "Child Node 1",
+        "content": "Child Node 12",
         "type": "message",
         "childrens": [
         {
-    
-          "content": "Grandchild Node 1",
+          "content": "Grandchild Node 13",
           "type": "link",
-          "childrens": []
+          "childrens": [],
+          "media":[]
         },
         {
           "id": 5,
           "content": "Grandchild Node 2",
+          "contentEnglish":"test",
           "type": "button",
           "childrens": []
         }
@@ -37,7 +46,7 @@ Content-Type: application/json
 }
 
 ###
-POST  http://localhost:3000/api/help-desk/create-client
+POST  {{SERVER_URL}}/api/help-desk/create-client
 Content-Type: application/json
 
 { 
@@ -47,27 +56,18 @@ Content-Type: application/json
   "email": "nguyenvana28710@gmail.com"
 }
 
+###
+GET {{SERVER_URL}}/api/help-desk/my-business
+Authorization: Bearer {{ACCESS_TOKEN}}
 
-####
-GET http://localhost:8080/api/search/help-desk?q=hoquanglinh
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU1NDg3N2U5YzNlOGRjMDQ5ODMyMyIsImlhdCI6MTcwOTc5ODExMywiZXhwIjoxNzA5ODg0NTEzfQ.AfarcX8ZnA49i8QN6y_SbTQgu7eDYKYu2IzsGWq-N7c
-Content-Type: application/json
 
 ###
-
-###
-GET http://localhost:8080/api/help-desk/my-business
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc 
-
-Content-Type: application/json
-
-###
-GET http://localhost:8080/api/help-desk/business/65f0075f2d3c6a722364d0c1
+GET {{SERVER_URL}}/api/help-desk/business/660ce2a734af0a4726d05497
 
 
 
 ###
-POST http://localhost:3000/api/rooms/create-help-desk-room
+POST {{SERVER_URL}}/api/rooms/create-help-desk-room
 Content-Type: application/json
 
 {
@@ -79,7 +79,7 @@ Content-Type: application/json
 
 
 ####
-POST http://localhost:3000/api/messages/help-desk
+POST {{SERVER_URL}}/api/messages/help-desk
 Content-Type: application/json
 
 {
@@ -87,15 +87,32 @@ Content-Type: application/json
 "content": "Xin chào Tech Talk111",
 "contentEnglish":"Hello Tech talk",
 "language":"en",
-"roomId":"65f116313d5ce1d45917e031",
-"userId":"65f1162e3d5ce1d45917e02c"
+"roomId":"65f79b0801513a8725777897",
+"userId":"65eec7b605903d94f07797ae",
+"senderType":"bot",
+"type":"flow-actions",
+"actions": [
+   {
+                "id": "1",
+                "data": {
+                    "label": "Start conversation",
+                    "content":111
+                  
+                },
+        
+                "className": "light",
+                "type": "root",
+                "width": 64,
+                "height": 64
+            }
+]
 }
 
 
 //Business
 ###
-POST http://localhost:3000/api/messages
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc 
+POST {{SERVER_URL}}/api/messages
+Authorization: Bearer {{ACCESS_TOKEN}} 
 Content-Type: application/json
 
 {
@@ -106,40 +123,28 @@ Content-Type: application/json
 "roomId":"65efd52b102918180ed719cf"
 }
 
+###
+DELETE  {{SERVER_URL}}/api/help-desk/65eec80a2d3c6a722349d697
+Authorization: Bearer {{ACCESS_TOKEN}} 
 
 ###
+GET  {{SERVER_URL}}/api/rooms/anonymous/{{ROOM_ID}}?userId=65e56cfb9cd38aca6cd26d3c
+
+###
+GET {{SERVER_URL}}/api/rooms/anonymous/{{ROOM_ID}}/message?userId=65f79b0701513a8725777892&limit=16
 
 
 ####
+GET {{SERVER_URL}}/api/rooms?type=unread-help-desk
+
+###
+GET {{SERVER_URL}}/api/rooms?type=help-desk
+Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 ###
-
-
-
-###
-DELETE  http://localhost:3000/api/help-desk/65eec80a2d3c6a722349d697
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDE0NzUxMCwiZXhwIjoxNzEwMjMzOTEwfQ.JpTV1qS1SlOA5_EglLa8Rtj4wvwoRL7LcU0c5Ls6MJc 
-
-
-###
-GET  http://localhost:3000/api/rooms/anonymous/65f0286f833aa5c1d3d7b99d?userId=65f0286d833aa5c1d3d7b998
-
-
-###
-GET http://localhost:3000/api/rooms/anonymous/65f0286f833aa5c1d3d7b99d/message?userId=65f0286d833aa5c1d3d7b998&limit=16
-
-
-####
-GET http://localhost:8080/api/rooms?type=unread-help-desk
-
-GET http://localhost:8080/api/rooms?type=help-desk
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDIzNDM0NiwiZXhwIjoxNzEwMzIwNzQ2fQ.1VNT5TGw21_mbguR3Gnpy5ncvoKCRsrNqWjPHb4oU4I
-
-
-###
-POST  http://localhost:3000/api/help-desk/rating
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDIzNDM0NiwiZXhwIjoxNzEwMzIwNzQ2fQ.1VNT5TGw21_mbguR3Gnpy5ncvoKCRsrNqWjPHb4oU4I
+POST  {{SERVER_URL}}/api/help-desk/rating
+Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
@@ -149,13 +154,13 @@ Content-Type: application/json
 }
 
 ### 
-GET http://localhost:8080/api/search/inboxes?q=h&type=help-desk
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDczMzIwNiwiZXhwIjoxNzEwODE5NjA2fQ.Wg8eR8VPDOwzTrSAWPZoP89RGWnvIn92vqNIlGbEfdc
+GET {{SERVER_URL}}/api/search/inboxes?q=h&type=help-desk
+Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 ####
-PUT  http://localhost:3000/api/rooms/65f116313d5ce1d45917e031/change-status-room
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMDc5NCwiZXhwIjoxNzEwNDA3MTk0fQ.YT36-AG26v3deYwrzdLJxS204_cPhpVih07kNGvyumA
+PUT  {{SERVER_URL}}/api/rooms/{{ROOM_ID}}/change-status-room
+Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
@@ -165,21 +170,21 @@ Content-Type: application/json
 
 
 ###
-GET http://localhost:8080/api/rooms?type=help-desk&status=archived
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMDc5NCwiZXhwIjoxNzEwNDA3MTk0fQ.YT36-AG26v3deYwrzdLJxS204_cPhpVih07kNGvyumA
+GET {{SERVER_URL}}/api/rooms?type=help-desk&status=archived
+Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 ###
-GET http://localhost:3000/api/help-desk/my-clients?q=ng
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDMyMDc5NCwiZXhwIjoxNzEwNDA3MTk0fQ.YT36-AG26v3deYwrzdLJxS204_cPhpVih07kNGvyumA
+GET {{SERVER_URL}}/api/help-desk/my-clients?q=
+Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 ###
-GET http://localhost:3000/api/help-desk/analytics?type=last-week
+GET {{SERVER_URL}}/api/help-desk/analytics?type=last-week
 
 ###
-PATCH  http://localhost:3000/api/help-desk/edit-client-profile
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDQ5MTQzNywiZXhwIjoxNzEwNTc3ODM3fQ.MHPmcpCwi5Izpe2pyyED1-16TK_rlXexVrtteg5tf0M
+PATCH  {{SERVER_URL}}/api/help-desk/edit-client-profile
+Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
@@ -187,24 +192,43 @@ Content-Type: application/json
 "userId":"65f25e2a4abba3c51f9a50f3"
 }
 
+###
+GET {{SERVER_URL}}/api/recommendation/chat?type=help-desk
+Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
-POST http://localhost:3000/api/help-desk/check-domain
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDQ5MTQzNywiZXhwIjoxNzEwNTc3ODM3fQ.MHPmcpCwi5Izpe2pyyED1-16TK_rlXexVrtteg5tf0M
+GET {{SERVER_URL}}/api/rooms/{{ROOM_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+
+###
+GET {{SERVER_URL}}/api/help-desk/{{BUSINESS_ID}}/recommend?parentId=9pg-foj-5b7
+
+
+####
+PUT {{SERVER_URL}}/api/help-desk/create-or-edit-space
+Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
-  "domain":"http://localhost:3001",
-  "businessId":"65effd002d3c6a72235bbe8e"
+  "members": [
+    {
+       "email":"19521750@gm.uit.edu.vn",
+       "role":"member"
+    }
+  ],
+  "name": "redss",
+  "avatar": "vis",
+  "backgroundImage": "Xin chào"
 }
 
-###
-GET http://localhost:3000/api/recommendation/chat?type=help-desk
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDczMzIwNiwiZXhwIjoxNzEwODE5NjA2fQ.Wg8eR8VPDOwzTrSAWPZoP89RGWnvIn92vqNIlGbEfdc
 
-###
-GET http://localhost:3000/api/rooms/65f25e2b4abba3c51f9a50f8
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMDczMzIwNiwiZXhwIjoxNzEwODE5NjA2fQ.Wg8eR8VPDOwzTrSAWPZoP89RGWnvIn92vqNIlGbEfdc
+####
+GET {{SERVER_URL}}/api/help-desk/spaces?type=joined-spaces
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU2Y2ZiOWNkMzhhY2E2Y2QyNmQzYyIsImlhdCI6MTcxMjI5MDg2NiwiZXhwIjoxNzEyMzc3MjY2fQ.3W5LVQgEWtTneuUQfY-BlKVMhTWNq_NlDK3jhUQy__c
+
+
 
 
 
