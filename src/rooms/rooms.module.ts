@@ -8,10 +8,17 @@ import { RoomsController } from './rooms.controller';
 import { RoomsService } from './rooms.service';
 import { UsersModule } from 'src/users/users.module';
 import { HelpDeskModule } from 'src/help-desk/help-desk.module';
+import {
+  HelpDeskBusiness,
+  HelpDeskBusinessSchema,
+} from '../help-desk/schemas/help-desk-business.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Room.name, schema: RoomSchema }]),
+    MongooseModule.forFeature([
+      { name: Room.name, schema: RoomSchema },
+      { name: HelpDeskBusiness.name, schema: HelpDeskBusinessSchema },
+    ]),
     UsersModule,
     NotificationModule,
     HelpDeskModule,

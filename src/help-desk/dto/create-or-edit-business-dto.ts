@@ -1,5 +1,18 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { ArrayMaxSize, IsArray, IsString, MinLength } from 'class-validator';
+import { Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsString,
+  MinLength,
+  ValidateNested,
+} from 'class-validator';
+import { StatusBusiness } from '../schemas/help-desk-business.schema';
+
+export class ChatFlowDto {
+  edges: any;
+  nodes: any;
+}
 export class CreateOrEditBusinessDto {
   @ApiProperty()
   @IsArray()
@@ -23,4 +36,11 @@ export class CreateOrEditBusinessDto {
   @IsString()
   @MinLength(1)
   firstMessageEnglish: string;
+
+  @ApiProperty()
+  @ValidateNested()
+  @Type(() => ChatFlowDto)
+  chatFlow: ChatFlowDto | null;
+
+  status: StatusBusiness;
 }

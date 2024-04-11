@@ -18,7 +18,7 @@ export async function translate(text: string, from?: string, to?: string) {
     to,
   };
   const response = await fetch(
-    `${envConfig.app.url}/api/languages/v2/translate`,
+    `${envConfig.app.url}/api/languages/v3/translate`,
     {
       method: 'POST',
       headers: {
@@ -31,7 +31,7 @@ export async function translate(text: string, from?: string, to?: string) {
     const json = await response.json();
     return json.data;
   } catch (error) {
-    return '';
+    return text;
   }
 }
 

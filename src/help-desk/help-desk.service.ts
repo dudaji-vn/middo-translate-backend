@@ -4,6 +4,7 @@ import * as moment from 'moment';
 import { Model, ObjectId } from 'mongoose';
 import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
+import { queryReportByType } from 'src/common/utils/query-report';
 import { MessagesService } from 'src/messages/messages.service';
 import { MessageType } from 'src/messages/schemas/messages.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
@@ -13,16 +14,18 @@ import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { AnalystQueryDto, AnalystType } from './dto/analyst-query-dto';
 import { AnalystResponseDto } from './dto/analyst-response-dto';
+import { ChartQueryDto, RatingQueryDto } from './dto/chart-query-dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
 import { EditClientDto } from './dto/edit-client-dto';
 import {
   HelpDeskBusiness,
+  MemberStatus,
   Rating,
   StatusBusiness,
 } from './schemas/help-desk-business.schema';
-import { queryReportByType } from 'src/common/utils/query-report';
-import { ChartQueryDto, RatingQueryDto } from './dto/chart-query-dto';
-import { duration } from 'moment';
+
+import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
+import { CreateOrEditSpaceDto } from './dto/create-or-edit-space-dto';
 
 @Injectable()
 export class HelpDeskService {
@@ -79,9 +82,15 @@ export class HelpDeskService {
     };
   }
 
-  async createOrEditBusiness(userId: string, info: Partial<HelpDeskBusiness>) {
-    info.user = userId;
+  async createOrEditBusiness(userId: string, info: CreateOrEditBusinessDto) {
     info.status = StatusBusiness.ACTIVE;
+    if (info.chatFlow) {
+      info.firstMessage = '';
+      info.firstMessageEnglish = '';
+    } else {
+      info.chatFlow = null;
+    }
+
     const user = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
         user: userId,
@@ -90,6 +99,67 @@ export class HelpDeskService {
       { new: true, upsert: true },
     );
     return user;
+  }
+  async createOrEditSpace(userId: string, space: CreateOrEditSpaceDto) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    space.members = space.members.filter((item) => item.email !== user.email);
+    const business = await this.helpDeskBusinessModel.findOneAndUpdate(
+      {
+        user: userId,
+      },
+      space,
+      { new: true, upsert: true },
+    );
+    return business;
+  }
+
+  async getSpacesBy(userId: string, type: 'my-spaces' | 'joined-spaces') {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    let dataPromise;
+    switch (type) {
+      case 'my-spaces':
+        dataPromise = this.helpDeskBusinessModel.find({
+          user: userId,
+        });
+        break;
+      case 'joined-spaces':
+        dataPromise = this.helpDeskBusinessModel.find({
+          members: {
+            $elemMatch: {
+              email: user.email,
+              status: MemberStatus.JOINED,
+            },
+          },
+        });
+        break;
+      default:
+        dataPromise = this.helpDeskBusinessModel.find({
+          $or: [
+            {
+              members: {
+                $elemMatch: {
+                  email: user.email,
+                  status: MemberStatus.INVITED,
+                },
+              },
+            },
+            {
+              user: userId,
+            },
+          ],
+        });
+    }
+    return {
+      data: await dataPromise.select(
+        'name avatar backgroundImage joinedAt createdAt',
+      ),
+    };
   }
 
   async getBusinessByUser(userId: string) {

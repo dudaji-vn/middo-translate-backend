@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Param,
   Patch,
   Post,
   Put,
@@ -18,6 +19,7 @@ import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
 import { EditClientDto } from './dto/edit-client-dto';
 import { HelpDeskService } from './help-desk.service';
+import { CreateOrEditSpaceDto } from './dto/create-or-edit-space-dto';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -43,6 +45,26 @@ export class HelpDeskController {
       business,
     );
     return { data: result };
+  }
+
+  @Put('create-or-edit-space')
+  async createOrEditSpace(
+    @JwtUserId() userId: string,
+    @Body() space: CreateOrEditSpaceDto,
+  ) {
+    const result = await this.helpDeskService.createOrEditSpace(userId, space);
+    return { data: result };
+  }
+
+  @Get('spaces')
+  async getSpacesBy(
+    @JwtUserId() userId: string,
+    @Query('type') type: 'my-spaces' | 'joined-spaces',
+  ) {
+    const result = await this.helpDeskService.getSpacesBy(userId, type);
+    return {
+      data: result,
+    };
   }
 
   @Get('my-business')
@@ -108,4 +130,20 @@ export class HelpDeskController {
       message: 'Edit client profile',
     };
   }
+
+  // @Public()
+  // @Get(':businessId/recommend')
+  // async getRecommendChatByBusinessAndParentId(
+  //   @Param('businessId') businessId: string,
+  //   @Query('parentId') parentId: string,
+  // ) {
+  //   const result =
+  //     await this.helpDeskService.getRecommendChatByBusinessAndParentId(
+  //       businessId,
+  //       parentId,
+  //     );
+  //   return {
+  //     data: result,
+  //   };
+  // }
 }
