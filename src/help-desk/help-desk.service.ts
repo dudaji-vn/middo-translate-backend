@@ -212,11 +212,9 @@ export class HelpDeskService {
           ],
         });
     }
-    return {
-      data: await dataPromise.select(
-        'name avatar backgroundImage joinedAt createdAt',
-      ),
-    };
+    return await dataPromise.select(
+      'name avatar backgroundImage joinedAt createdAt',
+    );
   }
 
   async getBusinessByUser(userId: string) {
