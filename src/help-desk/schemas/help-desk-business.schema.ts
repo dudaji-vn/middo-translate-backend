@@ -16,7 +16,9 @@ export enum TreeNodeType {
 
 export enum MemberStatus {
   INVITED = 'invited',
+  PENDING = 'pending',
   JOINED = 'joined',
+  DELETED = 'deleted',
 }
 
 export enum ROLE {
@@ -45,6 +47,9 @@ export class Member {
 
   @Prop({ type: String })
   email: string;
+
+  @Prop({ type: String })
+  verifyToken: string;
 
   @Prop({ type: Date })
   joinedAt: Date;
@@ -87,7 +92,7 @@ export class HelpDeskBusiness {
     type: [MemberSchema],
     default: [],
   })
-  members: Member;
+  members: Member[];
 
   @Prop({ type: Array })
   domains: string[];
@@ -98,10 +103,10 @@ export class HelpDeskBusiness {
   @Prop({ type: String, required: true })
   language: string;
 
-  @Prop({ type: String, required: true })
+  @Prop({ type: String })
   firstMessage: string;
 
-  @Prop({ type: String, required: true })
+  @Prop({ type: String })
   firstMessageEnglish: string;
 
   @Prop({ type: String })

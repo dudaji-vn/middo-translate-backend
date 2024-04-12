@@ -11,6 +11,7 @@ import {
 } from './schemas/help-desk-business.schema';
 
 import { MessagesModule } from '../messages/messages.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { MessagesModule } from '../messages/messages.module';
       { name: User.name, schema: UserSchema },
     ]),
     UsersModule,
+    MailModule,
     forwardRef(() => MessagesModule),
     forwardRef(() => RoomsModule),
   ],

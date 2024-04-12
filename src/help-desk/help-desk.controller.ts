@@ -131,6 +131,15 @@ export class HelpDeskController {
     };
   }
 
+  @Public()
+  @Get('accept-invite')
+  async acceptInvite(@Query('token') token: string) {
+    const result = await this.helpDeskService.acceptInvite(token);
+    return {
+      data: result,
+    };
+  }
+
   // @Public()
   // @Get(':businessId/recommend')
   // async getRecommendChatByBusinessAndParentId(

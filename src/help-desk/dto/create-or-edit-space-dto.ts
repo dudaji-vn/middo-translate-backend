@@ -7,13 +7,16 @@ import {
   IsString,
   ValidateNested,
 } from 'class-validator';
-import { ROLE } from '../schemas/help-desk-business.schema';
+import { MemberStatus, ROLE } from '../schemas/help-desk-business.schema';
 
 export class MemberDto {
   @IsEnum(ROLE)
   role: ROLE;
   @IsEmail()
   email: string;
+
+  verifyToken: string;
+  status: MemberStatus;
 }
 
 export class CreateOrEditSpaceDto {

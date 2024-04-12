@@ -28,13 +28,9 @@ export class CreateOrEditBusinessDto {
   language: string;
 
   @ApiProperty()
-  @IsString()
-  @MinLength(1)
   firstMessage: string;
 
   @ApiProperty()
-  @IsString()
-  @MinLength(1)
   firstMessageEnglish: string;
 
   @ApiProperty()

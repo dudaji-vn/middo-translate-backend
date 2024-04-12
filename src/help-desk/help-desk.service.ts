@@ -25,7 +25,13 @@ import {
 } from './schemas/help-desk-business.schema';
 
 import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
-import { CreateOrEditSpaceDto } from './dto/create-or-edit-space-dto';
+import {
+  CreateOrEditSpaceDto,
+  MemberDto,
+} from './dto/create-or-edit-space-dto';
+import { MailService } from '../mail/mail.service';
+import { envConfig } from '../configs/env.config';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class HelpDeskService {
@@ -37,6 +43,8 @@ export class HelpDeskService {
     private userService: UsersService,
     private roomsService: RoomsService,
     private messagesService: MessagesService,
+    private mailService: MailService,
+    private jwtService: JwtService,
   ) {}
 
   async createClient(businessId: string, info: Partial<User>) {
@@ -100,12 +108,61 @@ export class HelpDeskService {
     );
     return user;
   }
+
+  async sendEmailToListMember(
+    fullName: string,
+    spaceName: string,
+    members: MemberDto[],
+  ) {
+    for (const index in members) {
+      const item = members[index];
+      const token = `${generateSlug()}-${generateSlug()}`;
+
+      const verifyUrl = await this.createVerifyUrl(token);
+      await this.mailService.sendMail(
+        item.email,
+        `${fullName} has invited you to join the ${spaceName} space`,
+        'verify-member',
+        {
+          title: `Join the ${spaceName} space`,
+          verifyUrl: verifyUrl,
+        },
+      );
+      members[index].verifyToken = token;
+      members[index].status = MemberStatus.INVITED;
+    }
+    return members;
+  }
+
   async createOrEditSpace(userId: string, space: CreateOrEditSpaceDto) {
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new BadRequestException('User not found');
     }
-    space.members = space.members.filter((item) => item.email !== user.email);
+    // space.members = space.members.filter((item) => item.email !== user.email);
+
+    const spaceData = await this.helpDeskBusinessModel.findOne({
+      user: userId,
+    });
+
+    if (!spaceData) {
+      space.members = await this.sendEmailToListMember(
+        user.name,
+        space.name,
+        space.members,
+      );
+    } else {
+      let newMembers = space.members.filter(
+        (item) => !spaceData.members.find((_) => _.email === item.email),
+      );
+      newMembers = await this.sendEmailToListMember(
+        user.name,
+        space.name,
+        newMembers,
+      );
+      space.members = [...spaceData.members, ...newMembers];
+    }
+
     const business = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
         user: userId,
@@ -575,6 +632,34 @@ export class HelpDeskService {
     };
   }
 
+  async acceptInvite(token: string) {
+    const space = await this.helpDeskBusinessModel.findOne({
+      members: {
+        $elemMatch: {
+          verifyToken: token,
+        },
+      },
+    });
+
+    if (!space) {
+      throw new BadRequestException('Token is invalid');
+    }
+    const memberIndex = space.members.findIndex(
+      (item) => item.verifyToken === token,
+    );
+
+    if (space.members[memberIndex].status === MemberStatus.JOINED) {
+      throw new BadRequestException('You are joined this space');
+    }
+
+    space.members[memberIndex].status = MemberStatus.JOINED;
+    space.members[memberIndex].joinedAt = new Date();
+
+    await space.save();
+
+    return space;
+  }
+
   addMissingDates(
     data: AnalystResponseDto[],
     fromDate: Date,
@@ -817,5 +902,16 @@ export class HelpDeskService {
   }
   async getChartAverageResponseChat(payload: ChartQueryDto) {
     return this.roomsService.getChartAverageResponseChat(payload);
+  }
+
+  createVerifyUrl(token: string) {
+    return `${envConfig.app.url}/space-verify?token=${token}`;
+  }
+
+  async createVerifyToken(payload: { id: string }) {
+    return this.jwtService.signAsync(payload, {
+      secret: envConfig.jwt.verifyToken.secret,
+      expiresIn: envConfig.jwt.verifyToken.expiresIn,
+    });
   }
 }

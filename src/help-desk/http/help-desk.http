@@ -1,5 +1,5 @@
 @SERVER_URL = http://localhost:3000
-@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU2Y2ZiOWNkMzhhY2E2Y2QyNmQzYyIsImlhdCI6MTcxMjcyMzUxMSwiZXhwIjoxNzEyODA5OTExfQ.f19JiMrQpqUzmkbfdEhP0xQzc5KH8GA6LMmSY88aln0
+@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU2Y2ZiOWNkMzhhY2E2Y2QyNmQzYyIsImlhdCI6MTcxMjgxMDc1MSwiZXhwIjoxNzEyODk3MTUxfQ.WPvzhB1QgOvwOWQVdjtOpyUzHP_9I9P4H73FwFdUGiA
 
 @ROOM_ID =65f1815531cfdbe13c0a85c5
 
@@ -202,10 +202,6 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 
-###
-GET {{SERVER_URL}}/api/help-desk/{{BUSINESS_ID}}/recommend?parentId=9pg-foj-5b7
-
-
 ####
 PUT {{SERVER_URL}}/api/help-desk/create-or-edit-space
 Authorization: Bearer {{ACCESS_TOKEN}}
@@ -214,25 +210,26 @@ Content-Type: application/json
 {
   "members": [
     {
+       "email":"hoquanglinh2710@gmail.com",
+       "role":"member"  
+    },
+    {
        "email":"19521750@gm.uit.edu.vn",
+       "role":"member"
+    },
+    {
+       "email":"195217501@gm.uit.edu.vn",
        "role":"member"
     }
   ],
-  "name": "redss",
+  "name": "Manchester City",
   "avatar": "vis",
-  "backgroundImage": "Xin chào"
+  "backgroundImage": "http://localhost:3000"
 }
 
 
 ####
 GET {{SERVER_URL}}/api/help-desk/spaces?type=joined-spaces
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU2Y2ZiOWNkMzhhY2E2Y2QyNmQzYyIsImlhdCI6MTcxMjI5MDg2NiwiZXhwIjoxNzEyMzc3MjY2fQ.3W5LVQgEWtTneuUQfY-BlKVMhTWNq_NlDK3jhUQy__c
-
-
-
-
-
-
-
 
 
