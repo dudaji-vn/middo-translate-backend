@@ -11,7 +11,12 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
+import {
+  GetVerifyJwt,
+  JwtUserId,
+  ParamObjectId,
+  Public,
+} from 'src/common/decorators';
 import { SearchQueryParamsDto } from 'src/search/dtos';
 import { AnalystQueryDto } from './dto/analyst-query-dto';
 import { CreateClientDto } from './dto/create-client-dto';
@@ -20,6 +25,8 @@ import { CreateRatingDto } from './dto/create-rating.dto';
 import { EditClientDto } from './dto/edit-client-dto';
 import { HelpDeskService } from './help-desk.service';
 import { CreateOrEditSpaceDto } from './dto/create-or-edit-space-dto';
+import { GetJwtInfo } from '../common/decorators/get-jwt-info.decorator';
+import { ValidateInviteDto } from './dto/validate-invite-dto';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -132,9 +139,17 @@ export class HelpDeskController {
   }
 
   @Public()
-  @Get('accept-invite')
-  async acceptInvite(@Query('token') token: string) {
-    const result = await this.helpDeskService.acceptInvite(token);
+  @Post('validate-invite')
+  async acceptInvite(@Body() { token, status }: ValidateInviteDto) {
+    const result = await this.helpDeskService.acceptInvite(token, status);
+    return {
+      data: result,
+    };
+  }
+
+  @Get('my-invitations')
+  async getMyInvitations(@JwtUserId() userId: string) {
+    const result = await this.helpDeskService.getMyInvitations(userId);
     return {
       data: result,
     };

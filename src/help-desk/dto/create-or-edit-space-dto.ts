@@ -17,6 +17,7 @@ export class MemberDto {
 
   verifyToken: string;
   status: MemberStatus;
+  invitedAt: Date;
 }
 
 export class CreateOrEditSpaceDto {

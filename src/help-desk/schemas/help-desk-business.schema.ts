@@ -52,6 +52,9 @@ export class Member {
   verifyToken: string;
 
   @Prop({ type: Date })
+  invitedAt: Date;
+
+  @Prop({ type: Date })
   joinedAt: Date;
 }
 

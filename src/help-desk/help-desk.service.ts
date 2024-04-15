@@ -32,6 +32,8 @@ import {
 import { MailService } from '../mail/mail.service';
 import { envConfig } from '../configs/env.config';
 import { JwtService } from '@nestjs/jwt';
+import { GetVerifyJwt } from '../common/decorators';
+import { ValidateInviteStatus } from './dto/validate-invite-dto';
 
 @Injectable()
 export class HelpDeskService {
@@ -129,6 +131,7 @@ export class HelpDeskService {
         },
       );
       members[index].verifyToken = token;
+      members[index].invitedAt = new Date();
       members[index].status = MemberStatus.INVITED;
     }
     return members;
@@ -139,7 +142,7 @@ export class HelpDeskService {
     if (!user) {
       throw new BadRequestException('User not found');
     }
-    // space.members = space.members.filter((item) => item.email !== user.email);
+    space.members = space.members.filter((item) => item.email !== user.email);
     if (!space.members) {
       space.members = [];
     }
@@ -633,7 +636,7 @@ export class HelpDeskService {
     };
   }
 
-  async acceptInvite(token: string) {
+  async acceptInvite(token: string, status: ValidateInviteStatus) {
     const space = await this.helpDeskBusinessModel.findOne({
       members: {
         $elemMatch: {
@@ -645,20 +648,59 @@ export class HelpDeskService {
     if (!space) {
       throw new BadRequestException('Token is invalid');
     }
+
     const memberIndex = space.members.findIndex(
       (item) => item.verifyToken === token,
     );
-
     if (space.members[memberIndex].status === MemberStatus.JOINED) {
       throw new BadRequestException('You are joined this space');
     }
-
-    space.members[memberIndex].status = MemberStatus.JOINED;
-    space.members[memberIndex].joinedAt = new Date();
+    if (
+      status === ValidateInviteStatus.DECLINE &&
+      space.members[memberIndex].status === MemberStatus.INVITED
+    ) {
+      space.members = space.members.filter(
+        (item) => item.verifyToken !== token,
+      );
+    } else {
+      space.members[memberIndex].status = MemberStatus.JOINED;
+      space.members[memberIndex].joinedAt = new Date();
+    }
 
     await space.save();
+    return true;
+  }
 
-    return space;
+  async getMyInvitations(userId: string) {
+    const user = await this.userModel.findById(userId);
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const myInvitations = await this.helpDeskBusinessModel
+      .find({
+        members: {
+          $elemMatch: {
+            email: user.email,
+            status: MemberStatus.INVITED,
+          },
+        },
+      })
+      .populate('user', 'name avatar members')
+      .select('name user members')
+      .lean();
+    return myInvitations.map((item) => {
+      console.log(item);
+      const invitedAt = item.members.find(
+        (item) => item.email === user.email,
+      )?.invitedAt;
+
+      return {
+        ...item,
+        invitedAt: invitedAt,
+      };
+    });
   }
 
   addMissingDates(
