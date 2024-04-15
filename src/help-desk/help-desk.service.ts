@@ -208,7 +208,7 @@ export class HelpDeskService {
               members: {
                 $elemMatch: {
                   email: user.email,
-                  status: MemberStatus.INVITED,
+                  status: MemberStatus.JOINED,
                 },
               },
             },
@@ -218,9 +218,15 @@ export class HelpDeskService {
           ],
         });
     }
-    return await dataPromise.select(
-      'name avatar backgroundImage joinedAt createdAt',
-    );
+    const data = await dataPromise
+      .select('name avatar backgroundImage joinedAt createdAt')
+      .lean();
+    return data.map((item) => {
+      return {
+        ...item,
+        totalNewMessages: 3,
+      };
+    });
   }
 
   async getBusinessByUser(userId: string) {
