@@ -28,6 +28,7 @@ import {
 import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
 import {
   CreateOrEditSpaceDto,
+  InviteMemberDto,
   MemberDto,
 } from './dto/create-or-edit-space-dto';
 import { MailService } from '../mail/mail.service';
@@ -989,5 +990,45 @@ export class HelpDeskService {
       secret: envConfig.jwt.verifyToken.secret,
       expiresIn: envConfig.jwt.verifyToken.expiresIn,
     });
+  }
+
+  async inviteMember(userId: string, data: InviteMemberDto) {
+    const spaceData = await this.helpDeskBusinessModel.findOne({
+      user: userId,
+    });
+    const user = await this.userService.findById(userId);
+    if (!spaceData) {
+      throw new BadRequestException('Space not found!');
+    }
+    const index = spaceData.members.findIndex(
+      (item) => item.email === data.email,
+    );
+    if (index > 0) {
+      throw new BadRequestException('User already invited!');
+    }
+
+    const token = `${generateSlug()}-${generateSlug()}`;
+
+    const verifyUrl = await this.createVerifyUrl(token);
+    await this.mailService.sendMail(
+      data.email,
+      `${user.name} has invited you to join the ${spaceData.name} space`,
+      'verify-member',
+      {
+        title: `Join the ${spaceData.name} space`,
+        verifyUrl: verifyUrl,
+      },
+    );
+    spaceData.members.push({
+      email: data.email,
+      role: data.role,
+      verifyToken: token,
+      invitedAt: new Date(),
+      status: MemberStatus.INVITED,
+    });
+
+    await spaceData.save();
+
+    return true;
   }
 }

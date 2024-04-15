@@ -36,3 +36,12 @@ export class CreateOrEditSpaceDto {
   @Type(() => MemberDto)
   members: MemberDto[];
 }
+
+export class InviteMemberDto {
+  @IsEnum(ROLE)
+  role: ROLE;
+  @IsEmail()
+  email: string;
+
+  spaceId: string;
+}

@@ -24,7 +24,10 @@ import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
 import { EditClientDto } from './dto/edit-client-dto';
 import { HelpDeskService } from './help-desk.service';
-import { CreateOrEditSpaceDto } from './dto/create-or-edit-space-dto';
+import {
+  CreateOrEditSpaceDto,
+  InviteMemberDto,
+} from './dto/create-or-edit-space-dto';
 import { GetJwtInfo } from '../common/decorators/get-jwt-info.decorator';
 import { ValidateInviteDto } from './dto/validate-invite-dto';
 
@@ -69,6 +72,17 @@ export class HelpDeskController {
     @Query('type') type: 'my-spaces' | 'joined-spaces',
   ) {
     const result = await this.helpDeskService.getSpacesBy(userId, type);
+    return {
+      data: result,
+    };
+  }
+
+  @Put('invite-member')
+  async inviteMember(
+    @JwtUserId() userId: string,
+    @Body() member: InviteMemberDto,
+  ) {
+    const result = await this.helpDeskService.inviteMember(userId, member);
     return {
       data: result,
     };
