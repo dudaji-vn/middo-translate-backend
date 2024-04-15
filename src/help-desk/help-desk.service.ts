@@ -186,7 +186,12 @@ export class HelpDeskService {
       space,
       { new: true, upsert: true },
     );
-    return business;
+    return {
+      name: business.name,
+      members: business.members,
+      avatar: business.avatar,
+      backgroundImage: business.backgroundImage,
+    };
   }
 
   async getSpacesBy(userId: string, type: 'my-spaces' | 'joined-spaces') {
