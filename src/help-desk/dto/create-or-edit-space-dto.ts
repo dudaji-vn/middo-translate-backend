@@ -22,15 +22,12 @@ export class MemberDto {
 
 export class CreateOrEditSpaceDto {
   @ApiProperty()
-  @IsString()
   name: string;
 
   @ApiProperty()
-  @IsString()
   avatar: string;
 
   @ApiProperty()
-  @IsString()
   backgroundImage: string;
 
   @ApiProperty()
