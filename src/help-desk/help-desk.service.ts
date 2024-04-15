@@ -142,10 +142,10 @@ export class HelpDeskService {
     if (!user) {
       throw new BadRequestException('User not found');
     }
-    space.members = space.members.filter((item) => item.email !== user.email);
     if (!space.members) {
       space.members = [];
     }
+    space.members = space.members.filter((item) => item.email !== user.email);
 
     const spaceData = await this.helpDeskBusinessModel.findOne({
       user: userId,
