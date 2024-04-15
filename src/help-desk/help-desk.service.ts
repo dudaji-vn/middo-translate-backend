@@ -20,6 +20,7 @@ import { EditClientDto } from './dto/edit-client-dto';
 import {
   HelpDeskBusiness,
   MemberStatus,
+  ROLE,
   Rating,
   StatusBusiness,
 } from './schemas/help-desk-business.schema';
@@ -168,6 +169,15 @@ export class HelpDeskService {
       );
       space.members = [...spaceData.members, ...newMembers];
     }
+    if (space.members.find((item) => item.email !== user.email)) {
+      space.members.push({
+        email: user.email,
+        role: ROLE.ADMIN,
+        verifyToken: '',
+        status: MemberStatus.JOINED,
+        invitedAt: new Date(),
+      });
+    }
 
     const business = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
@@ -219,12 +229,16 @@ export class HelpDeskService {
         });
     }
     const data = await dataPromise
-      .select('name avatar backgroundImage joinedAt createdAt')
+      .select([
+        'name avatar backgroundImage joinedAt createdAt',
+        'members.email',
+      ])
       .lean();
     return data.map((item) => {
       return {
         ...item,
         totalNewMessages: 3,
+        totalMembers: item.members.length,
       };
     });
   }
