@@ -175,7 +175,7 @@ export class HelpDeskService {
         role: ROLE.ADMIN,
         verifyToken: '',
         status: MemberStatus.JOINED,
-        invitedAt: new Date(),
+        joinedAt: new Date(),
       });
     }
 
@@ -229,15 +229,24 @@ export class HelpDeskService {
         });
     }
     const data = await dataPromise
-      .select('name avatar backgroundImage joinedAt createdAt members.email')
+      .select(
+        'name avatar backgroundImage joinedAt createdAt members.email members.joinedAt members.status',
+      )
       .lean();
 
     return data.map((item) => {
+      const members = item.members.filter(
+        (user) => user.status === MemberStatus.JOINED,
+      );
+      const joinedAt = item.members.find(
+        (item) => item.email === user.email,
+      )?.joinedAt;
       return {
         ...item,
-        joinedAt: (item as any).createdAt,
+        members: members,
+        joinedAt: joinedAt,
         totalNewMessages: 3,
-        totalMembers: item.members.length,
+        totalMembers: members.length,
       };
     });
   }
