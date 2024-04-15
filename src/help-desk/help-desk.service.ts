@@ -229,14 +229,13 @@ export class HelpDeskService {
         });
     }
     const data = await dataPromise
-      .select([
-        'name avatar backgroundImage joinedAt createdAt',
-        'members.email',
-      ])
+      .select('name avatar backgroundImage joinedAt createdAt members.email')
       .lean();
+
     return data.map((item) => {
       return {
         ...item,
+        joinedAt: (item as any).createdAt,
         totalNewMessages: 3,
         totalMembers: item.members.length,
       };
