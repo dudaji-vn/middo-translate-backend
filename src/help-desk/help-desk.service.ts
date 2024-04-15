@@ -1029,6 +1029,12 @@ export class HelpDeskService {
 
     await spaceData.save();
 
-    return true;
+    return spaceData.members.map((item) => {
+      return {
+        email: item.email,
+        role: item.role,
+        status: item.status,
+      };
+    });
   }
 }
