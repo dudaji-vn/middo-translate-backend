@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
-import { Model, ObjectId } from 'mongoose';
+import { Model, ObjectId, Types } from 'mongoose';
 import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import { queryReportByType } from 'src/common/utils/query-report';
@@ -20,12 +20,23 @@ import { EditClientDto } from './dto/edit-client-dto';
 import {
   HelpDeskBusiness,
   MemberStatus,
+  ROLE,
   Rating,
   StatusBusiness,
 } from './schemas/help-desk-business.schema';
 
 import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
-import { CreateOrEditSpaceDto } from './dto/create-or-edit-space-dto';
+import {
+  CreateOrEditSpaceDto,
+  InviteMemberDto,
+  MemberDto,
+  RemoveMemberDto,
+} from './dto/create-or-edit-space-dto';
+import { MailService } from 'src/mail/mail.service';
+import { envConfig } from 'src/configs/env.config';
+import { JwtService } from '@nestjs/jwt';
+import { ValidateInviteStatus } from './dto/validate-invite-dto';
+import { Space } from './schemas/space.schema';
 
 @Injectable()
 export class HelpDeskService {
@@ -34,9 +45,13 @@ export class HelpDeskService {
     private helpDeskBusinessModel: Model<HelpDeskBusiness>,
     @InjectModel(User.name)
     private userModel: Model<User>,
+    @InjectModel(Space.name)
+    private spaceModel: Model<Space>,
     private userService: UsersService,
     private roomsService: RoomsService,
     private messagesService: MessagesService,
+    private mailService: MailService,
+    private jwtService: JwtService,
   ) {}
 
   async createClient(businessId: string, info: Partial<User>) {
@@ -83,6 +98,10 @@ export class HelpDeskService {
   }
 
   async createOrEditBusiness(userId: string, info: CreateOrEditBusinessDto) {
+    const space = this.spaceModel.findOne({ _id: info.spaceId });
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
     info.status = StatusBusiness.ACTIVE;
     if (info.chatFlow) {
       info.firstMessage = '';
@@ -90,9 +109,11 @@ export class HelpDeskService {
     } else {
       info.chatFlow = null;
     }
+    info.space = info.spaceId;
 
     const user = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
+        space: info.spaceId,
         user: userId,
       },
       info,
@@ -100,36 +121,110 @@ export class HelpDeskService {
     );
     return user;
   }
+
+  async sendEmailToListMember(
+    fullName: string,
+    spaceName: string,
+    members: MemberDto[],
+  ) {
+    for (const index in members) {
+      const item = members[index];
+      const token = `${generateSlug()}-${generateSlug()}`;
+
+      const verifyUrl = await this.createVerifyUrl(token);
+      await this.mailService.sendMail(
+        item.email,
+        `${fullName} has invited you to join the ${spaceName} space`,
+        'verify-member',
+        {
+          title: `Join the ${spaceName} space`,
+          verifyUrl: verifyUrl,
+        },
+      );
+      members[index].verifyToken = token;
+      members[index].invitedAt = new Date();
+      members[index].status = MemberStatus.INVITED;
+    }
+    return members;
+  }
+
   async createOrEditSpace(userId: string, space: CreateOrEditSpaceDto) {
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new BadRequestException('User not found');
     }
-    space.members = space.members.filter((item) => item.email !== user.email);
-    const business = await this.helpDeskBusinessModel.findOneAndUpdate(
-      {
+
+    if (!space.spaceId) {
+      const me = {
+        email: user.email,
+        role: ROLE.ADMIN,
+        verifyToken: '',
+        status: MemberStatus.JOINED,
+        joinedAt: new Date(),
         user: userId,
-      },
-      space,
-      { new: true, upsert: true },
-    );
-    return business;
+      };
+      if (!space.members) {
+        space.members = [];
+        space.members = space.members.filter(
+          (item) => item.email !== user.email,
+        );
+      }
+      const members = await this.sendEmailToListMember(
+        user.name,
+        space.name,
+        space.members,
+      );
+      space.members = [me, ...members];
+
+      const spaceData = await this.spaceModel.create({
+        owner: user._id,
+        avatar: space.avatar,
+        backgroundImage: space.backgroundImage,
+        members: space.members,
+        name: space.name,
+      });
+      return spaceData;
+    } else {
+      const spaceData = await this.spaceModel.findOne({
+        _id: space.spaceId,
+        owner: userId,
+      });
+      if (!spaceData) {
+        throw new BadRequestException('Space not found');
+      }
+      if (space.avatar) {
+        spaceData.avatar = space.avatar;
+      }
+      if (space.backgroundImage) {
+        spaceData.backgroundImage = space.backgroundImage;
+      }
+      if (space.name) {
+        spaceData.name = space.name;
+      }
+      await spaceData.save();
+      return spaceData;
+    }
   }
 
-  async getSpacesBy(userId: string, type: 'my-spaces' | 'joined-spaces') {
+  async getSpacesBy(
+    userId: string,
+    type: 'all_spaces' | 'my_spaces' | 'joined_spaces',
+  ) {
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new BadRequestException('User not found');
     }
     let dataPromise;
     switch (type) {
-      case 'my-spaces':
-        dataPromise = this.helpDeskBusinessModel.find({
-          user: userId,
+      case 'my_spaces':
+        dataPromise = this.spaceModel.find({
+          owner: userId,
         });
+
         break;
-      case 'joined-spaces':
-        dataPromise = this.helpDeskBusinessModel.find({
+      case 'joined_spaces':
+        dataPromise = this.spaceModel.find({
+          owner: { $ne: user._id },
           members: {
             $elemMatch: {
               email: user.email,
@@ -139,32 +234,100 @@ export class HelpDeskService {
         });
         break;
       default:
-        dataPromise = this.helpDeskBusinessModel.find({
+        dataPromise = this.spaceModel.find({
           $or: [
             {
               members: {
                 $elemMatch: {
                   email: user.email,
-                  status: MemberStatus.INVITED,
+                  status: MemberStatus.JOINED,
                 },
               },
             },
             {
-              user: userId,
+              owner: userId,
             },
           ],
         });
     }
+    const data = await dataPromise
+      .populate('owner', 'email')
+      .select(
+        'name avatar backgroundImage joinedAt createdAt members.email members.joinedAt members.status',
+      )
+      .lean();
+
+    return data.map((item) => {
+      const members = item.members.filter(
+        (user) => user.status === MemberStatus.JOINED,
+      );
+      const joinedAt = item.members.find(
+        (item) => item.email === user.email,
+      )?.joinedAt;
+      return {
+        ...item,
+        members: members,
+        joinedAt: joinedAt,
+        totalNewMessages: 3,
+        totalMembers: members.length,
+      };
+    });
+  }
+  async getSpaceById(userId: string, spaceId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    const space = await this.spaceModel
+      .findOne({
+        _id: spaceId,
+        $or: [
+          {
+            'members.email': user.email,
+          },
+        ],
+      })
+      .select('-members.verifyToken')
+      .lean();
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+    const extension = await this.helpDeskBusinessModel
+      .findOne({
+        space: new Types.ObjectId(spaceId),
+        user: userId,
+        status: { $ne: StatusBusiness.DELETED },
+      })
+      .select('-space')
+      .lean();
     return {
-      data: await dataPromise.select(
-        'name avatar backgroundImage joinedAt createdAt',
-      ),
+      ...space,
+      extension: extension,
     };
   }
 
-  async getBusinessByUser(userId: string) {
+  async getBusinessByUser(userId: string, spaceId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    const isAdminOrMember = await this.spaceModel.findOne({
+      $or: [
+        {
+          'members.email': user.email,
+        },
+      ],
+    });
+    if (!isAdminOrMember) {
+      throw new BadRequestException('You do not have access to this space!');
+    }
     return this.helpDeskBusinessModel
-      .findOne({ user: userId, status: { $ne: StatusBusiness.DELETED } })
+      .findOne({
+        space: new Types.ObjectId(spaceId),
+        user: userId,
+        status: { $ne: StatusBusiness.DELETED },
+      })
+      .populate('space', '-members.verifyToken')
       .lean();
   }
   async getBusinessById(id: string) {
@@ -177,6 +340,7 @@ export class HelpDeskService {
         path: 'user',
         select: selectPopulateField<User>(['name', 'avatar', 'language']),
       })
+      .populate('space', '-members.verifyToken')
       .lean();
   }
   async deleteBusiness(userId: string) {
@@ -268,7 +432,10 @@ export class HelpDeskService {
     return true;
   }
   async analyst(params: AnalystQueryDto, userId: string) {
-    const business = await this.getBusinessByUser(userId);
+    const business = await this.getBusinessByUser(
+      userId,
+      '661dd18f79fa16e0ac8777db',
+    );
     if (!business) {
       throw new BadRequestException('Business not found');
     }
@@ -575,6 +742,77 @@ export class HelpDeskService {
     };
   }
 
+  async acceptInvite(
+    userId: string,
+    token: string,
+    status: ValidateInviteStatus,
+  ) {
+    const space = await this.spaceModel.findOne({
+      members: {
+        $elemMatch: {
+          verifyToken: token,
+        },
+      },
+    });
+
+    if (!space) {
+      throw new BadRequestException('Token is invalid');
+    }
+
+    const memberIndex = space.members.findIndex(
+      (item) => item.verifyToken === token,
+    );
+    if (space.members[memberIndex].status === MemberStatus.JOINED) {
+      throw new BadRequestException('You are joined this space');
+    }
+    if (
+      status === ValidateInviteStatus.DECLINE &&
+      space.members[memberIndex].status === MemberStatus.INVITED
+    ) {
+      space.members = space.members.filter(
+        (item) => item.verifyToken !== token,
+      );
+    } else {
+      space.members[memberIndex].status = MemberStatus.JOINED;
+      space.members[memberIndex].joinedAt = new Date();
+      space.members[memberIndex].user = userId;
+    }
+
+    await space.save();
+    return true;
+  }
+
+  async getMyInvitations(userId: string) {
+    const user = await this.userModel.findById(userId);
+
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const myInvitations = await this.spaceModel
+      .find({
+        members: {
+          $elemMatch: {
+            email: user.email,
+            status: MemberStatus.INVITED,
+          },
+        },
+      })
+      .populate('user', 'name avatar members')
+      .select('name user members')
+      .lean();
+    return myInvitations.map((item) => {
+      const invitedAt = item.members.find(
+        (item) => item.email === user.email,
+      )?.invitedAt;
+
+      return {
+        ...item,
+        invitedAt: invitedAt,
+      };
+    });
+  }
+
   addMissingDates(
     data: AnalystResponseDto[],
     fromDate: Date,
@@ -817,5 +1055,147 @@ export class HelpDeskService {
   }
   async getChartAverageResponseChat(payload: ChartQueryDto) {
     return this.roomsService.getChartAverageResponseChat(payload);
+  }
+
+  createVerifyUrl(token: string) {
+    return `${envConfig.app.url}/space-verify?token=${token}`;
+  }
+
+  async createVerifyToken(payload: { id: string }) {
+    return this.jwtService.signAsync(payload, {
+      secret: envConfig.jwt.verifyToken.secret,
+      expiresIn: envConfig.jwt.verifyToken.expiresIn,
+    });
+  }
+
+  async inviteMember(userId: string, data: InviteMemberDto) {
+    const spaceData = await this.helpDeskBusinessModel.findOne({
+      user: userId,
+    });
+    const user = await this.userService.findById(userId);
+    if (!spaceData) {
+      throw new BadRequestException('Space not found!');
+    }
+    const index = spaceData.members.findIndex(
+      (item) => item.email === data.email,
+    );
+    if (index > 0) {
+      throw new BadRequestException('User already invited!');
+    }
+
+    const token = `${generateSlug()}-${generateSlug()}`;
+
+    const verifyUrl = await this.createVerifyUrl(token);
+    await this.mailService.sendMail(
+      data.email,
+      `${user.name} has invited you to join the ${spaceData.name} space`,
+      'verify-member',
+      {
+        title: `Join the ${spaceData.name} space`,
+        verifyUrl: verifyUrl,
+      },
+    );
+    spaceData.members.push({
+      email: data.email,
+      role: data.role,
+      verifyToken: token,
+      invitedAt: new Date(),
+      status: MemberStatus.INVITED,
+    });
+
+    await spaceData.save();
+
+    return spaceData.members.map((item) => {
+      return {
+        email: item.email,
+        role: item.role,
+        status: item.status,
+      };
+    });
+  }
+  async resendInvitation(userId: string, data: InviteMemberDto) {
+    const spaceData = await this.spaceModel.findOne({
+      owner: userId,
+      _id: data.spaceId,
+    });
+
+    const user = await this.userService.findById(userId);
+    if (!spaceData) {
+      throw new BadRequestException('Space not found!');
+    }
+
+    const index = spaceData.members.findIndex(
+      (item) => item.email === data.email,
+    );
+    if (index === -1) {
+      throw new BadRequestException('User are not invite');
+    }
+
+    const token = `${generateSlug()}-${generateSlug()}`;
+
+    const verifyUrl = await this.createVerifyUrl(token);
+    await this.mailService.sendMail(
+      data.email,
+      `${user.name} has invited you to join the ${spaceData.name} space`,
+      'verify-member',
+      {
+        title: `Join the ${spaceData.name} space`,
+        verifyUrl: verifyUrl,
+      },
+    );
+    spaceData.members[index] = {
+      email: data.email,
+      role: data.role,
+      verifyToken: token,
+      invitedAt: new Date(),
+      status: MemberStatus.INVITED,
+    };
+
+    await spaceData.save();
+    return true;
+  }
+  async removeMember(userId: string, data: RemoveMemberDto) {
+    const spaceData = await this.spaceModel.findOne({
+      owner: userId,
+      _id: data.spaceId,
+    });
+
+    if (!spaceData) {
+      throw new BadRequestException('Space not found!');
+    }
+
+    const index = spaceData.members.findIndex(
+      (item) => item.email === data.email,
+    );
+    if (index === -1) {
+      throw new BadRequestException('This user is not in space');
+    }
+
+    spaceData.members[index].status = MemberStatus.DELETED;
+
+    await spaceData.save();
+    return true;
+  }
+  async changeRole(userId: string, data: InviteMemberDto) {
+    const spaceData = await this.spaceModel.findOne({
+      owner: userId,
+      _id: data.spaceId,
+    });
+
+    if (!spaceData) {
+      throw new BadRequestException('Space not found!');
+    }
+
+    const index = spaceData.members.findIndex(
+      (item) => item.email === data.email,
+    );
+    if (index === -1) {
+      throw new BadRequestException('This user is not in space');
+    }
+
+    spaceData.members[index].role = data.role;
+
+    await spaceData.save();
+    return true;
   }
 }

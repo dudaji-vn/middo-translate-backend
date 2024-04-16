@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
 import { User } from 'src/users/schemas/user.schema';
 import { ChatFlow, ChatFlowSchema } from './chat-flow.schema';
+import { Space } from './space.schema';
 
 export enum StatusBusiness {
   DELETED = 'deleted',
@@ -16,7 +17,9 @@ export enum TreeNodeType {
 
 export enum MemberStatus {
   INVITED = 'invited',
+  PENDING = 'pending',
   JOINED = 'joined',
+  DELETED = 'deleted',
 }
 
 export enum ROLE {
@@ -40,14 +43,17 @@ export class Member {
   @Prop({ type: String, default: ROLE.MEMBER })
   role: ROLE;
 
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
-  user: User;
-
   @Prop({ type: String })
   email: string;
 
+  @Prop({ type: String })
+  verifyToken: string;
+
   @Prop({ type: Date })
-  joinedAt: Date;
+  invitedAt: Date;
+
+  @Prop({ type: Date })
+  joinedAt?: Date;
 }
 
 export const RatingSchema = SchemaFactory.createForClass(Rating);
@@ -62,9 +68,16 @@ export class HelpDeskBusiness {
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Space',
     required: true,
     unique: true,
+  })
+  space: Space;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
   })
   user: User | string;
 
@@ -87,7 +100,7 @@ export class HelpDeskBusiness {
     type: [MemberSchema],
     default: [],
   })
-  members: Member;
+  members: Member[];
 
   @Prop({ type: Array })
   domains: string[];
@@ -98,10 +111,10 @@ export class HelpDeskBusiness {
   @Prop({ type: String, required: true })
   language: string;
 
-  @Prop({ type: String, required: true })
+  @Prop({ type: String })
   firstMessage: string;
 
-  @Prop({ type: String, required: true })
+  @Prop({ type: String })
   firstMessageEnglish: string;
 
   @Prop({ type: String })

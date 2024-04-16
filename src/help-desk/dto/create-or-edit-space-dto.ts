@@ -4,33 +4,60 @@ import {
   IsArray,
   IsEmail,
   IsEnum,
+  IsMongoId,
   IsString,
   ValidateNested,
 } from 'class-validator';
-import { ROLE } from '../schemas/help-desk-business.schema';
+import { MemberStatus, ROLE } from '../schemas/help-desk-business.schema';
 
 export class MemberDto {
   @IsEnum(ROLE)
   role: ROLE;
   @IsEmail()
   email: string;
+
+  verifyToken: string;
+  status: MemberStatus;
+  invitedAt?: Date;
+  joinedAt?: Date;
 }
 
 export class CreateOrEditSpaceDto {
   @ApiProperty()
-  @IsString()
   name: string;
 
   @ApiProperty()
-  @IsString()
   avatar: string;
 
   @ApiProperty()
-  @IsString()
   backgroundImage: string;
 
   @ApiProperty()
   @ValidateNested({ each: true })
   @Type(() => MemberDto)
   members: MemberDto[];
+
+  @ApiProperty()
+  spaceId: string;
+}
+
+export class InviteMemberDto {
+  @IsEnum(ROLE)
+  role: ROLE;
+  @IsEmail()
+  email: string;
+
+  @ApiProperty()
+  @IsMongoId()
+  spaceId: string;
+}
+
+export class RemoveMemberDto {
+  @ApiProperty()
+  @IsEmail()
+  email: string;
+
+  @ApiProperty()
+  @IsMongoId()
+  spaceId: string;
 }

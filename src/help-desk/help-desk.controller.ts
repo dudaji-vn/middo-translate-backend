@@ -19,7 +19,13 @@ import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
 import { EditClientDto } from './dto/edit-client-dto';
 import { HelpDeskService } from './help-desk.service';
-import { CreateOrEditSpaceDto } from './dto/create-or-edit-space-dto';
+import {
+  CreateOrEditSpaceDto,
+  InviteMemberDto,
+  RemoveMemberDto,
+} from './dto/create-or-edit-space-dto';
+import { GetJwtInfo } from '../common/decorators/get-jwt-info.decorator';
+import { ValidateInviteDto } from './dto/validate-invite-dto';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -35,7 +41,7 @@ export class HelpDeskController {
     return { data: result };
   }
 
-  @Put('create-or-edit-business')
+  @Put('create-or-edit-extension')
   async createOrEditBusiness(
     @JwtUserId() userId: string,
     @Body() business: CreateOrEditBusinessDto,
@@ -59,7 +65,7 @@ export class HelpDeskController {
   @Get('spaces')
   async getSpacesBy(
     @JwtUserId() userId: string,
-    @Query('type') type: 'my-spaces' | 'joined-spaces',
+    @Query('type') type: 'all_spaces' | 'my_spaces' | 'joined_spaces',
   ) {
     const result = await this.helpDeskService.getSpacesBy(userId, type);
     return {
@@ -67,14 +73,28 @@ export class HelpDeskController {
     };
   }
 
-  @Get('my-business')
-  async getBusinessInfo(@JwtUserId() userId: string) {
-    const result = await this.helpDeskService.getBusinessByUser(userId);
+  @Put('invite-member')
+  async inviteMember(
+    @JwtUserId() userId: string,
+    @Body() member: InviteMemberDto,
+  ) {
+    const result = await this.helpDeskService.inviteMember(userId, member);
+    return {
+      data: result,
+    };
+  }
+
+  @Get('spaces/:spaceId')
+  async getBusinessInfo(
+    @JwtUserId() userId: string,
+    @Param('spaceId') spaceId: string,
+  ) {
+    const result = await this.helpDeskService.getSpaceById(userId, spaceId);
     return { data: result };
   }
 
   @Public()
-  @Get('business/:id')
+  @Get('extension/:id')
   async getBusinessById(@ParamObjectId() id: string) {
     const result = await this.helpDeskService.getBusinessById(id);
     return { data: result };
@@ -131,19 +151,59 @@ export class HelpDeskController {
     };
   }
 
-  // @Public()
-  // @Get(':businessId/recommend')
-  // async getRecommendChatByBusinessAndParentId(
-  //   @Param('businessId') businessId: string,
-  //   @Query('parentId') parentId: string,
-  // ) {
-  //   const result =
-  //     await this.helpDeskService.getRecommendChatByBusinessAndParentId(
-  //       businessId,
-  //       parentId,
-  //     );
-  //   return {
-  //     data: result,
-  //   };
-  // }
+  @Post('validate-invite')
+  async acceptInvite(
+    @Body() { token, status }: ValidateInviteDto,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.acceptInvite(
+      userId,
+      token,
+      status,
+    );
+    return {
+      data: result,
+    };
+  }
+
+  @Get('my-invitations')
+  async getMyInvitations(@JwtUserId() userId: string) {
+    const result = await this.helpDeskService.getMyInvitations(userId);
+    return {
+      data: result,
+    };
+  }
+
+  @Post('resend-invitation')
+  async resendInvitation(
+    @JwtUserId() userId: string,
+    @Body() member: InviteMemberDto,
+  ) {
+    const result = await this.helpDeskService.resendInvitation(userId, member);
+    return {
+      data: result,
+    };
+  }
+
+  @Patch('change-role')
+  async changeRole(
+    @JwtUserId() userId: string,
+    @Body() member: InviteMemberDto,
+  ) {
+    const result = await this.helpDeskService.changeRole(userId, member);
+    return {
+      data: result,
+    };
+  }
+
+  @Delete('remove-member')
+  async removeMember(
+    @JwtUserId() userId: string,
+    @Body() member: RemoveMemberDto,
+  ) {
+    const result = await this.helpDeskService.removeMember(userId, member);
+    return {
+      data: result,
+    };
+  }
 }
