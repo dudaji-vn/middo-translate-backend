@@ -22,6 +22,7 @@ import { HelpDeskService } from './help-desk.service';
 import {
   CreateOrEditSpaceDto,
   InviteMemberDto,
+  RemoveMemberDto,
 } from './dto/create-or-edit-space-dto';
 import { GetJwtInfo } from '../common/decorators/get-jwt-info.decorator';
 import { ValidateInviteDto } from './dto/validate-invite-dto';
@@ -182,6 +183,17 @@ export class HelpDeskController {
     @Body() member: InviteMemberDto,
   ) {
     const result = await this.helpDeskService.resendInvitation(userId, member);
+    return {
+      data: result,
+    };
+  }
+
+  @Delete('remove-member')
+  async removeMember(
+    @JwtUserId() userId: string,
+    @Body() member: RemoveMemberDto,
+  ) {
+    const result = await this.helpDeskService.removeMember(userId, member);
     return {
       data: result,
     };

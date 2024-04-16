@@ -51,3 +51,13 @@ export class InviteMemberDto {
   @IsMongoId()
   spaceId: string;
 }
+
+export class RemoveMemberDto {
+  @ApiProperty()
+  @IsEmail()
+  email: string;
+
+  @ApiProperty()
+  @IsMongoId()
+  spaceId: string;
+}
