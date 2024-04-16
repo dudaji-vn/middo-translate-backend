@@ -199,12 +199,13 @@ export class HelpDeskService {
     switch (type) {
       case 'my_spaces':
         dataPromise = this.spaceModel.find({
-          admin: userId,
+          owner: userId,
         });
 
         break;
       case 'joined_spaces':
         dataPromise = this.spaceModel.find({
+          owner: { $ne: user._id },
           members: {
             $elemMatch: {
               email: user.email,
