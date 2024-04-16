@@ -190,7 +190,7 @@ export class HelpDeskController {
     @JwtUserId() userId: string,
     @Body() member: InviteMemberDto,
   ) {
-    const result = await this.helpDeskService.resendInvitation(userId, member);
+    const result = await this.helpDeskService.changeRole(userId, member);
     return {
       data: result,
     };

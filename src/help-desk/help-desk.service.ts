@@ -280,6 +280,7 @@ export class HelpDeskService {
     }
     const space = await this.spaceModel
       .findOne({
+        _id: spaceId,
         $or: [
           {
             'members.email': user.email,
@@ -1171,6 +1172,28 @@ export class HelpDeskService {
     }
 
     spaceData.members[index].status = MemberStatus.DELETED;
+
+    await spaceData.save();
+    return true;
+  }
+  async changeRole(userId: string, data: InviteMemberDto) {
+    const spaceData = await this.spaceModel.findOne({
+      owner: userId,
+      _id: data.spaceId,
+    });
+
+    if (!spaceData) {
+      throw new BadRequestException('Space not found!');
+    }
+
+    const index = spaceData.members.findIndex(
+      (item) => item.email === data.email,
+    );
+    if (index === -1) {
+      throw new BadRequestException('This user is not in space');
+    }
+
+    spaceData.members[index].role = data.role;
 
     await spaceData.save();
     return true;
