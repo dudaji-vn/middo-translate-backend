@@ -291,6 +291,7 @@ export class HelpDeskService {
         path: 'user',
         select: selectPopulateField<User>(['name', 'avatar', 'language']),
       })
+      .populate('space', '-members.verifyToken')
       .lean();
   }
   async deleteBusiness(userId: string) {
