@@ -88,7 +88,7 @@ export class HelpDeskController {
     };
   }
 
-  @Get('spaces/:spaceId')
+  @Get('my-business/:spaceId')
   async getBusinessInfo(
     @JwtUserId() userId: string,
     @Param('spaceId') spaceId: string,
