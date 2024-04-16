@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
-import { Model, ObjectId } from 'mongoose';
+import { Model, ObjectId, Types } from 'mongoose';
 import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import { queryReportByType } from 'src/common/utils/query-report';
@@ -31,11 +31,11 @@ import {
   InviteMemberDto,
   MemberDto,
 } from './dto/create-or-edit-space-dto';
-import { MailService } from '../mail/mail.service';
-import { envConfig } from '../configs/env.config';
+import { MailService } from 'src/mail/mail.service';
+import { envConfig } from 'src/configs/env.config';
 import { JwtService } from '@nestjs/jwt';
-import { GetVerifyJwt } from '../common/decorators';
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
+import { Space } from './schemas/space.schema';
 
 @Injectable()
 export class HelpDeskService {
@@ -44,6 +44,8 @@ export class HelpDeskService {
     private helpDeskBusinessModel: Model<HelpDeskBusiness>,
     @InjectModel(User.name)
     private userModel: Model<User>,
+    @InjectModel(Space.name)
+    private spaceModel: Model<Space>,
     private userService: UsersService,
     private roomsService: RoomsService,
     private messagesService: MessagesService,
@@ -144,71 +146,59 @@ export class HelpDeskService {
     if (!user) {
       throw new BadRequestException('User not found');
     }
-    if (!space.members) {
-      space.members = [];
-    }
-    space.members = space.members.filter((item) => item.email !== user.email);
 
-    const spaceData = await this.helpDeskBusinessModel.findOne({
-      user: userId,
-    });
-
-    if (!spaceData) {
-      space.members = await this.sendEmailToListMember(
-        user.name,
-        space.name,
-        space.members,
-      );
-    } else {
-      let newMembers = space.members.filter(
-        (item) => !spaceData.members.find((_) => _.email === item.email),
-      );
-      newMembers = await this.sendEmailToListMember(
-        user.name,
-        space.name,
-        newMembers,
-      );
-      space.members = [...spaceData.members, ...newMembers];
-    }
-    if (space.members.find((item) => item.email !== user.email)) {
-      space.members.push({
+    if (!space.spaceId) {
+      const me = {
         email: user.email,
         role: ROLE.ADMIN,
         verifyToken: '',
         status: MemberStatus.JOINED,
         joinedAt: new Date(),
-      });
-    }
+      };
+      if (!space.members) {
+        space.members = [];
+        space.members = space.members.filter(
+          (item) => item.email !== user.email,
+        );
+      }
+      const members = await this.sendEmailToListMember(
+        user.name,
+        space.name,
+        space.members,
+      );
+      space.members = [me, ...members];
 
-    const business = await this.helpDeskBusinessModel.findOneAndUpdate(
-      {
-        user: userId,
-      },
-      space,
-      { new: true, upsert: true },
-    );
-    return {
-      name: business.name,
-      members: business.members,
-      avatar: business.avatar,
-      backgroundImage: business.backgroundImage,
-    };
+      const spaceData = await this.spaceModel.create({
+        owner: user._id,
+        avatar: space.avatar,
+        backgroundImage: space.backgroundImage,
+        members: space.members,
+        name: space.name,
+      });
+      return spaceData;
+    } else {
+      return 'Will handle later :))';
+    }
   }
 
-  async getSpacesBy(userId: string, type: 'my-spaces' | 'joined-spaces') {
+  async getSpacesBy(
+    userId: string,
+    type: 'all_spaces' | 'my_spaces' | 'joined_spaces',
+  ) {
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new BadRequestException('User not found');
     }
     let dataPromise;
     switch (type) {
-      case 'my-spaces':
-        dataPromise = this.helpDeskBusinessModel.find({
-          user: userId,
+      case 'my_spaces':
+        dataPromise = this.spaceModel.find({
+          admin: userId,
         });
+
         break;
-      case 'joined-spaces':
-        dataPromise = this.helpDeskBusinessModel.find({
+      case 'joined_spaces':
+        dataPromise = this.spaceModel.find({
           members: {
             $elemMatch: {
               email: user.email,
@@ -218,7 +208,7 @@ export class HelpDeskService {
         });
         break;
       default:
-        dataPromise = this.helpDeskBusinessModel.find({
+        dataPromise = this.spaceModel.find({
           $or: [
             {
               members: {
@@ -229,12 +219,13 @@ export class HelpDeskService {
               },
             },
             {
-              user: userId,
+              admin: userId,
             },
           ],
         });
     }
     const data = await dataPromise
+      .populate('owner', 'email')
       .select(
         'name avatar backgroundImage joinedAt createdAt members.email members.joinedAt members.status',
       )
@@ -257,9 +248,28 @@ export class HelpDeskService {
     });
   }
 
-  async getBusinessByUser(userId: string) {
+  async getBusinessByUser(userId: string, spaceId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    const isAdminOrMember = await this.spaceModel.findOne({
+      $or: [
+        {
+          'members.email': user.email,
+        },
+      ],
+    });
+    if (!isAdminOrMember) {
+      throw new BadRequestException('You do not have access to this space!');
+    }
     return this.helpDeskBusinessModel
-      .findOne({ user: userId, status: { $ne: StatusBusiness.DELETED } })
+      .findOne({
+        space: new Types.ObjectId(spaceId),
+        user: userId,
+        status: { $ne: StatusBusiness.DELETED },
+      })
+      .populate('space')
       .lean();
   }
   async getBusinessById(id: string) {
@@ -363,7 +373,10 @@ export class HelpDeskService {
     return true;
   }
   async analyst(params: AnalystQueryDto, userId: string) {
-    const business = await this.getBusinessByUser(userId);
+    const business = await this.getBusinessByUser(
+      userId,
+      '661dd18f79fa16e0ac8777db',
+    );
     if (!business) {
       throw new BadRequestException('Business not found');
     }
@@ -671,7 +684,7 @@ export class HelpDeskService {
   }
 
   async acceptInvite(token: string, status: ValidateInviteStatus) {
-    const space = await this.helpDeskBusinessModel.findOne({
+    const space = await this.spaceModel.findOne({
       members: {
         $elemMatch: {
           verifyToken: token,

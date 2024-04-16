@@ -69,7 +69,7 @@ export class HelpDeskController {
   @Get('spaces')
   async getSpacesBy(
     @JwtUserId() userId: string,
-    @Query('type') type: 'my-spaces' | 'joined-spaces',
+    @Query('type') type: 'all_spaces' | 'my_spaces' | 'joined_spaces',
   ) {
     const result = await this.helpDeskService.getSpacesBy(userId, type);
     return {
@@ -88,9 +88,15 @@ export class HelpDeskController {
     };
   }
 
-  @Get('my-business')
-  async getBusinessInfo(@JwtUserId() userId: string) {
-    const result = await this.helpDeskService.getBusinessByUser(userId);
+  @Get('spaces/:spaceId')
+  async getBusinessInfo(
+    @JwtUserId() userId: string,
+    @Param('spaceId') spaceId: string,
+  ) {
+    const result = await this.helpDeskService.getBusinessByUser(
+      userId,
+      spaceId,
+    );
     return { data: result };
   }
 
