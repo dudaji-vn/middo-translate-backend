@@ -88,7 +88,7 @@ export class HelpDeskController {
     };
   }
 
-  @Get('my-business/:spaceId')
+  @Get('spaces/:spaceId')
   async getBusinessInfo(
     @JwtUserId() userId: string,
     @Param('spaceId') spaceId: string,
@@ -160,8 +160,15 @@ export class HelpDeskController {
 
   @Public()
   @Post('validate-invite')
-  async acceptInvite(@Body() { token, status }: ValidateInviteDto) {
-    const result = await this.helpDeskService.acceptInvite(token, status);
+  async acceptInvite(
+    @JwtUserId() userId: string,
+    @Body() { token, status }: ValidateInviteDto,
+  ) {
+    const result = await this.helpDeskService.acceptInvite(
+      userId,
+      token,
+      status,
+    );
     return {
       data: result,
     };

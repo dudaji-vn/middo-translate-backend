@@ -690,7 +690,11 @@ export class HelpDeskService {
     };
   }
 
-  async acceptInvite(token: string, status: ValidateInviteStatus) {
+  async acceptInvite(
+    userId: string,
+    token: string,
+    status: ValidateInviteStatus,
+  ) {
     const space = await this.spaceModel.findOne({
       members: {
         $elemMatch: {
@@ -719,6 +723,7 @@ export class HelpDeskService {
     } else {
       space.members[memberIndex].status = MemberStatus.JOINED;
       space.members[memberIndex].joinedAt = new Date();
+      space.members[memberIndex].user = userId;
     }
 
     await space.save();
