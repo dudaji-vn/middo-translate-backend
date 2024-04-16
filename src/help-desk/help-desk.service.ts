@@ -185,7 +185,24 @@ export class HelpDeskService {
       });
       return spaceData;
     } else {
-      return 'Will handle later :))';
+      const spaceData = await this.spaceModel.findOne({
+        _id: space.spaceId,
+        owner: userId,
+      });
+      if (!spaceData) {
+        throw new BadRequestException('Space not found');
+      }
+      if (space.avatar) {
+        spaceData.avatar = space.avatar;
+      }
+      if (space.backgroundImage) {
+        spaceData.backgroundImage = space.backgroundImage;
+      }
+      if (space.name) {
+        spaceData.name = space.name;
+      }
+      await spaceData.save();
+      return spaceData;
     }
   }
 
