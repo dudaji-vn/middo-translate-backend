@@ -160,6 +160,7 @@ export class HelpDeskService {
         verifyToken: '',
         status: MemberStatus.JOINED,
         joinedAt: new Date(),
+        user: userId,
       };
       if (!space.members) {
         space.members = [];
