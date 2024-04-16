@@ -35,6 +35,9 @@ export class CreateOrEditSpaceDto {
   @ValidateNested({ each: true })
   @Type(() => MemberDto)
   members: MemberDto[];
+
+  @ApiProperty()
+  spaceId: string;
 }
 
 export class InviteMemberDto {
