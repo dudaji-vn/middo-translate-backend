@@ -275,7 +275,7 @@ export class HelpDeskService {
         user: userId,
         status: { $ne: StatusBusiness.DELETED },
       })
-      .populate('space')
+      .populate('space', '-members.verifyToken')
       .lean();
   }
   async getBusinessById(id: string) {
