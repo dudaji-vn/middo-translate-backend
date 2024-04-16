@@ -273,6 +273,37 @@ export class HelpDeskService {
       };
     });
   }
+  async getSpaceById(userId: string, spaceId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    const space = await this.spaceModel
+      .findOne({
+        $or: [
+          {
+            'members.email': user.email,
+          },
+        ],
+      })
+      .select('-members.verifyToken')
+      .lean();
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+    const extension = await this.helpDeskBusinessModel
+      .findOne({
+        space: new Types.ObjectId(spaceId),
+        user: userId,
+        status: { $ne: StatusBusiness.DELETED },
+      })
+      .select('-space')
+      .lean();
+    return {
+      ...space,
+      extension: extension,
+    };
+  }
 
   async getBusinessByUser(userId: string, spaceId: string) {
     const user = await this.userService.findById(userId);

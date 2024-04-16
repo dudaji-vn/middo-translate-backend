@@ -89,10 +89,7 @@ export class HelpDeskController {
     @JwtUserId() userId: string,
     @Param('spaceId') spaceId: string,
   ) {
-    const result = await this.helpDeskService.getBusinessByUser(
-      userId,
-      spaceId,
-    );
+    const result = await this.helpDeskService.getSpaceById(userId, spaceId);
     return { data: result };
   }
 
