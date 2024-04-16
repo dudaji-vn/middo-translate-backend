@@ -11,12 +11,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import {
-  GetVerifyJwt,
-  JwtUserId,
-  ParamObjectId,
-  Public,
-} from 'src/common/decorators';
+import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
 import { SearchQueryParamsDto } from 'src/search/dtos';
 import { AnalystQueryDto } from './dto/analyst-query-dto';
 import { CreateClientDto } from './dto/create-client-dto';
@@ -158,11 +153,10 @@ export class HelpDeskController {
     };
   }
 
-  @Public()
   @Post('validate-invite')
   async acceptInvite(
-    @JwtUserId() userId: string,
     @Body() { token, status }: ValidateInviteDto,
+    @JwtUserId() userId: string,
   ) {
     const result = await this.helpDeskService.acceptInvite(
       userId,
