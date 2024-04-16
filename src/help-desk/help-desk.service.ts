@@ -738,7 +738,7 @@ export class HelpDeskService {
       throw new BadRequestException('User not found');
     }
 
-    const myInvitations = await this.helpDeskBusinessModel
+    const myInvitations = await this.spaceModel
       .find({
         members: {
           $elemMatch: {
@@ -751,7 +751,6 @@ export class HelpDeskService {
       .select('name user members')
       .lean();
     return myInvitations.map((item) => {
-      console.log(item);
       const invitedAt = item.members.find(
         (item) => item.email === user.email,
       )?.invitedAt;
