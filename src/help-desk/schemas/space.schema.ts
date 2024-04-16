@@ -28,7 +28,7 @@ export class Member {
   role: ROLE;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
-  user: User | string;
+  user?: User | string;
 
   @Prop({ type: String })
   email: string;
@@ -40,7 +40,7 @@ export class Member {
   invitedAt: Date;
 
   @Prop({ type: Date })
-  joinedAt: Date;
+  joinedAt?: Date;
 }
 
 export const MemberSchema = SchemaFactory.createForClass(Member);

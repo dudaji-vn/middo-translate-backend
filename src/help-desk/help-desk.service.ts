@@ -1062,4 +1062,45 @@ export class HelpDeskService {
       };
     });
   }
+  async resendInvitation(userId: string, data: InviteMemberDto) {
+    const spaceData = await this.spaceModel.findOne({
+      owner: userId,
+      _id: data.spaceId,
+    });
+
+    const user = await this.userService.findById(userId);
+    if (!spaceData) {
+      throw new BadRequestException('Space not found!');
+    }
+
+    const index = spaceData.members.findIndex(
+      (item) => item.email === data.email,
+    );
+    if (index === -1) {
+      throw new BadRequestException('User are not invite');
+    }
+
+    const token = `${generateSlug()}-${generateSlug()}`;
+
+    const verifyUrl = await this.createVerifyUrl(token);
+    await this.mailService.sendMail(
+      data.email,
+      `${user.name} has invited you to join the ${spaceData.name} space`,
+      'verify-member',
+      {
+        title: `Join the ${spaceData.name} space`,
+        verifyUrl: verifyUrl,
+      },
+    );
+    spaceData.members[index] = {
+      email: data.email,
+      role: data.role,
+      verifyToken: token,
+      invitedAt: new Date(),
+      status: MemberStatus.INVITED,
+    };
+
+    await spaceData.save();
+    return true;
+  }
 }

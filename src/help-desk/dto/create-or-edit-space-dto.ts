@@ -4,6 +4,7 @@ import {
   IsArray,
   IsEmail,
   IsEnum,
+  IsMongoId,
   IsString,
   ValidateNested,
 } from 'class-validator';
@@ -46,5 +47,7 @@ export class InviteMemberDto {
   @IsEmail()
   email: string;
 
+  @ApiProperty()
+  @IsMongoId()
   spaceId: string;
 }

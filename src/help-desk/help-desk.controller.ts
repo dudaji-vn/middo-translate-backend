@@ -176,19 +176,14 @@ export class HelpDeskController {
     };
   }
 
-  // @Public()
-  // @Get(':businessId/recommend')
-  // async getRecommendChatByBusinessAndParentId(
-  //   @Param('businessId') businessId: string,
-  //   @Query('parentId') parentId: string,
-  // ) {
-  //   const result =
-  //     await this.helpDeskService.getRecommendChatByBusinessAndParentId(
-  //       businessId,
-  //       parentId,
-  //     );
-  //   return {
-  //     data: result,
-  //   };
-  // }
+  @Post('resend-invitation')
+  async resendInvitation(
+    @JwtUserId() userId: string,
+    @Body() member: InviteMemberDto,
+  ) {
+    const result = await this.helpDeskService.resendInvitation(userId, member);
+    return {
+      data: result,
+    };
+  }
 }
