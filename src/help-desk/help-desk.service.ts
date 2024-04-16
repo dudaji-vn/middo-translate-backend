@@ -226,7 +226,7 @@ export class HelpDeskService {
               },
             },
             {
-              admin: userId,
+              owner: userId,
             },
           ],
         });
