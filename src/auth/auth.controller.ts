@@ -270,8 +270,7 @@ export class AuthController {
   @Public()
   @Post('verify-token-google')
   async verifyToken(@Body() payload: VerifyTokenGoogle) {
-    const { token } = payload;
-    const data = await this.authService.verifyTokenGoogle(token);
+    const data = await this.authService.verifyTokenGoogle(payload);
     return {
       data: data,
     };

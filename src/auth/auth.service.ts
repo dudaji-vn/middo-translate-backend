@@ -7,18 +7,19 @@ import {
 } from '@nestjs/common';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 
-import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtService } from '@nestjs/jwt';
-import { MailService } from 'src/mail/mail.service';
-import { SignInDto } from './dto/sign-in.dto';
-import { SignUpDto } from './dto/sign-up.dto';
-import { Tokens } from './types';
-import { UsersService } from 'src/users/users.service';
-import { envConfig } from 'src/configs/env.config';
-import { NotificationService } from 'src/notifications/notifications.service';
-import { SignOutDto } from './dto/sign-out.dto';
 import { OAuth2Client } from 'google-auth-library';
 import { logger } from 'src/common/utils/logger';
+import { envConfig } from 'src/configs/env.config';
+import { MailService } from 'src/mail/mail.service';
+import { NotificationService } from 'src/notifications/notifications.service';
+import { UsersService } from 'src/users/users.service';
+import { ChangePasswordDto } from './dto/change-password.dto';
+import { SignInDto } from './dto/sign-in.dto';
+import { SignOutDto } from './dto/sign-out.dto';
+import { SignUpDto } from './dto/sign-up.dto';
+import { VerifyTokenGoogle } from './dto/verify-token-google.dto';
+import { Tokens } from './types';
 
 @Injectable()
 export class AuthService {
@@ -268,11 +269,11 @@ export class AuthService {
     return;
   }
 
-  async verifyTokenGoogle(token: string) {
+  async verifyTokenGoogle({ clientID, token }: VerifyTokenGoogle) {
     try {
       const ticket = await this.oauthClient.verifyIdToken({
         idToken: token,
-        audience: envConfig.google.clientID,
+        audience: clientID,
       });
       if (!ticket || !ticket.getPayload()) {
         throw new UnauthorizedException('Token is not valid');
