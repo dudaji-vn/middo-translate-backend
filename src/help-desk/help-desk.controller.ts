@@ -41,7 +41,7 @@ export class HelpDeskController {
     return { data: result };
   }
 
-  @Put('create-or-edit-business')
+  @Put('create-or-edit-extension')
   async createOrEditBusiness(
     @JwtUserId() userId: string,
     @Body() business: CreateOrEditBusinessDto,
@@ -94,7 +94,7 @@ export class HelpDeskController {
   }
 
   @Public()
-  @Get('business/:id')
+  @Get('extension/:id')
   async getBusinessById(@ParamObjectId() id: string) {
     const result = await this.helpDeskService.getBusinessById(id);
     return { data: result };
@@ -176,6 +176,17 @@ export class HelpDeskController {
 
   @Post('resend-invitation')
   async resendInvitation(
+    @JwtUserId() userId: string,
+    @Body() member: InviteMemberDto,
+  ) {
+    const result = await this.helpDeskService.resendInvitation(userId, member);
+    return {
+      data: result,
+    };
+  }
+
+  @Patch('change-role')
+  async changeRole(
     @JwtUserId() userId: string,
     @Body() member: InviteMemberDto,
   ) {
