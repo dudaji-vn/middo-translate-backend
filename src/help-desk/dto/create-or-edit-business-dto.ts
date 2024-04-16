@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsMongoId,
   IsString,
   MinLength,
   ValidateNested,
@@ -39,4 +40,10 @@ export class CreateOrEditBusinessDto {
   chatFlow: ChatFlowDto | null;
 
   status: StatusBusiness;
+
+  @ApiProperty()
+  @IsMongoId()
+  spaceId: string;
+
+  space: string;
 }

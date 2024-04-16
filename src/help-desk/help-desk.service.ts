@@ -97,6 +97,10 @@ export class HelpDeskService {
   }
 
   async createOrEditBusiness(userId: string, info: CreateOrEditBusinessDto) {
+    const space = this.spaceModel.findOne({ _id: info.spaceId });
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
     info.status = StatusBusiness.ACTIVE;
     if (info.chatFlow) {
       info.firstMessage = '';
@@ -104,9 +108,11 @@ export class HelpDeskService {
     } else {
       info.chatFlow = null;
     }
+    info.space = info.spaceId;
 
     const user = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
+        space: info.spaceId,
         user: userId,
       },
       info,

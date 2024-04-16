@@ -69,6 +69,8 @@ export class HelpDeskBusiness {
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Space',
+    required: true,
+    unique: true,
   })
   space: Space;
 
@@ -76,7 +78,6 @@ export class HelpDeskBusiness {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
-    unique: true,
   })
   user: User | string;
 
