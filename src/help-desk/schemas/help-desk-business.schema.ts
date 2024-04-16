@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
 import { User } from 'src/users/schemas/user.schema';
 import { ChatFlow, ChatFlowSchema } from './chat-flow.schema';
+import { Space } from './space.schema';
 
 export enum StatusBusiness {
   DELETED = 'deleted',
@@ -64,6 +65,12 @@ export const MemberSchema = SchemaFactory.createForClass(Member);
 })
 export class HelpDeskBusiness {
   _id: mongoose.Schema.Types.ObjectId;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Space',
+  })
+  space: Space;
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
