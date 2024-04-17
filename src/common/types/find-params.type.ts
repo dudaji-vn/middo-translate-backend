@@ -5,4 +5,5 @@ export type FindParams = {
   limit: number;
   type?: SearchType;
   currentPage?: number;
+  spaceId?: string;
 };
