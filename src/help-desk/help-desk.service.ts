@@ -296,6 +296,7 @@ export class HelpDeskService {
           },
         ],
       })
+      .populate('owner', 'email')
       .select('-members.verifyToken')
       .lean();
     if (!space) {
