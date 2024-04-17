@@ -823,6 +823,7 @@ export class HelpDeskService {
 
       return {
         space: {
+          _id: item._id,
           avatar: item.avatar,
           backgroundImage: item.backgroundImage,
           name: item.name,
