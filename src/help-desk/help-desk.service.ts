@@ -55,7 +55,9 @@ export class HelpDeskService {
   ) {}
 
   async createClient(businessId: string, info: Partial<User>) {
-    const business = await this.helpDeskBusinessModel.findById(businessId);
+    const business = await this.helpDeskBusinessModel
+      .findById(businessId)
+      .populate('space');
 
     if (!business) {
       throw new BadRequestException('Business not found');
@@ -68,12 +70,19 @@ export class HelpDeskService {
       language: info.language,
       tempEmail: info.email,
     });
+    const participants: any = business.space.members
+      .filter((item) => item.status === MemberStatus.JOINED && item.user)
+      .map((item) => item.user);
+    if (!participants) {
+      return new BadRequestException('Not participant in this room');
+    }
 
     const room = await this.roomsService.createHelpDeskRoom(
       {
-        participants: [user._id, (business.user as User)._id],
+        participants: [user._id, ...participants],
         businessId: business._id.toString(),
         senderId: business.user.toString(),
+        space: business.space._id,
       },
       business.user.toString(),
     );
@@ -742,7 +751,7 @@ export class HelpDeskService {
     };
   }
 
-  async acceptInvite(
+  async validateInvite(
     userId: string,
     token: string,
     status: ValidateInviteStatus,
@@ -772,13 +781,19 @@ export class HelpDeskService {
       space.members = space.members.filter(
         (item) => item.verifyToken !== token,
       );
+      await space.save();
     } else {
       space.members[memberIndex].status = MemberStatus.JOINED;
       space.members[memberIndex].joinedAt = new Date();
       space.members[memberIndex].user = userId;
+      await space.save();
+      this.roomsService.addHelpDeskParticipant(
+        space._id.toString(),
+        space.owner.toString(),
+        userId,
+      );
     }
 
-    await space.save();
     return true;
   }
 

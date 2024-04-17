@@ -152,11 +152,11 @@ export class HelpDeskController {
   }
 
   @Post('validate-invite')
-  async acceptInvite(
+  async validateInvite(
     @Body() { token, status }: ValidateInviteDto,
     @JwtUserId() userId: string,
   ) {
-    const result = await this.helpDeskService.acceptInvite(
+    const result = await this.helpDeskService.validateInvite(
       userId,
       token,
       status,
