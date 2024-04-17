@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, Types } from 'mongoose';
+import { FilterQuery, Model, ObjectId, Types } from 'mongoose';
 import {
   CursorPaginationInfo,
   ListQueryParamsCursor,
@@ -965,6 +965,14 @@ export class MessagesService {
         lastMessage: message,
       });
     }
+  }
+
+  async checkSeen(id: string, userId: string): Promise<boolean> {
+    const message = await this.messageModel.exists({
+      _id: id,
+      readBy: userId,
+    });
+    return !!message;
   }
 
   async react(id: string, userId: string, emoji: string) {
