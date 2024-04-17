@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
-import { Model, ObjectId, Types } from 'mongoose';
+import mongoose, { Model, ObjectId, Types } from 'mongoose';
 import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import { queryReportByType } from 'src/common/utils/query-report';
@@ -321,7 +321,9 @@ export class HelpDeskService {
     if (!user) {
       throw new BadRequestException('User not found');
     }
+
     const isAdminOrMember = await this.spaceModel.findOne({
+      _id: new mongoose.Types.ObjectId(spaceId),
       $or: [
         {
           'members.email': user.email,
@@ -334,7 +336,6 @@ export class HelpDeskService {
     return this.helpDeskBusinessModel
       .findOne({
         space: new Types.ObjectId(spaceId),
-        user: userId,
         status: { $ne: StatusBusiness.DELETED },
       })
       .populate('space', '-members.verifyToken')
@@ -406,9 +407,11 @@ export class HelpDeskService {
   }
   async getClientsByUser(query: SearchQueryParamsDto, userId: string) {
     const { q, limit, currentPage } = query;
-    const business = await this.helpDeskBusinessModel.findOne({ user: userId });
+    const business = await this.helpDeskBusinessModel.findOne({
+      space: query.spaceId,
+    });
     if (!business) {
-      throw new BadRequestException('Business not found');
+      throw new BadRequestException('space not found');
     }
     const data = await this.userService.findByBusiness({
       q,
@@ -442,12 +445,10 @@ export class HelpDeskService {
     return true;
   }
   async analyst(params: AnalystQueryDto, userId: string) {
-    const business = await this.getBusinessByUser(
-      userId,
-      '661dd18f79fa16e0ac8777db',
-    );
+    const spaceId = params.spaceId;
+    const business = await this.getBusinessByUser(userId, spaceId);
     if (!business) {
-      throw new BadRequestException('Business not found');
+      throw new BadRequestException('You have not created an extension yet');
     }
     const { type, fromDate, toDate } = params;
     const today = moment().toDate();

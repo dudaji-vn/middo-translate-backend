@@ -633,7 +633,9 @@ export class RoomsService {
         ...(notGroup ? { isGroup: false } : {}),
         status: RoomStatus.ACTIVE,
         isHelpDesk: { $ne: true },
-        ...(query?.type === 'help-desk' ? { isHelpDesk: true } : {}),
+        ...(query?.type === 'help-desk'
+          ? { isHelpDesk: true, space: { $exists: true, $eq: query.spaceId } }
+          : {}),
       })
       .sort({ newMessageAt: -1 })
       .limit(10)
