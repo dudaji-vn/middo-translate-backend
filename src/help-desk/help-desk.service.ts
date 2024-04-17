@@ -814,16 +814,22 @@ export class HelpDeskService {
           },
         },
       })
-      .populate('user', 'name avatar members')
-      .select('name user members')
+      .populate('owner', 'email')
+      .select('name user members owner')
       .lean();
     return myInvitations.map((item) => {
-      const invitedAt = item.members.find(
-        (item) => item.email === user.email,
-      )?.invitedAt;
+      const memberInfo = item.members.find((item) => item.email === user.email);
+      const invitedAt = memberInfo?.invitedAt;
 
       return {
-        ...item,
+        space: {
+          avatar: item.avatar,
+          backgroundImage: item.backgroundImage,
+          name: item.name,
+          owner: item.owner,
+        },
+        email: user.email,
+        verifyToken: memberInfo?.verifyToken,
         invitedAt: invitedAt,
       };
     });
