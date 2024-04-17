@@ -82,6 +82,16 @@ export class MessagesController {
     };
   }
 
+  @Get(':id/seen')
+  async checkSeen(@JwtUserId() userId: string, @ParamObjectId() id: string) {
+    const seen = await this.messagesService.checkSeen(id, userId);
+    return {
+      data: {
+        seen,
+      },
+    };
+  }
+
   @Patch(':id/react')
   async reactMessage(
     @ParamObjectId() id: string,

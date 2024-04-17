@@ -36,6 +36,7 @@ export const envConfig = {
   },
   google: {
     clientID: process.env.GOOGLE_CLIENT_ID,
+    mobileClientId: process.env.GOOGLE_MOBILE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: `${process.env.SERVER_URL}/api/auth/google/callback`,
   },

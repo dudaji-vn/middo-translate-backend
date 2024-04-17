@@ -69,6 +69,12 @@ export class Room {
     default: [],
   })
   readBy: ObjectId[] | string[];
+
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: User.name }],
+    default: [],
+  })
+  accessPeople: User[];
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);

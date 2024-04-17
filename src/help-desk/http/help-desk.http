@@ -1,7 +1,7 @@
 @SERVER_URL = http://localhost:3000
-@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU2Y2ZiOWNkMzhhY2E2Y2QyNmQzYyIsImlhdCI6MTcxMjcyMzUxMSwiZXhwIjoxNzEyODA5OTExfQ.f19JiMrQpqUzmkbfdEhP0xQzc5KH8GA6LMmSY88aln0
+@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU2Y2ZiOWNkMzhhY2E2Y2QyNmQzYyIsImlhdCI6MTcxMzE0ODA3OCwiZXhwIjoxNzEzMjM0NDc4fQ.BfFy52m6_hKwAPVUScJaASFhDRWsgjiSocxfBTBCmaA
 
-@ROOM_ID =65f1815531cfdbe13c0a85c5
+@ROOM_ID =66174e1b05bf03252623d809
 
 @BUSINESS_ID=65effd002d3c6a72235bbe8e
 
@@ -15,7 +15,7 @@ Content-Type: application/json
   "color": "redss",
   "language": "vis",
   "firstMessage": "Xin chào",
-  "firstMessageEnglish": "Hi, how can I help you123?",
+  "firstMessageEnglish": "Hi, how can I help you?",
   "chatFlow": {
     "content": "Root Node111",
     "contentEnglish":"Hello",
@@ -50,10 +50,7 @@ POST  {{SERVER_URL}}/api/help-desk/create-client
 Content-Type: application/json
 
 { 
-  "businessId": "65effd002d3c6a72235bbe8e",
-  "name": "Nguyen Van A",
-  "language": "vi",
-  "email": "nguyenvana28710@gmail.com"
+  "members":[]
 }
 
 ###
@@ -131,7 +128,7 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 GET  {{SERVER_URL}}/api/rooms/anonymous/{{ROOM_ID}}?userId=65e56cfb9cd38aca6cd26d3c
 
 ###
-GET {{SERVER_URL}}/api/rooms/anonymous/{{ROOM_ID}}/message?userId=65f79b0701513a8725777892&limit=16
+GET {{SERVER_URL}}/api/rooms/anonymous/{{ROOM_ID}}/message?userId=65e56cfb9cd38aca6cd26d3c&limit=16
 
 
 ####
@@ -202,37 +199,48 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 
-###
-GET {{SERVER_URL}}/api/help-desk/{{BUSINESS_ID}}/recommend?parentId=9pg-foj-5b7
-
-
 ####
 PUT {{SERVER_URL}}/api/help-desk/create-or-edit-space
 Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
+ "name":"Man1",
   "members": [
+    {
+       "email":"hoquanglinh2710@gmail.com",
+       "role":"member"
+    },
     {
        "email":"19521750@gm.uit.edu.vn",
        "role":"member"
+    },
+    {
+       "email":"195217501@gm.uit.edu.vn",
+       "role":"member"
     }
-  ],
-  "name": "redss",
-  "avatar": "vis",
-  "backgroundImage": "Xin chào"
+  ]
 }
 
-
+//joined-spaces|my-spaces
 ####
 GET {{SERVER_URL}}/api/help-desk/spaces?type=joined-spaces
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU2Y2ZiOWNkMzhhY2E2Y2QyNmQzYyIsImlhdCI6MTcxMjI5MDg2NiwiZXhwIjoxNzEyMzc3MjY2fQ.3W5LVQgEWtTneuUQfY-BlKVMhTWNq_NlDK3jhUQy__c
+Authorization: Bearer {{ACCESS_TOKEN}}
 
+###
+GET {{SERVER_URL}}/api/help-desk/my-invitations
+Authorization: Bearer {{ACCESS_TOKEN}}  
 
+###
+// status: accept||decline
+POST {{SERVER_URL}}/api/help-desk/validate-invite
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
 
-
-
-
+{
+  "token":"jlo-69o-fa1-rik-atp-yq3",
+  "status":"accept"
+}
 
 
 

@@ -11,14 +11,18 @@ import {
 } from './schemas/help-desk-business.schema';
 
 import { MessagesModule } from '../messages/messages.module';
+import { MailModule } from '../mail/mail.module';
+import { Space, SpaceSchema } from './schemas/space.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: HelpDeskBusiness.name, schema: HelpDeskBusinessSchema },
       { name: User.name, schema: UserSchema },
+      { name: Space.name, schema: SpaceSchema },
     ]),
     UsersModule,
+    MailModule,
     forwardRef(() => MessagesModule),
     forwardRef(() => RoomsModule),
   ],
