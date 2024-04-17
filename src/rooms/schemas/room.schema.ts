@@ -3,6 +3,7 @@ import mongoose, { HydratedDocument, ObjectId } from 'mongoose';
 
 import { Message } from 'src/messages/schemas/messages.schema';
 import { User } from 'src/users/schemas/user.schema';
+import { Space } from 'src/help-desk/schemas/space.schema';
 
 export type RoomDocument = HydratedDocument<Room>;
 export enum RoomStatus {
@@ -71,10 +72,10 @@ export class Room {
   readBy: ObjectId[] | string[];
 
   @Prop({
-    type: [{ type: mongoose.Schema.Types.ObjectId, ref: User.name }],
-    default: [],
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Space',
   })
-  accessPeople: User[];
+  space: Space | ObjectId;
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);
