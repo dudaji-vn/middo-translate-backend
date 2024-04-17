@@ -306,7 +306,11 @@ export class RoomsService {
           }
         : {}),
       ...(type === 'unread-help-desk'
-        ? { isHelpDesk: true, readBy: { $nin: [user] }, space: spaceId }
+        ? {
+            isHelpDesk: true,
+            readBy: { $nin: [user] },
+            space: { $exists: true, $eq: spaceId },
+          }
         : {}),
     };
 
