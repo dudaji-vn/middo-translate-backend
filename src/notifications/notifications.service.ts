@@ -18,13 +18,21 @@ export class NotificationService {
     private notificationModel: Model<Notification>,
     private watchingService: WatchingService,
   ) {}
-  async sendNotification(
-    userIds: string[],
-    title: string,
-    body: string,
-    roomId: string,
-    link?: string,
-  ) {
+  async sendNotification({
+    body,
+    roomId,
+    title,
+    userIds,
+    link,
+    messageId,
+  }: {
+    userIds: string[];
+    title: string;
+    body: string;
+    roomId: string;
+    link?: string;
+    messageId?: string;
+  }) {
     const notifications = await this.notificationModel.find({
       userId: { $in: userIds },
     });
@@ -58,6 +66,7 @@ export class NotificationService {
             title,
             body,
             url: link || envConfig.app.url,
+            messageId: messageId || '',
           },
           webpush: {
             fcmOptions: {
@@ -85,7 +94,7 @@ export class NotificationService {
           sound: 'default',
           title,
           body,
-          data: { url: link || envConfig.app.url },
+          data: { url: link || envConfig.app.url, messageId: messageId || '' },
         }));
         const chunks = expo.chunkPushNotifications(messages);
 

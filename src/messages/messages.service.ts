@@ -539,13 +539,14 @@ export class MessagesService {
     const link = `${envConfig.app.url}/${
       room.isHelpDesk ? 'business/conversations' : 'talk'
     }/${room._id}`;
-    this.notificationService.sendNotification(
-      targetUserIds,
+    this.notificationService.sendNotification({
+      userIds: targetUserIds,
       title,
       body,
-      room._id.toString(),
+      roomId: room._id.toString(),
       link,
-    );
+      messageId: message._id.toString(),
+    });
   }
   async sendReplyMessageNotification(message: Message) {
     const title = envConfig.app.name;
@@ -616,13 +617,14 @@ export class MessagesService {
     );
 
     const link = `${envConfig.app.url}/talk/${roomId}?r_tab=discussion&ms_id=${message.parent._id}`;
-    this.notificationService.sendNotification(
-      targetUserIds,
+    this.notificationService.sendNotification({
+      userIds: targetUserIds,
       title,
       body,
       roomId,
       link,
-    );
+      messageId: message._id.toString(),
+    });
   }
 
   async findByRoomIdWithCursorPaginate(
@@ -1025,13 +1027,14 @@ export class MessagesService {
         const link = `${envConfig.app.url}/${
           message.room.isHelpDesk ? 'business/conversations' : 'talk'
         }/${message.room._id}`;
-        this.notificationService.sendNotification(
-          [message.sender._id.toString()],
-          envConfig.app.name,
-          `${user.name} reacted to your message`,
-          message.room._id.toString(),
+        this.notificationService.sendNotification({
+          userIds: [message.sender._id.toString()],
+          title: envConfig.app.name,
+          body: `${user.name} reacted to your message`,
+          roomId: message.room._id.toString(),
           link,
-        );
+          messageId: message._id.toString(),
+        });
       }
     }
     await message.save();
