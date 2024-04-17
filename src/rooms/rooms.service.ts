@@ -385,6 +385,8 @@ export class RoomsService {
           'avatar',
           'email',
           'language',
+          'tempEmail',
+          'status',
         ]),
       )
       .populate({
