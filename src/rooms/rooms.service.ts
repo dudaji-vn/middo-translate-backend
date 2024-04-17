@@ -13,23 +13,21 @@ import {
   Pagination,
 } from 'src/common/types';
 import { selectPopulateField } from 'src/common/utils';
+import { queryReportByType } from 'src/common/utils/query-report';
 import { socketConfig } from 'src/configs/socket.config';
 import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
+import { AnalystType } from 'src/help-desk/dto/analyst-query-dto';
+import { ChartQueryDto } from 'src/help-desk/dto/chart-query-dto';
 import { Message } from 'src/messages/schemas/messages.schema';
 import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
 import { RecommendQueryDto } from 'src/recommendation/dto/recommend-query-dto';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
+import { HelpDeskBusiness } from '../help-desk/schemas/help-desk-business.schema';
 import { CreateRoomDto } from './dto';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
-import { queryReportByType } from 'src/common/utils/query-report';
-import { AnalystType } from 'src/help-desk/dto/analyst-query-dto';
-import { ChartQueryDto } from 'src/help-desk/dto/chart-query-dto';
-import { HelpDeskService } from '../help-desk/help-desk.service';
-import { HelpDeskModule } from '../help-desk/help-desk.module';
-import { HelpDeskBusiness } from '../help-desk/schemas/help-desk-business.schema';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -276,11 +274,12 @@ export class RoomsService {
   async findWithCursorPaginate(
     queryParams: ListQueryParamsCursor & {
       type?: 'all' | 'group' | 'individual' | 'help-desk' | 'unread-help-desk';
+      spaceId?: string;
       status?: RoomStatus;
     },
     userId: string,
   ): Promise<Pagination<Room, CursorPaginationInfo>> {
-    const { limit = 10, cursor, type, status } = queryParams;
+    const { limit = 10, cursor, type, status, spaceId } = queryParams;
 
     const user = await this.usersService.findById(userId);
 
@@ -300,9 +299,14 @@ export class RoomsService {
       isHelpDesk: { $ne: true },
       ...(type === 'group' ? { isGroup: true } : {}),
       ...(type === 'individual' ? { isGroup: false } : {}),
-      ...(type === 'help-desk' ? { isHelpDesk: true } : {}),
+      ...(type === 'help-desk'
+        ? {
+            isHelpDesk: true,
+            space: { $exists: true, $eq: spaceId },
+          }
+        : {}),
       ...(type === 'unread-help-desk'
-        ? { isHelpDesk: true, readBy: { $nin: [user] } }
+        ? { isHelpDesk: true, readBy: { $nin: [user] }, space: spaceId }
         : {}),
     };
 
@@ -507,6 +511,21 @@ export class RoomsService {
       );
 
     return room;
+  }
+  async addHelpDeskParticipant(
+    spaceId: string,
+    userId: string,
+    memberId: string,
+  ) {
+    await this.roomModel.updateMany(
+      {
+        space: new mongoose.Types.ObjectId(spaceId),
+        admin: new mongoose.Types.ObjectId(userId),
+        isHelpDesk: true,
+      },
+
+      { $addToSet: { participants: [memberId] } },
+    );
   }
 
   async updateRoomInfo(roomId: string, data: UpdateRoomDto, userId: string) {
@@ -807,8 +826,8 @@ export class RoomsService {
     const newRoom = new this.roomModel(createRoomDto);
     newRoom.isHelpDesk = true;
     newRoom.participants = participants;
-    newRoom.admin =
-      participants.find((p) => p._id.toString() === creatorId) || ({} as User);
+    newRoom.space = createRoomDto.space;
+    newRoom.admin = creatorId as any;
     newRoom.readBy = createRoomDto.participants;
 
     const room = await this.roomModel.create(newRoom);
