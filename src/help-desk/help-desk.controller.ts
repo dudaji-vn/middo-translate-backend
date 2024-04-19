@@ -95,13 +95,13 @@ export class HelpDeskController {
   }
 
   @Public()
-  @Get('extension/:id')
+  @Get('extensions/:id')
   async getBusinessById(@ParamObjectId('id') id: string) {
     const result = await this.helpDeskService.getBusinessById(id);
     return { data: result };
   }
 
-  @Delete('extension/:id')
+  @Delete('extensions/:id')
   async deleteBusiness(
     @JwtUserId() userId: string,
     @ParamObjectId('id') id: string,
