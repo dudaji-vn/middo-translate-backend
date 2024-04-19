@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
 import mongoose, { Model, ObjectId, Types } from 'mongoose';
@@ -27,6 +31,7 @@ import {
 
 import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
 import {
+  CreateOrEditTagDto,
   CreateOrEditSpaceDto,
   InviteMemberDto,
   MemberDto,
@@ -337,6 +342,9 @@ export class HelpDeskService {
       })
       .select('-space')
       .lean();
+    space.members = space.members.filter(
+      (user) => user.status !== MemberStatus.DELETED,
+    );
     return {
       ...space,
       extension: extension,
@@ -785,6 +793,10 @@ export class HelpDeskService {
     token: string,
     status: ValidateInviteStatus,
   ) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
     const space = await this.spaceModel.findOne({
       members: {
         $elemMatch: {
@@ -800,6 +812,12 @@ export class HelpDeskService {
     const memberIndex = space.members.findIndex(
       (item) => item.verifyToken === token,
     );
+    const email = space.members[memberIndex].email;
+    if (email !== user.email) {
+      throw new UnauthorizedException(
+        `Please login with the email ${email} to handle this invite`,
+      );
+    }
     if (space.members[memberIndex].status === MemberStatus.JOINED) {
       throw new BadRequestException('You are joined this space');
     }
@@ -1248,5 +1266,34 @@ export class HelpDeskService {
 
     await spaceData.save();
     return true;
+  }
+
+  async createOrEditTag(userId: string, tagDto: CreateOrEditTagDto) {
+    const { spaceId, name, color, tagId } = tagDto;
+    const space = await this.spaceModel.findById(spaceId).populate('tags');
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+    const item: any = {
+      color: color,
+      name: name,
+    };
+    if (!tagId) {
+      space.tags = space.tags || [];
+      if (space.tags.find((item) => item.name === name)) {
+        throw new BadRequestException('name already exists');
+      }
+      space.tags.push(item);
+    } else {
+      const index = space.tags.findIndex(
+        (item) => item._id.toString() === tagId,
+      );
+      if (index === -1) {
+        throw new BadRequestException('Tag not found');
+      }
+      space.tags[index] = item;
+    }
+    await space.save();
+    return space.tags;
   }
 }

@@ -20,6 +20,7 @@ import { CreateRatingDto } from './dto/create-rating.dto';
 import { EditClientDto } from './dto/edit-client-dto';
 import { HelpDeskService } from './help-desk.service';
 import {
+  CreateOrEditTagDto,
   CreateOrEditSpaceDto,
   InviteMemberDto,
   RemoveMemberDto,
@@ -202,6 +203,17 @@ export class HelpDeskController {
     @Body() member: RemoveMemberDto,
   ) {
     const result = await this.helpDeskService.removeMember(userId, member);
+    return {
+      data: result,
+    };
+  }
+
+  @Put('create-or-edit-tag')
+  async createOrEditTag(
+    @JwtUserId() userId: string,
+    @Body() tag: CreateOrEditTagDto,
+  ) {
+    const result = await this.helpDeskService.createOrEditTag(userId, tag);
     return {
       data: result,
     };
