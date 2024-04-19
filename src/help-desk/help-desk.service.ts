@@ -1358,7 +1358,11 @@ export class HelpDeskService {
       if (index === -1) {
         throw new BadRequestException('Tag not found');
       }
-      space.tags[index] = item;
+      if (space.tags[index].isReadonly) {
+        throw new BadRequestException('This tag is readonly');
+      }
+      space.tags[index].name = name;
+      space.tags[index].color = color;
     }
     await space.save();
     return space.tags;
