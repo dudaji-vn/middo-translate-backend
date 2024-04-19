@@ -245,7 +245,7 @@ export class AuthService {
     name?: string;
     avatar?: string;
     email: string;
-    provider: string;
+    provider: Provider;
     language: string;
   }): Promise<Tokens & { user: User }> {
     const language = getLanguage(profile.language || 'en');
