@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
-import { Model, ObjectId, Types } from 'mongoose';
+import mongoose, { Model, ObjectId, Types } from 'mongoose';
 import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import { queryReportByType } from 'src/common/utils/query-report';
@@ -37,6 +37,7 @@ import { envConfig } from 'src/configs/env.config';
 import { JwtService } from '@nestjs/jwt';
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
 import { Space } from './schemas/space.schema';
+import { multipleTranslate } from '../messages/utils/translate';
 
 @Injectable()
 export class HelpDeskService {
@@ -55,7 +56,9 @@ export class HelpDeskService {
   ) {}
 
   async createClient(businessId: string, info: Partial<User>) {
-    const business = await this.helpDeskBusinessModel.findById(businessId);
+    const business = await this.helpDeskBusinessModel
+      .findById(businessId)
+      .populate('space');
 
     if (!business) {
       throw new BadRequestException('Business not found');
@@ -68,17 +71,44 @@ export class HelpDeskService {
       language: info.language,
       tempEmail: info.email,
     });
+    if (business.chatFlow) {
+      for (const index in business.chatFlow.nodes) {
+        const item = business.chatFlow.nodes[index];
+        if (info.language) {
+          const newTranslations = await multipleTranslate({
+            content: item.data.content,
+            sourceLang: business.language,
+            targetLangs: ['en', info.language],
+          });
+
+          item.data.translations = {
+            ...item.data.translations,
+            ...newTranslations,
+          };
+          business.chatFlow.nodes[index] = item;
+        }
+      }
+
+      business.save();
+    }
+    const participants: any = business.space.members
+      .filter((item) => item.status === MemberStatus.JOINED && item.user)
+      .map((item) => item.user);
+    if (!participants) {
+      return new BadRequestException('Not participant in this room');
+    }
 
     const room = await this.roomsService.createHelpDeskRoom(
       {
-        participants: [user._id, (business.user as User)._id],
+        participants: [user._id, ...participants],
         businessId: business._id.toString(),
         senderId: business.user.toString(),
+        space: business.space._id,
       },
       business.user.toString(),
     );
 
-    this.messagesService.initHelpDeskConversation(
+    await this.messagesService.initHelpDeskConversation(
       {
         clientTempId: '',
         content: business.firstMessage,
@@ -287,6 +317,7 @@ export class HelpDeskService {
           },
         ],
       })
+      .populate('owner', 'email')
       .select('-members.verifyToken')
       .lean();
     if (!space) {
@@ -311,7 +342,9 @@ export class HelpDeskService {
     if (!user) {
       throw new BadRequestException('User not found');
     }
+
     const isAdminOrMember = await this.spaceModel.findOne({
+      _id: new mongoose.Types.ObjectId(spaceId),
       $or: [
         {
           'members.email': user.email,
@@ -324,7 +357,6 @@ export class HelpDeskService {
     return this.helpDeskBusinessModel
       .findOne({
         space: new Types.ObjectId(spaceId),
-        user: userId,
         status: { $ne: StatusBusiness.DELETED },
       })
       .populate('space', '-members.verifyToken')
@@ -396,9 +428,11 @@ export class HelpDeskService {
   }
   async getClientsByUser(query: SearchQueryParamsDto, userId: string) {
     const { q, limit, currentPage } = query;
-    const business = await this.helpDeskBusinessModel.findOne({ user: userId });
+    const business = await this.helpDeskBusinessModel.findOne({
+      space: query.spaceId,
+    });
     if (!business) {
-      throw new BadRequestException('Business not found');
+      throw new BadRequestException('space not found');
     }
     const data = await this.userService.findByBusiness({
       q,
@@ -432,12 +466,10 @@ export class HelpDeskService {
     return true;
   }
   async analyst(params: AnalystQueryDto, userId: string) {
-    const business = await this.getBusinessByUser(
-      userId,
-      '661dd18f79fa16e0ac8777db',
-    );
+    const spaceId = params.spaceId;
+    const business = await this.getBusinessByUser(userId, spaceId);
     if (!business) {
-      throw new BadRequestException('Business not found');
+      throw new BadRequestException('You have not created an extension yet');
     }
     const { type, fromDate, toDate } = params;
     const today = moment().toDate();
@@ -742,7 +774,7 @@ export class HelpDeskService {
     };
   }
 
-  async acceptInvite(
+  async validateInvite(
     userId: string,
     token: string,
     status: ValidateInviteStatus,
@@ -772,13 +804,19 @@ export class HelpDeskService {
       space.members = space.members.filter(
         (item) => item.verifyToken !== token,
       );
+      await space.save();
     } else {
       space.members[memberIndex].status = MemberStatus.JOINED;
       space.members[memberIndex].joinedAt = new Date();
       space.members[memberIndex].user = userId;
+      await space.save();
+      this.roomsService.addHelpDeskParticipant(
+        space._id.toString(),
+        space.owner.toString(),
+        userId,
+      );
     }
 
-    await space.save();
     return true;
   }
 
@@ -798,16 +836,23 @@ export class HelpDeskService {
           },
         },
       })
-      .populate('user', 'name avatar members')
-      .select('name user members')
+      .populate('owner', 'email')
+      .select('name user members owner')
       .lean();
     return myInvitations.map((item) => {
-      const invitedAt = item.members.find(
-        (item) => item.email === user.email,
-      )?.invitedAt;
+      const memberInfo = item.members.find((item) => item.email === user.email);
+      const invitedAt = memberInfo?.invitedAt;
 
       return {
-        ...item,
+        space: {
+          _id: item._id,
+          avatar: item.avatar,
+          backgroundImage: item.backgroundImage,
+          name: item.name,
+          owner: item.owner,
+        },
+        email: user.email,
+        verifyToken: memberInfo?.verifyToken,
         invitedAt: invitedAt,
       };
     });

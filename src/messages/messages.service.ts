@@ -271,9 +271,9 @@ export class MessagesService {
     if (!room) {
       throw new NotFoundException('Room not found');
     }
-    if (room.isHelpDesk) {
-      throw new Error('Cannot translate in helpdesk room');
-    }
+    // if (room.isHelpDesk) {
+    //   throw new Error('Cannot translate in helpdesk room');
+    // }
     if (message.translations && message.translations[to]) {
       return message;
     }

@@ -1,5 +1,5 @@
 import { Prop, SchemaFactory, Schema } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import mongoose, { Document } from 'mongoose';
 import { Media } from 'src/messages/schemas/messages.schema';
 
 // export type FlowItemType =
@@ -45,6 +45,9 @@ export class DataNodeChatFlow {
 
   @Prop({ type: Array })
   link?: string;
+
+  @Prop({ type: mongoose.Schema.Types.Mixed })
+  translations: any;
 }
 
 @Schema({ _id: false })

@@ -1,4 +1,10 @@
-import { IsInt, IsOptional, IsString, Validate } from 'class-validator';
+import {
+  IsInt,
+  IsMongoId,
+  IsOptional,
+  IsString,
+  Validate,
+} from 'class-validator';
 
 import { SearchType } from '../types/search-type.type';
 import { SpecialCharacterValidator } from 'src/common/validators';
@@ -21,4 +27,8 @@ export class SearchQueryParamsDto {
   @IsInt()
   @Transform(({ value }) => parseInt(value))
   currentPage: number;
+
+  @IsOptional()
+  @IsMongoId()
+  spaceId: string;
 }
