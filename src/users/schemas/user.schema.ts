@@ -17,6 +17,7 @@ export enum Provider {
   GOOGLE = 'google',
   FACEBOOK = 'facebook',
   LOCAL = 'local',
+  APPLE = 'apple',
 }
 
 @Schema({
@@ -29,12 +30,11 @@ export class User {
   @Prop({ type: String })
   bio: string;
 
-  @Prop({ type: String, unique: true })
+  @Prop({ type: String })
   email: string;
 
   @Prop({ type: String })
   password: string;
-
   @Prop({ type: String })
   avatar: string;
 
@@ -84,7 +84,8 @@ export class User {
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
-UserSchema.index({ email: 1 }, { unique: true });
+UserSchema.index({ email: 1 });
+UserSchema.index({ email: 1, provider: 1 }, { unique: true });
 // auto delete user if not verify in 24h
 UserSchema.index(
   { createdAt: 1 },
