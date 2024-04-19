@@ -215,6 +215,7 @@ export class HelpDeskService {
           (item) => item.email !== user.email,
         );
       }
+      space.members = space.members.filter((item) => item.email !== me.email);
       const members = await this.sendEmailToListMember(
         user.name,
         space.name,
