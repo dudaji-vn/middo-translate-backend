@@ -108,18 +108,24 @@ export class HelpDeskService {
       business.user.toString(),
     );
 
-    await this.messagesService.initHelpDeskConversation(
-      {
-        clientTempId: '',
-        content: business.firstMessage,
-        contentEnglish: business.firstMessageEnglish,
-        type: MessageType.TEXT,
-        roomId: room._id.toString(),
-        media: [],
-        businessUserId: business.user.toString(),
-      },
-      business.user.toString(),
-    );
+    if (
+      !business.chatFlow &&
+      business.firstMessage &&
+      business.firstMessageEnglish
+    ) {
+      await this.messagesService.initHelpDeskConversation(
+        {
+          clientTempId: '',
+          content: business.firstMessage,
+          contentEnglish: business.firstMessageEnglish,
+          type: MessageType.TEXT,
+          roomId: room._id.toString(),
+          media: [],
+          businessUserId: business.user.toString(),
+        },
+        business.user.toString(),
+      );
+    }
 
     return {
       user: user,
