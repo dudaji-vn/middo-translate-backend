@@ -31,6 +31,7 @@ import { envConfig } from 'src/configs/env.config';
 import { SignOutDto } from './dto/sign-out.dto';
 import { VerifyTokenGoogle } from './dto/verify-token-google.dto';
 import { logger } from 'src/common/utils/logger';
+import { VerifyTokenAppleDto } from './dto/verify-token-apple.dto';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -271,6 +272,14 @@ export class AuthController {
   @Post('verify-token-google')
   async verifyToken(@Body() payload: VerifyTokenGoogle) {
     const data = await this.authService.verifyTokenGoogle(payload);
+    return {
+      data: data,
+    };
+  }
+  @Public()
+  @Post('verify-token-apple')
+  async verifyTokenApple(@Body() payload: VerifyTokenAppleDto) {
+    const data = await this.authService.verifyTokenApple(payload);
     return {
       data: data,
     };

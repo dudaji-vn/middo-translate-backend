@@ -38,9 +38,8 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       ignoreNotFound: true,
     });
 
-    const language = getLanguage(profile?.language);
-
     if (!user?._id) {
+      const language = getLanguage(profile?.language);
       const newUser = await this.usersService.create({
         name: profile.displayName,
         email,
@@ -56,7 +55,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   }
 }
 
-const getLanguage = (languageCode: string) => {
+export const getLanguage = (languageCode: string) => {
   const isSupported = SUPPORTED_LANGUAGES.find(
     (language) => language.code === languageCode,
   );
