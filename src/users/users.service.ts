@@ -3,7 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId, Types } from 'mongoose';
 import { FindParams } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
-import { User, UserStatus } from './schemas/user.schema';
+import { Provider, User, UserStatus } from './schemas/user.schema';
 import { generateAvatar, selectPopulateField } from 'src/common/utils';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -123,7 +123,7 @@ export class UsersService {
     return user;
   }
 
-  async findByEmailAndProvider(email: string, provider: string) {
+  async findByEmailAndProvider(email: string, provider: Provider) {
     const user = await this.userModel.findOne({ email, provider }).lean();
     return user as User;
   }
