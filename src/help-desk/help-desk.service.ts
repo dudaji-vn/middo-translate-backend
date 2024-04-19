@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -41,7 +42,7 @@ import { MailService } from 'src/mail/mail.service';
 import { envConfig } from 'src/configs/env.config';
 import { JwtService } from '@nestjs/jwt';
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
-import { Space } from './schemas/space.schema';
+import { Space, StatusSpace } from './schemas/space.schema';
 import { multipleTranslate } from '../messages/utils/translate';
 
 @Injectable()
@@ -139,7 +140,10 @@ export class HelpDeskService {
   }
 
   async createOrEditBusiness(userId: string, info: CreateOrEditBusinessDto) {
-    const space = this.spaceModel.findOne({ _id: info.spaceId });
+    const space = this.spaceModel.findOne({
+      _id: info.spaceId,
+      status: { $ne: StatusSpace.DELETED },
+    });
     if (!space) {
       throw new BadRequestException('Space not found');
     }
@@ -229,6 +233,7 @@ export class HelpDeskService {
       const spaceData = await this.spaceModel.findOne({
         _id: space.spaceId,
         owner: userId,
+        status: { $ne: StatusSpace.DELETED },
       });
       if (!spaceData) {
         throw new BadRequestException('Space not found');
@@ -260,12 +265,14 @@ export class HelpDeskService {
       case 'my_spaces':
         dataPromise = this.spaceModel.find({
           owner: userId,
+          status: { $ne: StatusSpace.DELETED },
         });
 
         break;
       case 'joined_spaces':
         dataPromise = this.spaceModel.find({
           owner: { $ne: user._id },
+          status: { $ne: StatusSpace.DELETED },
           members: {
             $elemMatch: {
               email: user.email,
@@ -276,6 +283,7 @@ export class HelpDeskService {
         break;
       default:
         dataPromise = this.spaceModel.find({
+          status: { $ne: StatusSpace.DELETED },
           $or: [
             {
               members: {
@@ -322,6 +330,7 @@ export class HelpDeskService {
     const space = await this.spaceModel
       .findOne({
         _id: spaceId,
+        status: { $ne: StatusSpace.DELETED },
         $or: [
           {
             'members.email': user.email,
@@ -359,6 +368,7 @@ export class HelpDeskService {
 
     const isAdminOrMember = await this.spaceModel.findOne({
       _id: new mongoose.Types.ObjectId(spaceId),
+      status: { $ne: StatusSpace.DELETED },
       $or: [
         {
           'members.email': user.email,
@@ -366,7 +376,7 @@ export class HelpDeskService {
       ],
     });
     if (!isAdminOrMember) {
-      throw new BadRequestException('You do not have access to this space!');
+      throw new ForbiddenException('You do not have access to this space!');
     }
     return this.helpDeskBusinessModel
       .findOne({
@@ -389,15 +399,17 @@ export class HelpDeskService {
       .populate('space', '-members.verifyToken')
       .lean();
   }
-  async deleteBusiness(userId: string) {
+  async deleteExtension(userId: string, extensionId: string) {
     const business = await this.helpDeskBusinessModel
-      .findOne({ user: userId, status: { $ne: StatusBusiness.DELETED } })
+      .findOne({ _id: extensionId, status: { $ne: StatusBusiness.DELETED } })
       .lean();
     if (!business) {
       throw new BadRequestException('Business not found');
     }
     if (business.user.toString() !== userId) {
-      throw new BadRequestException('You are not admin of business');
+      throw new ForbiddenException(
+        'You do not have permission to delete extension',
+      );
     }
     await this.helpDeskBusinessModel.updateOne(
       {
@@ -411,6 +423,33 @@ export class HelpDeskService {
       userId,
       RoomStatus.DELETED,
     );
+  }
+  async deleteSpace(spaceId: string, userId: string) {
+    const space = await this.spaceModel.findOne({
+      _id: spaceId,
+      status: { $ne: StatusSpace.DELETED },
+    });
+
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+    if (space?.owner.toString() !== userId.toString()) {
+      throw new ForbiddenException(
+        'You do not have permission to delete space',
+      );
+    }
+
+    space.status = StatusSpace.DELETED;
+    await space.save();
+    const extension = await this.helpDeskBusinessModel.findOne({
+      space: spaceId,
+    });
+    if (extension) {
+      extension.status = StatusBusiness.DELETED;
+      await extension.save();
+    }
+
+    return true;
   }
   async rating(createRatingDto: CreateRatingDto) {
     const { userId, businessId, star } = createRatingDto;
@@ -808,6 +847,9 @@ export class HelpDeskService {
     if (!space) {
       throw new BadRequestException('Token is invalid');
     }
+    if (space.status === StatusSpace.DELETED) {
+      throw new BadRequestException('This space is deleted');
+    }
 
     const memberIndex = space.members.findIndex(
       (item) => item.verifyToken === token,
@@ -1184,6 +1226,7 @@ export class HelpDeskService {
   }
   async resendInvitation(userId: string, data: InviteMemberDto) {
     const spaceData = await this.spaceModel.findOne({
+      status: { $ne: StatusSpace.DELETED },
       owner: userId,
       _id: data.spaceId,
     });
@@ -1227,10 +1270,16 @@ export class HelpDeskService {
     const spaceData = await this.spaceModel.findOne({
       owner: userId,
       _id: data.spaceId,
+      status: { $ne: StatusSpace.DELETED },
     });
 
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
+    }
+    if (spaceData.owner.toString() !== userId.toString()) {
+      throw new ForbiddenException(
+        'You do not have permission to remove member',
+      );
     }
 
     const index = spaceData.members.findIndex(
@@ -1247,6 +1296,7 @@ export class HelpDeskService {
   }
   async changeRole(userId: string, data: InviteMemberDto) {
     const spaceData = await this.spaceModel.findOne({
+      status: { $ne: StatusSpace.DELETED },
       owner: userId,
       _id: data.spaceId,
     });
@@ -1270,9 +1320,20 @@ export class HelpDeskService {
 
   async createOrEditTag(userId: string, tagDto: CreateOrEditTagDto) {
     const { spaceId, name, color, tagId } = tagDto;
-    const space = await this.spaceModel.findById(spaceId).populate('tags');
+    const space = await this.spaceModel
+      .findOne({
+        _id: spaceId,
+        status: { $ne: StatusSpace.DELETED },
+      })
+      .populate('tags');
     if (!space) {
       throw new BadRequestException('Space not found');
+    }
+
+    if (space.owner.toString() !== userId.toString()) {
+      throw new ForbiddenException(
+        'You do not have permission to create or edit tag',
+      );
     }
     const item: any = {
       color: color,

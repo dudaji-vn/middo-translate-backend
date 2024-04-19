@@ -96,14 +96,17 @@ export class HelpDeskController {
 
   @Public()
   @Get('extension/:id')
-  async getBusinessById(@ParamObjectId() id: string) {
+  async getBusinessById(@ParamObjectId('id') id: string) {
     const result = await this.helpDeskService.getBusinessById(id);
     return { data: result };
   }
 
-  @Delete('')
-  async deleteBusiness(@JwtUserId() userId: string) {
-    await this.helpDeskService.deleteBusiness(userId);
+  @Delete('extension/:id')
+  async deleteBusiness(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+  ) {
+    await this.helpDeskService.deleteExtension(userId, id);
     return { message: 'Business deleted', data: null };
   }
 
@@ -214,6 +217,17 @@ export class HelpDeskController {
     @Body() tag: CreateOrEditTagDto,
   ) {
     const result = await this.helpDeskService.createOrEditTag(userId, tag);
+    return {
+      data: result,
+    };
+  }
+
+  @Delete('spaces/:spaceId')
+  async deleteSpace(
+    @JwtUserId() userId: string,
+    @ParamObjectId('spaceId') spaceId: string,
+  ) {
+    const result = await this.helpDeskService.deleteSpace(spaceId, userId);
     return {
       data: result,
     };
