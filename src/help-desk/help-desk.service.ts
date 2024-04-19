@@ -189,6 +189,7 @@ export class HelpDeskService {
       members[index].verifyToken = token;
       members[index].invitedAt = new Date();
       members[index].status = MemberStatus.INVITED;
+      members[index].expiredAt = moment().add('7', 'day').toDate();
     }
     return members;
   }
@@ -334,6 +335,7 @@ export class HelpDeskService {
         $or: [
           {
             'members.email': user.email,
+            'members.status': MemberStatus.JOINED,
           },
         ],
       })

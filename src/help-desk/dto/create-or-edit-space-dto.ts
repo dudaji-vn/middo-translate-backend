@@ -21,6 +21,7 @@ export class MemberDto {
   status: MemberStatus;
   invitedAt?: Date;
   joinedAt?: Date;
+  expiredAt?: Date;
 }
 
 export class CreateOrEditSpaceDto {

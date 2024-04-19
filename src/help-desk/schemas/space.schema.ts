@@ -41,6 +41,9 @@ export class Member {
 
   @Prop({ type: Date })
   joinedAt?: Date;
+
+  @Prop({ type: Date })
+  expiredAt?: Date;
 }
 
 export const MemberSchema = SchemaFactory.createForClass(Member);
@@ -57,6 +60,17 @@ export class Tag extends Document {
     required: true,
   })
   name: string;
+
+  @Prop({
+    type: Boolean,
+  })
+  isDeleted: boolean;
+
+  @Prop({
+    type: Boolean,
+    default: false,
+  })
+  isReadonly: boolean;
 }
 export const TagSchema = SchemaFactory.createForClass(Tag);
 
@@ -96,7 +110,10 @@ export class Space {
 
   @Prop({
     type: [TagSchema],
-    default: [],
+    default: [
+      { name: 'pending', color: '#FF3333', isReadonly: true },
+      { name: 'completed', color: '#00B512', isReadonly: true },
+    ],
   })
   tags: Tag[];
 
