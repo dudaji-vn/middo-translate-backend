@@ -332,7 +332,7 @@ export class HelpDeskService {
       .findOne({
         _id: spaceId,
         status: { $ne: StatusSpace.DELETED },
-        $or: [
+        $and: [
           {
             'members.email': user.email,
             'members.status': MemberStatus.JOINED,
