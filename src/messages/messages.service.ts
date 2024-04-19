@@ -176,6 +176,36 @@ export class MessagesService {
       createdMessage.translations = data;
     }
 
+    if (createdMessage.actions && createdMessage.actions.length > 0) {
+      const actionsToTranslate = createdMessage.actions.filter(
+        (item) => item.data && item.data.content,
+      );
+
+      // Extract content for translation
+      const contentsToTranslate = actionsToTranslate.map(
+        (item) => item.data.content,
+      );
+
+      // Prepare translation tasks
+      const translationTasks = contentsToTranslate.map((content) => {
+        return multipleTranslate({
+          content,
+          sourceLang: createdMessage.language,
+          targetLangs: ['en', ...room.participants.map((p: any) => p.language)],
+        });
+      });
+
+      // Execute translation tasks concurrently
+      const translations = await Promise.all(translationTasks);
+
+      // Update actions with translations
+      translations.forEach((translation, index) => {
+        const item = actionsToTranslate[index];
+        item.data.translations = translation;
+        createdMessage.actions[createdMessage.actions.indexOf(item)] = item;
+      });
+    }
+
     if (createdMessage.media.length > 0) {
       createdMessage.type = MessageType.MEDIA;
     }

@@ -77,26 +77,26 @@ export class HelpDeskService {
       language: info.language,
       tempEmail: info.email,
     });
-    if (business.chatFlow) {
-      for (const index in business.chatFlow.nodes) {
-        const item = business.chatFlow.nodes[index];
-        if (info.language) {
-          const newTranslations = await multipleTranslate({
-            content: item.data.content,
-            sourceLang: business.language,
-            targetLangs: ['en', info.language],
-          });
+    // if (business.chatFlow) {
+    //   for (const index in business.chatFlow.nodes) {
+    //     const item = business.chatFlow.nodes[index];
+    //     if (info.language) {
+    //       const newTranslations = await multipleTranslate({
+    //         content: item.data.content,
+    //         sourceLang: business.language,
+    //         targetLangs: ['en', info.language],
+    //       });
 
-          item.data.translations = {
-            ...item.data.translations,
-            ...newTranslations,
-          };
-          business.chatFlow.nodes[index] = item;
-        }
-      }
+    //       item.data.translations = {
+    //         ...item.data.translations,
+    //         ...newTranslations,
+    //       };
+    //       business.chatFlow.nodes[index] = item;
+    //     }
+    //   }
 
-      business.save();
-    }
+    //   business.save();
+    // }
     const participants: any = business.space.members
       .filter((item) => item.status === MemberStatus.JOINED && item.user)
       .map((item) => item.user);
@@ -930,6 +930,7 @@ export class HelpDeskService {
         email: user.email,
         verifyToken: memberInfo?.verifyToken,
         invitedAt: invitedAt,
+        isExpired: moment().isAfter(memberInfo?.expiredAt),
       };
     });
   }

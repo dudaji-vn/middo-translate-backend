@@ -13,6 +13,8 @@ export class DataNodeChatFlowDto {
 
   @IsOptional()
   content: string;
+
+  translations: any;
 }
 export class PositionNodeChatFlowDto {
   @IsOptional()
