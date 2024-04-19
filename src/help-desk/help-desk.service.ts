@@ -857,7 +857,7 @@ export class HelpDeskService {
     const email = space.members[memberIndex].email;
     if (email !== user.email) {
       throw new ForbiddenException(
-        `Please login with the email ${email} to handle this invite`,
+        'You do not have permission to view this invitaion',
       );
     }
     if (space.members[memberIndex].status === MemberStatus.JOINED) {
