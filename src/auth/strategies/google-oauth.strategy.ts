@@ -34,9 +34,10 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       done(null, false);
       return;
     }
-    const user = await this.usersService.findByEmail(email, {
-      ignoreNotFound: true,
-    });
+    const user = await this.usersService.findByEmailAndProvider(
+      email,
+      Provider.GOOGLE,
+    );
 
     if (!user?._id) {
       const language = getLanguage(profile?.language);
