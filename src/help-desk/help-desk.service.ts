@@ -1184,13 +1184,6 @@ export class HelpDeskService {
     return `${envConfig.app.url}/space-verify?token=${token}`;
   }
 
-  async createVerifyToken(payload: { id: string }) {
-    return this.jwtService.signAsync(payload, {
-      secret: envConfig.jwt.verifyToken.secret,
-      expiresIn: envConfig.jwt.verifyToken.expiresIn,
-    });
-  }
-
   async inviteMember(userId: string, data: InviteMemberDto) {
     const spaceData = await this.helpDeskBusinessModel.findOne({
       user: userId,
@@ -1273,6 +1266,7 @@ export class HelpDeskService {
       verifyToken: token,
       invitedAt: new Date(),
       status: MemberStatus.INVITED,
+      expiredAt: moment().add('7', 'day').toDate(),
     };
 
     await spaceData.save();
