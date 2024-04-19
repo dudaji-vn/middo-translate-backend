@@ -5,7 +5,7 @@ import {
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { User, UserStatus } from 'src/users/schemas/user.schema';
+import { Provider, User, UserStatus } from 'src/users/schemas/user.schema';
 
 import { JwtService } from '@nestjs/jwt';
 import { OAuth2Client } from 'google-auth-library';
@@ -20,6 +20,10 @@ import { SignOutDto } from './dto/sign-out.dto';
 import { SignUpDto } from './dto/sign-up.dto';
 import { VerifyTokenGoogle } from './dto/verify-token-google.dto';
 import { Tokens } from './types';
+import { getLanguage } from './strategies/google-oauth.strategy';
+import { VerifyTokenAppleDto } from './dto/verify-token-apple.dto';
+import { generateAvatar } from 'src/common/utils';
+import verifyAppleToken from 'verify-apple-id-token';
 
 @Injectable()
 export class AuthService {
@@ -237,13 +241,22 @@ export class AuthService {
     });
   }
 
-  async socialSignIn(profile: any): Promise<Tokens & { user: User }> {
-    let user = await this.usersService.findByEmail(profile.emails[0].value, {
-      ignoreNotFound: true,
-    });
+  async socialSignIn(profile: {
+    name?: string;
+    avatar?: string;
+    email: string;
+    provider: string;
+    language: string;
+  }): Promise<Tokens & { user: User }> {
+    const language = getLanguage(profile.language || 'en');
+    let user = await this.usersService.findByEmailAndProvider(
+      profile.email,
+      profile.provider,
+    );
     if (!user) {
       user = await this.usersService.create({
         ...profile,
+        language,
         status: UserStatus.ACTIVE,
       });
     }
@@ -282,22 +295,36 @@ export class AuthService {
       if (!email) {
         throw new UnauthorizedException('Cannot read email');
       }
-      const user = await this.usersService.findByEmail(email, {
-        ignoreNotFound: true,
+      return await this.socialSignIn({
+        name: ticket.getPayload()?.name,
+        email,
+        provider: Provider.GOOGLE,
+        avatar: ticket.getPayload()?.picture,
+        language: getLanguage(ticket.getPayload()?.locale || 'en'),
       });
-
-      const accessToken = await this.createAccessToken({
-        id: user._id.toString(),
-      });
-      const refreshToken = await this.createRefreshToken({
-        id: user._id.toString(),
-      });
-      return {
-        accessToken,
-        refreshToken,
-        user,
-      };
     } catch (err) {
+      throw new UnauthorizedException();
+    }
+  }
+  async verifyTokenApple({ identityToken, fullName }: VerifyTokenAppleDto) {
+    try {
+      const jwtClaims = await verifyAppleToken({
+        idToken: identityToken,
+        clientId: 'com.dudajivn.middo',
+      });
+      if (!jwtClaims) {
+        throw new UnauthorizedException('Token is not valid');
+      }
+      const name = fullName?.givenName || jwtClaims.email.split('@')[0];
+      return await this.socialSignIn({
+        name,
+        email: jwtClaims.email,
+        avatar: generateAvatar(name),
+        provider: Provider.APPLE,
+        language: getLanguage('en'),
+      });
+    } catch (err) {
+      console.log(err);
       throw new UnauthorizedException();
     }
   }
