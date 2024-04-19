@@ -856,7 +856,7 @@ export class HelpDeskService {
     );
     const email = space.members[memberIndex].email;
     if (email !== user.email) {
-      throw new UnauthorizedException(
+      throw new ForbiddenException(
         `Please login with the email ${email} to handle this invite`,
       );
     }
