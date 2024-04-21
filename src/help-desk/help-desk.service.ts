@@ -140,7 +140,7 @@ export class HelpDeskService {
   }
 
   async createOrEditBusiness(userId: string, info: CreateOrEditBusinessDto) {
-    const space = this.spaceModel.findOne({
+    const space = await this.spaceModel.findOne({
       _id: info.spaceId,
       status: { $ne: StatusSpace.DELETED },
     });
@@ -155,11 +155,15 @@ export class HelpDeskService {
       info.chatFlow = null;
     }
     info.space = info.spaceId;
+    if (userId.toString() !== space.owner.toString()) {
+      throw new ForbiddenException(
+        'You do not have permission to create or edit extensions',
+      );
+    }
 
     const user = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
         space: info.spaceId,
-        user: userId,
       },
       info,
       { new: true, upsert: true },
@@ -509,7 +513,20 @@ export class HelpDeskService {
   }
   async editClientProfile(clientDto: EditClientDto, userId: string) {
     const { name, phoneNumber } = clientDto;
-    const business = await this.helpDeskBusinessModel.findOne({ user: userId });
+    const space = await this.spaceModel.findOne({
+      _id: clientDto.spaceId,
+      status: StatusSpace.ACTIVE,
+      'members.user': userId,
+      'members.status': MemberStatus.JOINED,
+    });
+    if (!space) {
+      throw new ForbiddenException(
+        'You do not have permission to edit profile',
+      );
+    }
+    const business = await this.helpDeskBusinessModel.findOne({
+      space: clientDto.spaceId,
+    });
     if (!business) {
       throw new BadRequestException('Business not found');
     }
@@ -1185,8 +1202,9 @@ export class HelpDeskService {
   }
 
   async inviteMember(userId: string, data: InviteMemberDto) {
-    const spaceData = await this.helpDeskBusinessModel.findOne({
-      user: userId,
+    const spaceData = await this.spaceModel.findOne({
+      _id: data.spaceId,
+      owner: userId,
     });
     const user = await this.userService.findById(userId);
     if (!spaceData) {
@@ -1216,6 +1234,7 @@ export class HelpDeskService {
       role: data.role,
       verifyToken: token,
       invitedAt: new Date(),
+      expiredAt: moment().add('7', 'day').toDate(),
       status: MemberStatus.INVITED,
     });
 

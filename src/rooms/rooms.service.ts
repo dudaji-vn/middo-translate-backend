@@ -262,7 +262,7 @@ export class RoomsService {
     });
     let chatFlow = null;
     if (data.isHelpDesk) {
-      chatFlow = await this.getChatFlowByUser(data.admin._id.toString());
+      chatFlow = await this.getChatFlowBySpace(roomRes.space as ObjectId);
     }
     return {
       ...data,
@@ -1082,9 +1082,9 @@ export class RoomsService {
     ];
     return await this.roomModel.aggregate(query);
   }
-  async getChatFlowByUser(userId: string) {
+  async getChatFlowBySpace(spaceId: ObjectId) {
     const business = await this.helpDeskBusinessModel
-      .findOne({ user: userId })
+      .findOne({ space: spaceId })
       .lean();
     if (!business) {
       throw new BadRequestException('Business not found');
