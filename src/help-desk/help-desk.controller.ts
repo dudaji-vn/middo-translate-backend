@@ -47,7 +47,7 @@ export class HelpDeskController {
     @JwtUserId() userId: string,
     @Body() business: CreateOrEditBusinessDto,
   ) {
-    const result = await this.helpDeskService.createOrEditBusiness(
+    const result = await this.helpDeskService.createOrEditExtension(
       userId,
       business,
     );
