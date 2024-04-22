@@ -361,7 +361,6 @@ export class HelpDeskService {
     const extension = await this.helpDeskBusinessModel
       .findOne({
         space: new Types.ObjectId(spaceId),
-        user: userId,
         status: { $ne: StatusBusiness.DELETED },
       })
       .select('-space')
