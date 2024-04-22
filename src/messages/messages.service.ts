@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, ObjectId, Types } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
 import {
   CursorPaginationInfo,
   ListQueryParamsCursor,
@@ -576,6 +576,10 @@ export class MessagesService {
       roomId: room._id.toString(),
       link,
       messageId: message._id.toString(),
+      message: {
+        roomId: room._id.toString(),
+        messageId: message._id.toString(),
+      },
     });
   }
   async sendReplyMessageNotification(message: Message) {
@@ -654,6 +658,11 @@ export class MessagesService {
       roomId,
       link,
       messageId: message._id.toString(),
+      message: {
+        roomId,
+        messageId: message._id.toString(),
+        parentMessageId: message.parent._id.toString(),
+      },
     });
   }
 
@@ -1064,6 +1073,10 @@ export class MessagesService {
           roomId: message.room._id.toString(),
           link,
           messageId: message._id.toString(),
+          message: {
+            roomId: message.room._id.toString(),
+            messageId: message._id.toString(),
+          },
         });
       }
     }
