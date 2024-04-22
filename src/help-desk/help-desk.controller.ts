@@ -232,4 +232,16 @@ export class HelpDeskController {
       data: result,
     };
   }
+
+  @Delete('tags/:tagId')
+  async deleteTag(
+    @JwtUserId() userId: string,
+    @ParamObjectId('tagId') tagId: string,
+    @Body() { spaceId }: { spaceId: string },
+  ) {
+    const result = await this.helpDeskService.deleteTag(tagId, spaceId, userId);
+    return {
+      data: result,
+    };
+  }
 }

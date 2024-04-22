@@ -1382,8 +1382,9 @@ export class HelpDeskService {
     await space.save();
     return space.tags;
   }
+
   async addMissingData() {
-    const spaces = await this.spaceModel.find();
+    const spaces = await this.spaceModel.find().populate('owner');
 
     for (const space of spaces) {
       if (!space.bot) {
@@ -1400,5 +1401,33 @@ export class HelpDeskService {
       await space.save();
     }
     return spaces;
+  }
+
+  async deleteTag(tagId: string, spaceId: string, userId: string) {
+    const space = await this.spaceModel.findById(spaceId);
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+
+    if (space.owner.toString() !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to delete the tag',
+      );
+    }
+
+    const indexTag = space.tags.findIndex(
+      (item) => item._id.toString() === tagId.toString(),
+    );
+
+    if (indexTag === -1 || space.tags[indexTag].isDeleted) {
+      throw new BadRequestException('Tag not found');
+    }
+    if (space.tags[indexTag].isReadonly) {
+      throw new BadRequestException('This tag is read only');
+    }
+    space.tags[indexTag].isDeleted = true;
+
+    await space.save();
+    return true;
   }
 }
