@@ -930,7 +930,7 @@ export class HelpDeskService {
         },
       })
       .populate('owner', 'email')
-      .select('name user members owner')
+      .select('name avatar backgroundImage members owner')
       .lean();
     return myInvitations.map((item) => {
       const memberInfo = item.members.find((item) => item.email === user.email);
