@@ -160,7 +160,7 @@ export class HelpDeskService {
         'You do not have permission to create or edit extensions',
       );
     }
-
+    info.user = userId;
     const user = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
         space: info.spaceId,
