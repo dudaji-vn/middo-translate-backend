@@ -46,4 +46,5 @@ export class CreateOrEditBusinessDto {
   spaceId: string;
 
   space: string;
+  user: any;
 }
