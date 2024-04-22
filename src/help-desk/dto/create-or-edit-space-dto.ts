@@ -16,7 +16,6 @@ export class MemberDto {
   role: ROLE;
   @IsEmail()
   email: string;
-
   verifyToken: string;
   status: MemberStatus;
   invitedAt?: Date;
@@ -44,14 +43,14 @@ export class CreateOrEditSpaceDto {
 }
 
 export class InviteMemberDto {
-  @IsEnum(ROLE)
-  role: ROLE;
-  @IsEmail()
-  email: string;
-
   @ApiProperty()
   @IsMongoId()
   spaceId: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => MemberDto)
+  members: MemberDto[];
 }
 
 export class RemoveMemberDto {
@@ -81,4 +80,15 @@ export class CreateOrEditTagDto {
   @IsOptional()
   @IsMongoId()
   tagId: string;
+}
+
+export class UpdateMemberDto {
+  @ApiProperty()
+  @IsMongoId()
+  spaceId: string;
+
+  @IsEnum(ROLE)
+  role: ROLE;
+  @IsEmail()
+  email: string;
 }

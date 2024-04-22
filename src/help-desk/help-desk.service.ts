@@ -37,13 +37,12 @@ import {
   InviteMemberDto,
   MemberDto,
   RemoveMemberDto,
+  UpdateMemberDto,
 } from './dto/create-or-edit-space-dto';
 import { MailService } from 'src/mail/mail.service';
 import { envConfig } from 'src/configs/env.config';
-import { JwtService } from '@nestjs/jwt';
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
 import { Space, StatusSpace } from './schemas/space.schema';
-import { multipleTranslate } from '../messages/utils/translate';
 
 @Injectable()
 export class HelpDeskService {
@@ -58,7 +57,6 @@ export class HelpDeskService {
     private roomsService: RoomsService,
     private messagesService: MessagesService,
     private mailService: MailService,
-    private jwtService: JwtService,
   ) {}
 
   async createClient(businessId: string, info: Partial<User>) {
@@ -1197,7 +1195,7 @@ export class HelpDeskService {
     return `${envConfig.app.url}/space-verify?token=${token}`;
   }
 
-  async inviteMember(userId: string, data: InviteMemberDto) {
+  async inviteMembers(userId: string, data: InviteMemberDto) {
     const spaceData = await this.spaceModel.findOne({
       _id: data.spaceId,
       owner: userId,
@@ -1206,45 +1204,58 @@ export class HelpDeskService {
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
     }
-    const index = spaceData.members.findIndex(
-      (item) => item.email === data.email,
-    );
-    if (index > 0) {
-      throw new BadRequestException('User already invited!');
-    }
 
-    const token = `${generateSlug()}-${generateSlug()}`;
-
-    const verifyUrl = await this.createVerifyUrl(token);
-    await this.mailService.sendMail(
-      data.email,
-      `${user.name} has invited you to join the ${spaceData.name} space`,
-      'verify-member',
-      {
-        title: `Join the ${spaceData.name} space`,
-        verifyUrl: verifyUrl,
-      },
-    );
-    spaceData.members.push({
-      email: data.email,
-      role: data.role,
-      verifyToken: token,
-      invitedAt: new Date(),
-      expiredAt: moment().add('7', 'day').toDate(),
-      status: MemberStatus.INVITED,
+    data.members.forEach((member) => {
+      const user = spaceData.members.find(
+        (item) => item.email === member.email,
+      );
+      if (user?.status === MemberStatus.INVITED) {
+        throw new BadRequestException(`Email ${user.email} already invited!`);
+      }
+      if (user?.status === MemberStatus.JOINED) {
+        throw new BadRequestException(`Email ${user.email} already joined!`);
+      }
     });
 
+    const newMembers = data.members.map((item) => {
+      const token = `${generateSlug()}-${generateSlug()}`;
+      return {
+        email: item.email,
+        role: item.role,
+        verifyToken: token,
+        invitedAt: new Date(),
+        expiredAt: moment().add('7', 'day').toDate(),
+        status: MemberStatus.INVITED,
+        verifyUrl: this.createVerifyUrl(token),
+      };
+    });
+
+    spaceData.members.push(...(newMembers as any));
     await spaceData.save();
+    newMembers.forEach((data) => {
+      this.mailService.sendMail(
+        data.email,
+        `${user.name} has invited you to join the ${spaceData.name} space`,
+        'verify-member',
+        {
+          title: `Join the ${spaceData.name} space`,
+          verifyUrl: data.verifyUrl,
+        },
+      );
+    });
 
     return spaceData.members.map((item) => {
       return {
         email: item.email,
         role: item.role,
         status: item.status,
+        verifyToken: item.verifyToken,
+        invitedAt: item.invitedAt,
+        expiredAt: item.expiredAt,
       };
     });
   }
-  async resendInvitation(userId: string, data: InviteMemberDto) {
+  async resendInvitation(userId: string, data: UpdateMemberDto) {
     const spaceData = await this.spaceModel.findOne({
       status: { $ne: StatusSpace.DELETED },
       owner: userId,
@@ -1315,7 +1326,7 @@ export class HelpDeskService {
     await spaceData.save();
     return true;
   }
-  async changeRole(userId: string, data: InviteMemberDto) {
+  async changeRole(userId: string, data: UpdateMemberDto) {
     const spaceData = await this.spaceModel.findOne({
       status: { $ne: StatusSpace.DELETED },
       owner: userId,
