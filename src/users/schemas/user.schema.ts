@@ -11,6 +11,7 @@ export enum UserStatus {
   UN_SET_INFO = 'unset',
   INACTIVE = 'inactive',
   ANONYMOUS = 'anonymous',
+  BOT = 'bot',
 }
 
 export enum Provider {

@@ -250,6 +250,10 @@ export class RoomsService {
         path: 'admin',
         select: userSelectFieldsString,
       },
+      {
+        path: 'space',
+        select: 'bot',
+      },
     ]);
 
     const data = roomRes.toObject();

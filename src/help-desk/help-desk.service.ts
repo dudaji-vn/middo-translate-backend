@@ -77,26 +77,7 @@ export class HelpDeskService {
       language: info.language,
       tempEmail: info.email,
     });
-    // if (business.chatFlow) {
-    //   for (const index in business.chatFlow.nodes) {
-    //     const item = business.chatFlow.nodes[index];
-    //     if (info.language) {
-    //       const newTranslations = await multipleTranslate({
-    //         content: item.data.content,
-    //         sourceLang: business.language,
-    //         targetLangs: ['en', info.language],
-    //       });
 
-    //       item.data.translations = {
-    //         ...item.data.translations,
-    //         ...newTranslations,
-    //       };
-    //       business.chatFlow.nodes[index] = item;
-    //     }
-    //   }
-
-    //   business.save();
-    // }
     const participants: any = business.space.members
       .filter((item) => item.status === MemberStatus.JOINED && item.user)
       .map((item) => item.user);
@@ -139,7 +120,7 @@ export class HelpDeskService {
     };
   }
 
-  async createOrEditBusiness(userId: string, info: CreateOrEditBusinessDto) {
+  async createOrEditExtension(userId: string, info: CreateOrEditBusinessDto) {
     const space = await this.spaceModel.findOne({
       _id: info.spaceId,
       status: { $ne: StatusSpace.DELETED },
@@ -147,6 +128,7 @@ export class HelpDeskService {
     if (!space) {
       throw new BadRequestException('Space not found');
     }
+
     info.status = StatusBusiness.ACTIVE;
     if (info.chatFlow) {
       info.firstMessage = '';
@@ -161,14 +143,14 @@ export class HelpDeskService {
       );
     }
     info.user = userId;
-    const user = await this.helpDeskBusinessModel.findOneAndUpdate(
+    const extension = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
         space: info.spaceId,
       },
       info,
       { new: true, upsert: true },
     );
-    return user;
+    return extension;
   }
 
   async sendEmailToListMember(
@@ -227,13 +209,23 @@ export class HelpDeskService {
       );
       space.members = [me, ...members];
 
+      const bot = await this.userModel.create({
+        status: UserStatus.BOT,
+        email: `${generateSlug()}@gmail.com`,
+        name: space.name,
+        language: user.language,
+        avatar: space.avatar,
+      });
+
       const spaceData = await this.spaceModel.create({
         owner: user._id,
         avatar: space.avatar,
         backgroundImage: space.backgroundImage,
         members: space.members,
         name: space.name,
+        bot: bot,
       });
+
       return spaceData;
     } else {
       const spaceData = await this.spaceModel.findOne({
@@ -252,6 +244,11 @@ export class HelpDeskService {
       }
       if (space.name) {
         spaceData.name = space.name;
+      }
+      if (spaceData.bot) {
+        await this.userModel.findByIdAndUpdate(spaceData.bot, {
+          avatar: space.avatar,
+        });
       }
       await spaceData.save();
       return spaceData;
@@ -1384,5 +1381,24 @@ export class HelpDeskService {
     }
     await space.save();
     return space.tags;
+  }
+  async addMissingData() {
+    const spaces = await this.spaceModel.find();
+
+    for (const space of spaces) {
+      if (!space.bot) {
+        const bot = await this.userModel.create({
+          status: UserStatus.BOT,
+          email: `${generateSlug()}@gmail.com`,
+          name: space.name,
+          language: (space.owner as User).language,
+          avatar: space.avatar,
+        });
+        space.bot = bot;
+      }
+
+      await space.save();
+    }
+    return spaces;
   }
 }
