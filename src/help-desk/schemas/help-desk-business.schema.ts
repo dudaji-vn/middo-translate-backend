@@ -86,22 +86,6 @@ export class HelpDeskBusiness {
   })
   name: string;
 
-  @Prop({
-    type: String,
-  })
-  avatar: string;
-
-  @Prop({
-    type: String,
-  })
-  backgroundImage: string;
-
-  @Prop({
-    type: [MemberSchema],
-    default: [],
-  })
-  members: Member[];
-
   @Prop({ type: Array })
   domains: string[];
 
