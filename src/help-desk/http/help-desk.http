@@ -1,7 +1,7 @@
-@SERVER_URL = http://localhost:3000
-@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZTU2Y2ZiOWNkMzhhY2E2Y2QyNmQzYyIsImlhdCI6MTcxMzE0ODA3OCwiZXhwIjoxNzEzMjM0NDc4fQ.BfFy52m6_hKwAPVUScJaASFhDRWsgjiSocxfBTBCmaA
+@SERVER_URL = http://localhost:8080
+@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMzUwOTE1MywiZXhwIjoxNzEzNTk1NTUzfQ.tXIdL67BSpHSaDgfK89P3OGhfwlpmhTgU2kRQ-uf7a4
 
-@ROOM_ID =66174e1b05bf03252623d809
+@ROOM_ID =6621dc60fd6facdd5522307d
 
 @BUSINESS_ID=65effd002d3c6a72235bbe8e
 
@@ -12,7 +12,7 @@ Content-Type: application/json
 
 {
   "domains": ["https://test-ttalk.onrender.com", "http://localhost:3001"],
-  "color": "redss",
+  "color": "red",
   "language": "vis",
   "firstMessage": "Xin chào",
   "firstMessageEnglish": "Hi, how can I help you?",
@@ -42,7 +42,8 @@ Content-Type: application/json
       ]
       }
     ]
-  }
+  },
+  "spaceId":"661df29b8ef8108600f0f9c5"
 }
 
 ###
@@ -54,7 +55,7 @@ Content-Type: application/json
 }
 
 ###
-GET {{SERVER_URL}}/api/help-desk/my-business
+GET {{SERVER_URL}}/api/help-desk/spaces/6622111da182f6d2fb794758
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 
@@ -125,14 +126,15 @@ DELETE  {{SERVER_URL}}/api/help-desk/65eec80a2d3c6a722349d697
 Authorization: Bearer {{ACCESS_TOKEN}} 
 
 ###
-GET  {{SERVER_URL}}/api/rooms/anonymous/{{ROOM_ID}}?userId=65e56cfb9cd38aca6cd26d3c
+GET  {{SERVER_URL}}/api/rooms/anonymous/{{ROOM_ID}}?userId=6621dc5dfd6facdd55223077
 
 ###
-GET {{SERVER_URL}}/api/rooms/anonymous/{{ROOM_ID}}/message?userId=65e56cfb9cd38aca6cd26d3c&limit=16
+GET {{SERVER_URL}}/api/rooms/anonymous/{{ROOM_ID}}/message?userId=6621dc5dfd6facdd55223077&limit=16
 
 
 ####
-GET {{SERVER_URL}}/api/rooms?type=unread-help-desk
+GET {{SERVER_URL}}/api/rooms?type=help-desk&spaceId=661dd18f79fa16e0ac8777db
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMzMyMTQ3OCwiZXhwIjoxNzEzNDA3ODc4fQ.mCYDcDk_p73VPMhSzYFE06xUDbsnFVuAUPukwD0FuPM
 
 ###
 GET {{SERVER_URL}}/api/rooms?type=help-desk
@@ -140,7 +142,7 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 ###
-POST  {{SERVER_URL}}/api/help-desk/rating
+POST {{SERVER_URL}}/api/help-desk/rating
 Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
@@ -151,7 +153,7 @@ Content-Type: application/json
 }
 
 ### 
-GET {{SERVER_URL}}/api/search/inboxes?q=h&type=help-desk
+GET {{SERVER_URL}}/api/search/inboxes?q=h&type=help-desk&spaceId=661dd18f79fa16e0ac8777db
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 
@@ -172,7 +174,7 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 ###
-GET {{SERVER_URL}}/api/help-desk/my-clients?q=
+GET {{SERVER_URL}}/api/help-desk/my-clients?q=&spaceId=661f8dd6d4c0e47632353cef
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 
@@ -190,7 +192,7 @@ Content-Type: application/json
 }
 
 ###
-GET {{SERVER_URL}}/api/recommendation/chat?type=help-desk
+GET {{SERVER_URL}}/api/recommendation/chat?type=help-desk&spaceId=661dd18f79fa16e0ac8777db
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
@@ -205,42 +207,82 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
- "name":"Man1",
-  "members": [
-    {
-       "email":"hoquanglinh2710@gmail.com",
-       "role":"member"
-    },
-    {
-       "email":"19521750@gm.uit.edu.vn",
-       "role":"member"
-    },
-    {
-       "email":"195217501@gm.uit.edu.vn",
-       "role":"member"
-    }
-  ]
+  "name":"Manchester city2",
+  "avatar":"hrkrkr",
+  "backgroundImage":"sss",
+  "members":[{
+    "email":"hoquanglinh2710@gmail.com",
+    "role":"admin"
+  }]
+
+ 
 }
+
 
 //joined-spaces|my-spaces
 ####
-GET {{SERVER_URL}}/api/help-desk/spaces?type=joined-spaces
+GET {{SERVER_URL}}/api/help-desk/spaces?type=my_spaces
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
 GET {{SERVER_URL}}/api/help-desk/my-invitations
-Authorization: Bearer {{ACCESS_TOKEN}}  
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMzMyMTQ3OCwiZXhwIjoxNzEzNDA3ODc4fQ.mCYDcDk_p73VPMhSzYFE06xUDbsnFVuAUPukwD0FuPM
 
 ###
-// status: accept||decline
+
 POST {{SERVER_URL}}/api/help-desk/validate-invite
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMzMyMTQ3OCwiZXhwIjoxNzEzNDA3ODc4fQ.mCYDcDk_p73VPMhSzYFE06xUDbsnFVuAUPukwD0FuPM
+Content-Type: application/json
+
+{
+  "token":"a9o-fro-js5-i66-8s5-0t0",
+  "status":"accept"
+}
+
+###
+PUT  {{SERVER_URL}}/api/help-desk/invite-member
 Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
-  "token":"jlo-69o-fa1-rik-atp-yq3",
-  "status":"accept"
+  "email":"hoqsus@gmail.com",
+  "role":"admin",
+  "spaceId":""
 }
 
+###
+
+POST  {{SERVER_URL}}/api/help-desk/resend-invitation
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  "email":"hoquanglinh2710@gmail.com",
+  "role":"admin",
+  "spaceId":"661dd18f79fa16e0ac8777db"
+}
+
+####
+DELETE  {{SERVER_URL}}/api/help-desk/remove-member
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  "email":"hoquanglinh2710@gmail.com",
+  "spaceId":"661dd18f79fa16e0ac8777db"
+}
+
+
+###
+
+PATCH {{SERVER_URL}}/api/help-desk/change-role
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  "email":"hoquanglinh2710@gmail.com",
+  "spaceId":"661dd18f79fa16e0ac8777db",
+  "role":"member"
+}
 
 

@@ -45,9 +45,6 @@ export class DataNodeChatFlow {
 
   @Prop({ type: Array })
   link?: string;
-
-  @Prop({ type: mongoose.Schema.Types.Mixed })
-  translations: any;
 }
 
 @Schema({ _id: false })
