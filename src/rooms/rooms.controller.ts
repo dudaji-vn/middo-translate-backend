@@ -19,7 +19,11 @@ import {
   Message,
   MessageType,
 } from 'src/messages/schemas/messages.schema';
-import { UpdateRoomDto, UpdateRoomStatusDto } from './dto/update-room.dto';
+import {
+  ChangeTagRoomDto,
+  UpdateRoomDto,
+  UpdateRoomStatusDto,
+} from './dto/update-room.dto';
 import { HelpDeskService } from 'src/help-desk/help-desk.service';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 
@@ -312,5 +316,15 @@ export class RoomsController {
   ): Promise<Response<null>> {
     await this.roomsService.changeRoomStatus(id, userId, status);
     return { message: 'Changed room status', data: null };
+  }
+
+  @Patch(':id/change-tag-room')
+  async changeTagRoom(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+    @Body() { tagId }: ChangeTagRoomDto,
+  ): Promise<Response<null>> {
+    await this.roomsService.changeTagRoom(id, userId, tagId);
+    return { message: 'Changed room tag', data: null };
   }
 }
