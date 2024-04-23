@@ -11,6 +11,7 @@ import { IsMongoId, ValidateNested } from 'class-validator';
 
 export class CreateMessageDto {
   content?: string;
+  enContent?: string;
   contentEnglish?: string;
   media: Media[];
   @IsMongoId()
