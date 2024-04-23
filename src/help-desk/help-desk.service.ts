@@ -43,6 +43,7 @@ import { MailService } from 'src/mail/mail.service';
 import { envConfig } from 'src/configs/env.config';
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
 import { Space, StatusSpace } from './schemas/space.schema';
+import { SpaceNotification } from './schemas/space-notifications.schema';
 
 @Injectable()
 export class HelpDeskService {
@@ -53,6 +54,8 @@ export class HelpDeskService {
     private userModel: Model<User>,
     @InjectModel(Space.name)
     private spaceModel: Model<Space>,
+    @InjectModel(SpaceNotification.name)
+    private spaceNotificationModel: Model<SpaceNotification>,
     private userService: UsersService,
     private roomsService: RoomsService,
     private messagesService: MessagesService,
@@ -151,33 +154,6 @@ export class HelpDeskService {
     return extension;
   }
 
-  async sendEmailToListMember(
-    fullName: string,
-    spaceName: string,
-    members: MemberDto[],
-  ) {
-    for (const index in members) {
-      const item = members[index];
-      const token = `${generateSlug()}-${generateSlug()}`;
-
-      const verifyUrl = await this.createVerifyUrl(token);
-      await this.mailService.sendMail(
-        item.email,
-        `${fullName} has invited you to join the ${spaceName} space`,
-        'verify-member',
-        {
-          title: `Join the ${spaceName} space`,
-          verifyUrl: verifyUrl,
-        },
-      );
-      members[index].verifyToken = token;
-      members[index].invitedAt = new Date();
-      members[index].status = MemberStatus.INVITED;
-      members[index].expiredAt = moment().add('7', 'day').toDate();
-    }
-    return members;
-  }
-
   async createOrEditSpace(userId: string, space: CreateOrEditSpaceDto) {
     const user = await this.userService.findById(userId);
     if (!user) {
@@ -200,12 +176,19 @@ export class HelpDeskService {
         );
       }
       space.members = space.members.filter((item) => item.email !== me.email);
-      const members = await this.sendEmailToListMember(
-        user.name,
-        space.name,
-        space.members,
-      );
-      space.members = [me, ...members];
+
+      const members = space.members.map((item) => {
+        const token = `${generateSlug()}-${generateSlug()}`;
+        return {
+          email: item.email,
+          role: item.role,
+          verifyToken: token,
+          invitedAt: new Date(),
+          expiredAt: moment().add('7', 'day').toDate(),
+          status: MemberStatus.INVITED,
+          verifyUrl: this.createVerifyUrl(token),
+        };
+      });
 
       const bot = await this.userModel.create({
         status: UserStatus.BOT,
@@ -219,9 +202,28 @@ export class HelpDeskService {
         owner: user._id,
         avatar: space.avatar,
         backgroundImage: space.backgroundImage,
-        members: space.members,
+        members: [me, ...members],
         name: space.name,
         bot: bot,
+      });
+
+      members.forEach((data) => {
+        this.spaceNotificationModel.create({
+          space: spaceData._id,
+          description: `You've been invited to join ${spaceData.name}`,
+          from: user,
+          to: data.email,
+          link: data.verifyUrl,
+        });
+        this.mailService.sendMail(
+          data.email,
+          `${user.name} has invited you to join the ${spaceData.name} space`,
+          'verify-member',
+          {
+            title: `Join the ${spaceData.name} space`,
+            verifyUrl: data.verifyUrl,
+          },
+        );
       });
 
       return spaceData;
@@ -1234,6 +1236,13 @@ export class HelpDeskService {
     spaceData.members.push(...(newMembers as any));
     await spaceData.save();
     newMembers.forEach((data) => {
+      this.spaceNotificationModel.create({
+        space: spaceData._id,
+        description: `You've been invited to join ${spaceData.name}`,
+        from: user,
+        to: data.email,
+        link: data.verifyUrl,
+      });
       this.mailService.sendMail(
         data.email,
         `${user.name} has invited you to join the ${spaceData.name} space`,
@@ -1278,6 +1287,13 @@ export class HelpDeskService {
     const token = `${generateSlug()}-${generateSlug()}`;
 
     const verifyUrl = await this.createVerifyUrl(token);
+    await this.spaceNotificationModel.create({
+      space: spaceData._id,
+      description: `You've been invited to join ${spaceData.name}`,
+      from: user,
+      to: data.email,
+      link: verifyUrl,
+    });
     await this.mailService.sendMail(
       data.email,
       `${user.name} has invited you to join the ${spaceData.name} space`,
@@ -1441,5 +1457,25 @@ export class HelpDeskService {
 
     await space.save();
     return true;
+  }
+  async getNotifications(userId: string, spaceId: string) {
+    const user = await this.userService.findById(userId);
+    const notifications = this.spaceNotificationModel
+      .find({
+        to: user.email,
+        space: spaceId,
+      })
+      .populate('from', 'name avatar')
+      .select('-to');
+    return notifications;
+  }
+  async readNotification(id: string) {
+    const notification = await this.spaceNotificationModel.findById(id);
+    if (!notification) {
+      throw new BadRequestException('id not exist');
+    }
+    notification.unRead = false;
+    await notification.save();
+    return notification;
   }
 }

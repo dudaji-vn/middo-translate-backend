@@ -244,4 +244,23 @@ export class HelpDeskController {
       data: result,
     };
   }
+
+  @Get('notifications')
+  async getNotifications(
+    @JwtUserId() userId: string,
+    @Query('spaceId') spaceId: string,
+  ) {
+    const result = await this.helpDeskService.getNotifications(userId, spaceId);
+    return {
+      data: result,
+    };
+  }
+
+  @Patch('notifications/read/:id')
+  async readNotification(@ParamObjectId('id') id: string) {
+    const result = await this.helpDeskService.readNotification(id);
+    return {
+      data: result,
+    };
+  }
 }
