@@ -168,10 +168,11 @@ export class MessagesService {
     createdMessage.action = createMessageDto.action || ActionTypes.NONE;
 
     if (createdMessage.content) {
-      const data = await multipleTranslate({
+      const data = await this.translateMessageInRoom({
         content: createdMessage.content,
         sourceLang: createdMessage.language,
-        targetLangs: ['en', ...room.participants.map((p: any) => p.language)],
+        participants: room.participants,
+        enContent: createMessageDto.enContent,
       });
       createdMessage.translations = data;
     }
@@ -348,10 +349,11 @@ export class MessagesService {
     }
 
     if (createdMessage.content) {
-      const data = await multipleTranslate({
+      const data = await this.translateMessageInRoom({
         content: createdMessage.content,
         sourceLang: createdMessage.language,
-        targetLangs: ['en', ...room.participants.map((p: any) => p.language)],
+        participants: room.participants,
+        enContent: createMessageDto.enContent,
       });
       createdMessage.translations = data;
     }
@@ -1303,4 +1305,35 @@ export class MessagesService {
     });
     return newMessage;
   }
+  translateMessageInRoom = async ({
+    content,
+    participants,
+    enContent,
+    sourceLang,
+  }: {
+    participants: User[];
+    enContent?: string;
+    content: string;
+    sourceLang: string;
+  }) => {
+    let targetLangs = participants.map((p: any) => p.language);
+    if (!enContent) {
+      targetLangs.push('en');
+    } else {
+      targetLangs = targetLangs.filter((lang: string) => lang !== 'en');
+    }
+
+    // Translate content
+    const data = await multipleTranslate({
+      content,
+      sourceLang,
+      targetLangs,
+    });
+
+    // Save translations
+    if (enContent) {
+      data.en = enContent;
+    }
+    return data;
+  };
 }
