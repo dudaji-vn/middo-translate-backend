@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { FindParams } from 'src/common/types';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { RoomStatus } from 'src/rooms/schemas/room.schema';
-import { User } from 'src/users/schemas/user.schema';
+import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { HelpDeskService } from '../help-desk/help-desk.service';
 import { SearchMainResult } from './types';
@@ -16,15 +16,19 @@ export class SearchService {
   ) {}
 
   async searchInbox(
-    { q, limit, type }: FindParams,
+    { q, limit, type, spaceId }: FindParams,
     userId: string,
   ): Promise<SearchMainResult> {
     const users = await this.searchUsers({ q, limit, type });
+
     const userIds = users.map((u) => u._id);
 
     const rooms = await this.roomsService.search({
       query: {
-        ...(type === 'help-desk' && { isHelpDesk: true }),
+        ...(type === 'help-desk' && {
+          isHelpDesk: true,
+          space: { $exists: true, $eq: spaceId },
+        }),
         $or: [
           {
             name: { $regex: q, $options: 'i' },
@@ -39,7 +43,7 @@ export class SearchService {
               },
               {
                 participants: {
-                  $in: type === 'help-desk' ? [...userIds, userId] : userIds,
+                  $in: userIds,
                 },
               },
             ],
@@ -53,7 +57,16 @@ export class SearchService {
     if (type === 'help-desk') {
       return {
         users: [],
-        rooms,
+        rooms: rooms.map((item) => ({
+          ...item,
+          participants: item.participants.map((user) => ({
+            ...user,
+            email:
+              user.status === UserStatus.ANONYMOUS
+                ? user.tempEmail
+                : user.email,
+          })),
+        })),
       };
     }
     return {

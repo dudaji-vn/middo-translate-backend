@@ -5,6 +5,7 @@ import {
   IsEmail,
   IsEnum,
   IsMongoId,
+  IsOptional,
   IsString,
   ValidateNested,
 } from 'class-validator';
@@ -20,6 +21,7 @@ export class MemberDto {
   status: MemberStatus;
   invitedAt?: Date;
   joinedAt?: Date;
+  expiredAt?: Date;
 }
 
 export class CreateOrEditSpaceDto {
@@ -60,4 +62,23 @@ export class RemoveMemberDto {
   @ApiProperty()
   @IsMongoId()
   spaceId: string;
+}
+
+export class CreateOrEditTagDto {
+  @ApiProperty()
+  @IsMongoId()
+  spaceId: string;
+
+  @ApiProperty()
+  @IsString()
+  name: string;
+
+  @ApiProperty()
+  @IsString()
+  color: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsMongoId()
+  tagId: string;
 }

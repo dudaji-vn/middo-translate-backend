@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose from 'mongoose';
+import mongoose, { ObjectId, Document } from 'mongoose';
 import { User } from 'src/users/schemas/user.schema';
 
 export enum StatusSpace {
@@ -41,9 +41,38 @@ export class Member {
 
   @Prop({ type: Date })
   joinedAt?: Date;
+
+  @Prop({ type: Date })
+  expiredAt?: Date;
 }
 
 export const MemberSchema = SchemaFactory.createForClass(Member);
+
+@Schema({})
+export class Tag extends Document {
+  @Prop({
+    type: String,
+  })
+  color: string;
+
+  @Prop({
+    type: String,
+    required: true,
+  })
+  name: string;
+
+  @Prop({
+    type: Boolean,
+  })
+  isDeleted: boolean;
+
+  @Prop({
+    type: Boolean,
+    default: false,
+  })
+  isReadonly: boolean;
+}
+export const TagSchema = SchemaFactory.createForClass(Tag);
 
 @Schema({
   timestamps: true,
@@ -78,6 +107,15 @@ export class Space {
     default: [],
   })
   members: Member[];
+
+  @Prop({
+    type: [TagSchema],
+    default: [
+      { name: 'pending', color: '#FF3333', isReadonly: true },
+      { name: 'completed', color: '#00B512', isReadonly: true },
+    ],
+  })
+  tags: Tag[];
 
   @Prop({ type: String, default: StatusSpace.ACTIVE })
   status: StatusSpace;

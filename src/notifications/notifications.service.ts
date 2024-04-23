@@ -32,6 +32,7 @@ export class NotificationService {
     roomId: string;
     link?: string;
     messageId?: string;
+    message?: any;
   }) {
     const notifications = await this.notificationModel.find({
       userId: { $in: userIds },
@@ -67,10 +68,24 @@ export class NotificationService {
             body,
             url: link || envConfig.app.url,
             messageId: messageId || '',
+            roomId,
           },
           webpush: {
             fcmOptions: {
               link: link || envConfig.app.url,
+            },
+          },
+          apns: {
+            payload: {
+              aps: {
+                alert: {
+                  title,
+                  body,
+                },
+                sound: 'default',
+                category: 'MESSAGE',
+                url: link || envConfig.app.url,
+              },
             },
           },
         });

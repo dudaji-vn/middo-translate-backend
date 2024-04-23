@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, ObjectId, Types } from 'mongoose';
+import { FilterQuery, Model, Types } from 'mongoose';
 import {
   CursorPaginationInfo,
   ListQueryParamsCursor,
@@ -168,12 +168,43 @@ export class MessagesService {
     createdMessage.action = createMessageDto.action || ActionTypes.NONE;
 
     if (createdMessage.content) {
-      const data = await multipleTranslate({
+      const data = await this.translateMessageInRoom({
         content: createdMessage.content,
         sourceLang: createdMessage.language,
-        targetLangs: ['en', ...room.participants.map((p: any) => p.language)],
+        participants: room.participants,
+        enContent: createMessageDto.enContent,
       });
       createdMessage.translations = data;
+    }
+
+    if (createdMessage.actions && createdMessage.actions.length > 0) {
+      const actionsToTranslate = createdMessage.actions.filter(
+        (item) => item.data && item.data.content,
+      );
+
+      // Extract content for translation
+      const contentsToTranslate = actionsToTranslate.map(
+        (item) => item.data.content,
+      );
+
+      // Prepare translation tasks
+      const translationTasks = contentsToTranslate.map((content) => {
+        return multipleTranslate({
+          content,
+          sourceLang: createdMessage.language,
+          targetLangs: ['en', ...room.participants.map((p: any) => p.language)],
+        });
+      });
+
+      // Execute translation tasks concurrently
+      const translations = await Promise.all(translationTasks);
+
+      // Update actions with translations
+      translations.forEach((translation, index) => {
+        const item = actionsToTranslate[index];
+        item.data.translations = translation;
+        createdMessage.actions[createdMessage.actions.indexOf(item)] = item;
+      });
     }
 
     if (createdMessage.media.length > 0) {
@@ -271,9 +302,9 @@ export class MessagesService {
     if (!room) {
       throw new NotFoundException('Room not found');
     }
-    if (room.isHelpDesk) {
-      throw new Error('Cannot translate in helpdesk room');
-    }
+    // if (room.isHelpDesk) {
+    //   throw new Error('Cannot translate in helpdesk room');
+    // }
     if (message.translations && message.translations[to]) {
       return message;
     }
@@ -318,10 +349,11 @@ export class MessagesService {
     }
 
     if (createdMessage.content) {
-      const data = await multipleTranslate({
+      const data = await this.translateMessageInRoom({
         content: createdMessage.content,
         sourceLang: createdMessage.language,
-        targetLangs: ['en', ...room.participants.map((p: any) => p.language)],
+        participants: room.participants,
+        enContent: createMessageDto.enContent,
       });
       createdMessage.translations = data;
     }
@@ -546,6 +578,10 @@ export class MessagesService {
       roomId: room._id.toString(),
       link,
       messageId: message._id.toString(),
+      message: {
+        roomId: room._id.toString(),
+        messageId: message._id.toString(),
+      },
     });
   }
   async sendReplyMessageNotification(message: Message) {
@@ -624,6 +660,11 @@ export class MessagesService {
       roomId,
       link,
       messageId: message._id.toString(),
+      message: {
+        roomId,
+        messageId: message._id.toString(),
+        parentMessageId: message.parent._id.toString(),
+      },
     });
   }
 
@@ -1034,6 +1075,10 @@ export class MessagesService {
           roomId: message.room._id.toString(),
           link,
           messageId: message._id.toString(),
+          message: {
+            roomId: message.room._id.toString(),
+            messageId: message._id.toString(),
+          },
         });
       }
     }
@@ -1260,4 +1305,35 @@ export class MessagesService {
     });
     return newMessage;
   }
+  translateMessageInRoom = async ({
+    content,
+    participants,
+    enContent,
+    sourceLang,
+  }: {
+    participants: User[];
+    enContent?: string;
+    content: string;
+    sourceLang: string;
+  }) => {
+    let targetLangs = participants.map((p: any) => p.language);
+    if (!enContent) {
+      targetLangs.push('en');
+    } else {
+      targetLangs = targetLangs.filter((lang: string) => lang !== 'en');
+    }
+
+    // Translate content
+    const data = await multipleTranslate({
+      content,
+      sourceLang,
+      targetLangs,
+    });
+
+    // Save translations
+    if (enContent) {
+      data.en = enContent;
+    }
+    return data;
+  };
 }

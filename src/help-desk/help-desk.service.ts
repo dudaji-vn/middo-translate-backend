@@ -1,7 +1,12 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
-import { Model, ObjectId, Types } from 'mongoose';
+import mongoose, { Model, ObjectId, Types } from 'mongoose';
 import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import { queryReportByType } from 'src/common/utils/query-report';
@@ -27,6 +32,7 @@ import {
 
 import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
 import {
+  CreateOrEditTagDto,
   CreateOrEditSpaceDto,
   InviteMemberDto,
   MemberDto,
@@ -36,7 +42,8 @@ import { MailService } from 'src/mail/mail.service';
 import { envConfig } from 'src/configs/env.config';
 import { JwtService } from '@nestjs/jwt';
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
-import { Space } from './schemas/space.schema';
+import { Space, StatusSpace } from './schemas/space.schema';
+import { multipleTranslate } from '../messages/utils/translate';
 
 @Injectable()
 export class HelpDeskService {
@@ -55,7 +62,9 @@ export class HelpDeskService {
   ) {}
 
   async createClient(businessId: string, info: Partial<User>) {
-    const business = await this.helpDeskBusinessModel.findById(businessId);
+    const business = await this.helpDeskBusinessModel
+      .findById(businessId)
+      .populate('space');
 
     if (!business) {
       throw new BadRequestException('Business not found');
@@ -68,28 +77,61 @@ export class HelpDeskService {
       language: info.language,
       tempEmail: info.email,
     });
+    // if (business.chatFlow) {
+    //   for (const index in business.chatFlow.nodes) {
+    //     const item = business.chatFlow.nodes[index];
+    //     if (info.language) {
+    //       const newTranslations = await multipleTranslate({
+    //         content: item.data.content,
+    //         sourceLang: business.language,
+    //         targetLangs: ['en', info.language],
+    //       });
+
+    //       item.data.translations = {
+    //         ...item.data.translations,
+    //         ...newTranslations,
+    //       };
+    //       business.chatFlow.nodes[index] = item;
+    //     }
+    //   }
+
+    //   business.save();
+    // }
+    const participants: any = business.space.members
+      .filter((item) => item.status === MemberStatus.JOINED && item.user)
+      .map((item) => item.user);
+    if (!participants) {
+      return new BadRequestException('Not participant in this room');
+    }
 
     const room = await this.roomsService.createHelpDeskRoom(
       {
-        participants: [user._id, (business.user as User)._id],
+        participants: [user._id, ...participants],
         businessId: business._id.toString(),
         senderId: business.user.toString(),
+        space: business.space._id,
       },
       business.user.toString(),
     );
 
-    this.messagesService.initHelpDeskConversation(
-      {
-        clientTempId: '',
-        content: business.firstMessage,
-        contentEnglish: business.firstMessageEnglish,
-        type: MessageType.TEXT,
-        roomId: room._id.toString(),
-        media: [],
-        businessUserId: business.user.toString(),
-      },
-      business.user.toString(),
-    );
+    if (
+      !business.chatFlow &&
+      business.firstMessage &&
+      business.firstMessageEnglish
+    ) {
+      await this.messagesService.initHelpDeskConversation(
+        {
+          clientTempId: '',
+          content: business.firstMessage,
+          contentEnglish: business.firstMessageEnglish,
+          type: MessageType.TEXT,
+          roomId: room._id.toString(),
+          media: [],
+          businessUserId: business.user.toString(),
+        },
+        business.user.toString(),
+      );
+    }
 
     return {
       user: user,
@@ -98,7 +140,10 @@ export class HelpDeskService {
   }
 
   async createOrEditBusiness(userId: string, info: CreateOrEditBusinessDto) {
-    const space = this.spaceModel.findOne({ _id: info.spaceId });
+    const space = await this.spaceModel.findOne({
+      _id: info.spaceId,
+      status: { $ne: StatusSpace.DELETED },
+    });
     if (!space) {
       throw new BadRequestException('Space not found');
     }
@@ -110,11 +155,15 @@ export class HelpDeskService {
       info.chatFlow = null;
     }
     info.space = info.spaceId;
-
+    if (userId.toString() !== space.owner.toString()) {
+      throw new ForbiddenException(
+        'You do not have permission to create or edit extensions',
+      );
+    }
+    info.user = userId;
     const user = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
         space: info.spaceId,
-        user: userId,
       },
       info,
       { new: true, upsert: true },
@@ -144,6 +193,7 @@ export class HelpDeskService {
       members[index].verifyToken = token;
       members[index].invitedAt = new Date();
       members[index].status = MemberStatus.INVITED;
+      members[index].expiredAt = moment().add('7', 'day').toDate();
     }
     return members;
   }
@@ -169,6 +219,7 @@ export class HelpDeskService {
           (item) => item.email !== user.email,
         );
       }
+      space.members = space.members.filter((item) => item.email !== me.email);
       const members = await this.sendEmailToListMember(
         user.name,
         space.name,
@@ -188,6 +239,7 @@ export class HelpDeskService {
       const spaceData = await this.spaceModel.findOne({
         _id: space.spaceId,
         owner: userId,
+        status: { $ne: StatusSpace.DELETED },
       });
       if (!spaceData) {
         throw new BadRequestException('Space not found');
@@ -219,12 +271,14 @@ export class HelpDeskService {
       case 'my_spaces':
         dataPromise = this.spaceModel.find({
           owner: userId,
+          status: { $ne: StatusSpace.DELETED },
         });
 
         break;
       case 'joined_spaces':
         dataPromise = this.spaceModel.find({
           owner: { $ne: user._id },
+          status: { $ne: StatusSpace.DELETED },
           members: {
             $elemMatch: {
               email: user.email,
@@ -235,6 +289,7 @@ export class HelpDeskService {
         break;
       default:
         dataPromise = this.spaceModel.find({
+          status: { $ne: StatusSpace.DELETED },
           $or: [
             {
               members: {
@@ -281,25 +336,38 @@ export class HelpDeskService {
     const space = await this.spaceModel
       .findOne({
         _id: spaceId,
+        status: { $ne: StatusSpace.DELETED },
         $or: [
           {
             'members.email': user.email,
           },
         ],
       })
+      .populate('owner', 'email')
       .select('-members.verifyToken')
       .lean();
     if (!space) {
       throw new BadRequestException('Space not found');
     }
+    const isAccess = space.members.find(
+      (item) =>
+        item.email === user.email && item.status === MemberStatus.JOINED,
+    );
+    if (!isAccess) {
+      throw new ForbiddenException(
+        'You do not have permission to access this space',
+      );
+    }
     const extension = await this.helpDeskBusinessModel
       .findOne({
         space: new Types.ObjectId(spaceId),
-        user: userId,
         status: { $ne: StatusBusiness.DELETED },
       })
       .select('-space')
       .lean();
+    space.members = space.members.filter(
+      (user) => user.status !== MemberStatus.DELETED,
+    );
     return {
       ...space,
       extension: extension,
@@ -311,7 +379,10 @@ export class HelpDeskService {
     if (!user) {
       throw new BadRequestException('User not found');
     }
+
     const isAdminOrMember = await this.spaceModel.findOne({
+      _id: new mongoose.Types.ObjectId(spaceId),
+      status: { $ne: StatusSpace.DELETED },
       $or: [
         {
           'members.email': user.email,
@@ -319,12 +390,11 @@ export class HelpDeskService {
       ],
     });
     if (!isAdminOrMember) {
-      throw new BadRequestException('You do not have access to this space!');
+      throw new ForbiddenException('You do not have access to this space!');
     }
     return this.helpDeskBusinessModel
       .findOne({
         space: new Types.ObjectId(spaceId),
-        user: userId,
         status: { $ne: StatusBusiness.DELETED },
       })
       .populate('space', '-members.verifyToken')
@@ -343,15 +413,17 @@ export class HelpDeskService {
       .populate('space', '-members.verifyToken')
       .lean();
   }
-  async deleteBusiness(userId: string) {
+  async deleteExtension(userId: string, extensionId: string) {
     const business = await this.helpDeskBusinessModel
-      .findOne({ user: userId, status: { $ne: StatusBusiness.DELETED } })
+      .findOne({ _id: extensionId, status: { $ne: StatusBusiness.DELETED } })
       .lean();
     if (!business) {
       throw new BadRequestException('Business not found');
     }
     if (business.user.toString() !== userId) {
-      throw new BadRequestException('You are not admin of business');
+      throw new ForbiddenException(
+        'You do not have permission to delete extension',
+      );
     }
     await this.helpDeskBusinessModel.updateOne(
       {
@@ -365,6 +437,33 @@ export class HelpDeskService {
       userId,
       RoomStatus.DELETED,
     );
+  }
+  async deleteSpace(spaceId: string, userId: string) {
+    const space = await this.spaceModel.findOne({
+      _id: spaceId,
+      status: { $ne: StatusSpace.DELETED },
+    });
+
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+    if (space?.owner.toString() !== userId.toString()) {
+      throw new ForbiddenException(
+        'You do not have permission to delete space',
+      );
+    }
+
+    space.status = StatusSpace.DELETED;
+    await space.save();
+    const extension = await this.helpDeskBusinessModel.findOne({
+      space: spaceId,
+    });
+    if (extension) {
+      extension.status = StatusBusiness.DELETED;
+      await extension.save();
+    }
+
+    return true;
   }
   async rating(createRatingDto: CreateRatingDto) {
     const { userId, businessId, star } = createRatingDto;
@@ -396,9 +495,11 @@ export class HelpDeskService {
   }
   async getClientsByUser(query: SearchQueryParamsDto, userId: string) {
     const { q, limit, currentPage } = query;
-    const business = await this.helpDeskBusinessModel.findOne({ user: userId });
+    const business = await this.helpDeskBusinessModel.findOne({
+      space: query.spaceId,
+    });
     if (!business) {
-      throw new BadRequestException('Business not found');
+      throw new BadRequestException('space not found');
     }
     const data = await this.userService.findByBusiness({
       q,
@@ -411,7 +512,20 @@ export class HelpDeskService {
   }
   async editClientProfile(clientDto: EditClientDto, userId: string) {
     const { name, phoneNumber } = clientDto;
-    const business = await this.helpDeskBusinessModel.findOne({ user: userId });
+    const space = await this.spaceModel.findOne({
+      _id: clientDto.spaceId,
+      status: StatusSpace.ACTIVE,
+      'members.user': userId,
+      'members.status': MemberStatus.JOINED,
+    });
+    if (!space) {
+      throw new ForbiddenException(
+        'You do not have permission to edit profile',
+      );
+    }
+    const business = await this.helpDeskBusinessModel.findOne({
+      space: clientDto.spaceId,
+    });
     if (!business) {
       throw new BadRequestException('Business not found');
     }
@@ -432,12 +546,10 @@ export class HelpDeskService {
     return true;
   }
   async analyst(params: AnalystQueryDto, userId: string) {
-    const business = await this.getBusinessByUser(
-      userId,
-      '661dd18f79fa16e0ac8777db',
-    );
+    const spaceId = params.spaceId;
+    const business = await this.getBusinessByUser(userId, spaceId);
     if (!business) {
-      throw new BadRequestException('Business not found');
+      throw new BadRequestException('You have not created an extension yet');
     }
     const { type, fromDate, toDate } = params;
     const today = moment().toDate();
@@ -742,11 +854,15 @@ export class HelpDeskService {
     };
   }
 
-  async acceptInvite(
+  async validateInvite(
     userId: string,
     token: string,
     status: ValidateInviteStatus,
   ) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
     const space = await this.spaceModel.findOne({
       members: {
         $elemMatch: {
@@ -758,10 +874,19 @@ export class HelpDeskService {
     if (!space) {
       throw new BadRequestException('Token is invalid');
     }
+    if (space.status === StatusSpace.DELETED) {
+      throw new BadRequestException('This space is deleted');
+    }
 
     const memberIndex = space.members.findIndex(
       (item) => item.verifyToken === token,
     );
+    const email = space.members[memberIndex].email;
+    if (email !== user.email) {
+      throw new ForbiddenException(
+        'You do not have permission to view this invitaion',
+      );
+    }
     if (space.members[memberIndex].status === MemberStatus.JOINED) {
       throw new BadRequestException('You are joined this space');
     }
@@ -772,13 +897,19 @@ export class HelpDeskService {
       space.members = space.members.filter(
         (item) => item.verifyToken !== token,
       );
+      await space.save();
     } else {
       space.members[memberIndex].status = MemberStatus.JOINED;
       space.members[memberIndex].joinedAt = new Date();
       space.members[memberIndex].user = userId;
+      await space.save();
+      this.roomsService.addHelpDeskParticipant(
+        space._id.toString(),
+        space.owner.toString(),
+        userId,
+      );
     }
 
-    await space.save();
     return true;
   }
 
@@ -798,17 +929,25 @@ export class HelpDeskService {
           },
         },
       })
-      .populate('user', 'name avatar members')
-      .select('name user members')
+      .populate('owner', 'email')
+      .select('name user members owner')
       .lean();
     return myInvitations.map((item) => {
-      const invitedAt = item.members.find(
-        (item) => item.email === user.email,
-      )?.invitedAt;
+      const memberInfo = item.members.find((item) => item.email === user.email);
+      const invitedAt = memberInfo?.invitedAt;
 
       return {
-        ...item,
+        space: {
+          _id: item._id,
+          avatar: item.avatar,
+          backgroundImage: item.backgroundImage,
+          name: item.name,
+          owner: item.owner,
+        },
+        email: user.email,
+        verifyToken: memberInfo?.verifyToken,
         invitedAt: invitedAt,
+        isExpired: moment().isAfter(memberInfo?.expiredAt),
       };
     });
   }
@@ -1061,16 +1200,10 @@ export class HelpDeskService {
     return `${envConfig.app.url}/space-verify?token=${token}`;
   }
 
-  async createVerifyToken(payload: { id: string }) {
-    return this.jwtService.signAsync(payload, {
-      secret: envConfig.jwt.verifyToken.secret,
-      expiresIn: envConfig.jwt.verifyToken.expiresIn,
-    });
-  }
-
   async inviteMember(userId: string, data: InviteMemberDto) {
-    const spaceData = await this.helpDeskBusinessModel.findOne({
-      user: userId,
+    const spaceData = await this.spaceModel.findOne({
+      _id: data.spaceId,
+      owner: userId,
     });
     const user = await this.userService.findById(userId);
     if (!spaceData) {
@@ -1100,6 +1233,7 @@ export class HelpDeskService {
       role: data.role,
       verifyToken: token,
       invitedAt: new Date(),
+      expiredAt: moment().add('7', 'day').toDate(),
       status: MemberStatus.INVITED,
     });
 
@@ -1115,6 +1249,7 @@ export class HelpDeskService {
   }
   async resendInvitation(userId: string, data: InviteMemberDto) {
     const spaceData = await this.spaceModel.findOne({
+      status: { $ne: StatusSpace.DELETED },
       owner: userId,
       _id: data.spaceId,
     });
@@ -1149,6 +1284,7 @@ export class HelpDeskService {
       verifyToken: token,
       invitedAt: new Date(),
       status: MemberStatus.INVITED,
+      expiredAt: moment().add('7', 'day').toDate(),
     };
 
     await spaceData.save();
@@ -1158,10 +1294,16 @@ export class HelpDeskService {
     const spaceData = await this.spaceModel.findOne({
       owner: userId,
       _id: data.spaceId,
+      status: { $ne: StatusSpace.DELETED },
     });
 
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
+    }
+    if (spaceData.owner.toString() !== userId.toString()) {
+      throw new ForbiddenException(
+        'You do not have permission to remove member',
+      );
     }
 
     const index = spaceData.members.findIndex(
@@ -1178,6 +1320,7 @@ export class HelpDeskService {
   }
   async changeRole(userId: string, data: InviteMemberDto) {
     const spaceData = await this.spaceModel.findOne({
+      status: { $ne: StatusSpace.DELETED },
       owner: userId,
       _id: data.spaceId,
     });
@@ -1197,5 +1340,49 @@ export class HelpDeskService {
 
     await spaceData.save();
     return true;
+  }
+
+  async createOrEditTag(userId: string, tagDto: CreateOrEditTagDto) {
+    const { spaceId, name, color, tagId } = tagDto;
+    const space = await this.spaceModel
+      .findOne({
+        _id: spaceId,
+        status: { $ne: StatusSpace.DELETED },
+      })
+      .populate('tags');
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+
+    if (space.owner.toString() !== userId.toString()) {
+      throw new ForbiddenException(
+        'You do not have permission to create or edit tag',
+      );
+    }
+    const item: any = {
+      color: color,
+      name: name,
+    };
+    if (!tagId) {
+      space.tags = space.tags || [];
+      if (space.tags.find((item) => item.name === name)) {
+        throw new BadRequestException('name already exists');
+      }
+      space.tags.push(item);
+    } else {
+      const index = space.tags.findIndex(
+        (item) => item._id.toString() === tagId,
+      );
+      if (index === -1) {
+        throw new BadRequestException('Tag not found');
+      }
+      if (space.tags[index].isReadonly) {
+        throw new BadRequestException('This tag is readonly');
+      }
+      space.tags[index].name = name;
+      space.tags[index].color = color;
+    }
+    await space.save();
+    return space.tags;
   }
 }

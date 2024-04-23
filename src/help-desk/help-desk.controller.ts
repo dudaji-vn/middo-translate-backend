@@ -20,6 +20,7 @@ import { CreateRatingDto } from './dto/create-rating.dto';
 import { EditClientDto } from './dto/edit-client-dto';
 import { HelpDeskService } from './help-desk.service';
 import {
+  CreateOrEditTagDto,
   CreateOrEditSpaceDto,
   InviteMemberDto,
   RemoveMemberDto,
@@ -94,15 +95,18 @@ export class HelpDeskController {
   }
 
   @Public()
-  @Get('extension/:id')
-  async getBusinessById(@ParamObjectId() id: string) {
+  @Get('extensions/:id')
+  async getBusinessById(@ParamObjectId('id') id: string) {
     const result = await this.helpDeskService.getBusinessById(id);
     return { data: result };
   }
 
-  @Delete('')
-  async deleteBusiness(@JwtUserId() userId: string) {
-    await this.helpDeskService.deleteBusiness(userId);
+  @Delete('extensions/:id')
+  async deleteBusiness(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+  ) {
+    await this.helpDeskService.deleteExtension(userId, id);
     return { message: 'Business deleted', data: null };
   }
 
@@ -152,11 +156,11 @@ export class HelpDeskController {
   }
 
   @Post('validate-invite')
-  async acceptInvite(
+  async validateInvite(
     @Body() { token, status }: ValidateInviteDto,
     @JwtUserId() userId: string,
   ) {
-    const result = await this.helpDeskService.acceptInvite(
+    const result = await this.helpDeskService.validateInvite(
       userId,
       token,
       status,
@@ -202,6 +206,28 @@ export class HelpDeskController {
     @Body() member: RemoveMemberDto,
   ) {
     const result = await this.helpDeskService.removeMember(userId, member);
+    return {
+      data: result,
+    };
+  }
+
+  @Put('create-or-edit-tag')
+  async createOrEditTag(
+    @JwtUserId() userId: string,
+    @Body() tag: CreateOrEditTagDto,
+  ) {
+    const result = await this.helpDeskService.createOrEditTag(userId, tag);
+    return {
+      data: result,
+    };
+  }
+
+  @Delete('spaces/:spaceId')
+  async deleteSpace(
+    @JwtUserId() userId: string,
+    @ParamObjectId('spaceId') spaceId: string,
+  ) {
+    const result = await this.helpDeskService.deleteSpace(spaceId, userId);
     return {
       data: result,
     };

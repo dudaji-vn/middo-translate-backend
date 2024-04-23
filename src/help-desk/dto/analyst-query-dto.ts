@@ -1,4 +1,4 @@
-import { IsEnum } from 'class-validator';
+import { IsEnum, IsMongoId } from 'class-validator';
 
 export enum AnalystType {
   LAST_WEEK = 'last-week',
@@ -10,6 +10,10 @@ export enum AnalystType {
 export class AnalystQueryDto {
   @IsEnum(AnalystType)
   type: AnalystType;
+
+  @IsMongoId()
+  spaceId: string;
+
   fromDate?: Date;
   toDate?: Date;
 }

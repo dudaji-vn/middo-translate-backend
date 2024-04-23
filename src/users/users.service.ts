@@ -46,7 +46,10 @@ export class UsersService {
               : { email: { $regex: q, $options: 'i' } }),
           },
         ],
-        status: type === 'help-desk' ? UserStatus.ANONYMOUS : UserStatus.ACTIVE,
+        status:
+          type === 'help-desk'
+            ? { $in: [UserStatus.ANONYMOUS, UserStatus.ACTIVE] }
+            : UserStatus.ACTIVE,
       })
       .limit(limit)
       .select({
