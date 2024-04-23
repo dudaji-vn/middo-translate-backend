@@ -363,6 +363,7 @@ export class HelpDeskService {
     space.members = space.members.filter(
       (user) => user.status !== MemberStatus.DELETED,
     );
+    space.tags = space.tags.filter((tag) => !tag.isDeleted);
     return {
       ...space,
       extension: extension,
