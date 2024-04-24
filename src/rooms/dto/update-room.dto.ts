@@ -15,6 +15,5 @@ export class UpdateRoomStatusDto {
   status: RoomStatus;
 }
 export class ChangeTagRoomDto {
-  @IsMongoId()
   tagId: string;
 }

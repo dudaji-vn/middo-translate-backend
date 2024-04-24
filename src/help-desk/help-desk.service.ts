@@ -594,14 +594,13 @@ export class HelpDeskService {
 
     const averageResponseChatPromiseWithTimePromise =
       this.roomsService.getAverageResponseChat(
-        business.user.toString(),
+        spaceId,
         fromDateBy[type],
         toDateBy[type],
       );
 
-    const averageResponseChatPromise = this.roomsService.getAverageResponseChat(
-      business.user.toString(),
-    );
+    const averageResponseChatPromise =
+      this.roomsService.getAverageResponseChat(spaceId);
     const newClientsChartPromise = await this.getChartClient(
       business._id,
       type,
@@ -811,6 +810,7 @@ export class HelpDeskService {
     const averageChatDurationWithTime =
       averageResponseChatWithTime[0]?.averageDifference || 0;
     const averageChatDuration = averageResponseChat[0].averageDifference;
+    console.log(averageChatDuration);
     return {
       client: {
         count: totalClientsWithTime,
@@ -1390,7 +1390,7 @@ export class HelpDeskService {
     };
     if (!tagId) {
       space.tags = space.tags || [];
-      if (space.tags.find((item) => item.name === name)) {
+      if (space.tags.find((item) => item.name === name && !item.isDeleted)) {
         throw new BadRequestException('name already exists');
       }
       space.tags.push(item);
