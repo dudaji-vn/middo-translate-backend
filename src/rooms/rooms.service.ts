@@ -923,8 +923,9 @@ export class RoomsService {
     if (!space || !space.tags) {
       throw new BadRequestException(`Space has no tag`);
     }
+
     const tag = space.tags.find((tag) => tag._id?.toString() === tagId);
-    if (!tag) {
+    if (!tag && tagId) {
       throw new BadRequestException(`Tag ${tagId} not exist in space`);
     }
     if (room.tag && room.tag?.toString() === tagId) {
@@ -940,7 +941,7 @@ export class RoomsService {
       {
         tag: tagId,
         status:
-          tag.name === RoomStatus.COMPLETED
+          tag?.name === RoomStatus.COMPLETED
             ? RoomStatus.COMPLETED
             : room.status,
       },
@@ -1000,13 +1001,17 @@ export class RoomsService {
     );
     return this.roomModel.aggregate(query);
   }
-  async getAverageResponseChat(userId: string, fromDate?: Date, toDate?: Date) {
+  async getAverageResponseChat(
+    spaceId: string,
+    fromDate?: Date,
+    toDate?: Date,
+  ) {
     const query = [
       {
         $match: {
-          admin: new mongoose.Types.ObjectId(userId),
+          space: new mongoose.Types.ObjectId(spaceId),
           isHelpDesk: true,
-          status: RoomStatus.ACTIVE,
+          status: { $in: [RoomStatus.ACTIVE, RoomStatus.COMPLETED] },
           ...(fromDate &&
             toDate && {
               createdAt: {

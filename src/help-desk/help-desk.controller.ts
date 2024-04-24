@@ -263,4 +263,15 @@ export class HelpDeskController {
       data: result,
     };
   }
+
+  @Delete('notifications/:id')
+  async deleteNotification(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+  ) {
+    const result = await this.helpDeskService.deleteNotification(id, userId);
+    return {
+      data: result,
+    };
+  }
 }

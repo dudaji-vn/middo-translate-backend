@@ -207,7 +207,7 @@ export class HelpDeskService {
         bot: bot,
       });
 
-      members.forEach((data) => {
+      await members.forEach((data) => {
         this.spaceNotificationModel.create({
           space: spaceData._id,
           description: `You've been invited to join ${spaceData.name}`,
@@ -594,14 +594,13 @@ export class HelpDeskService {
 
     const averageResponseChatPromiseWithTimePromise =
       this.roomsService.getAverageResponseChat(
-        business.user.toString(),
+        spaceId,
         fromDateBy[type],
         toDateBy[type],
       );
 
-    const averageResponseChatPromise = this.roomsService.getAverageResponseChat(
-      business.user.toString(),
-    );
+    const averageResponseChatPromise =
+      this.roomsService.getAverageResponseChat(spaceId);
     const newClientsChartPromise = await this.getChartClient(
       business._id,
       type,
@@ -811,6 +810,7 @@ export class HelpDeskService {
     const averageChatDurationWithTime =
       averageResponseChatWithTime[0]?.averageDifference || 0;
     const averageChatDuration = averageResponseChat[0].averageDifference;
+    console.log(averageChatDuration);
     return {
       client: {
         count: totalClientsWithTime,
@@ -1390,7 +1390,7 @@ export class HelpDeskService {
     };
     if (!tagId) {
       space.tags = space.tags || [];
-      if (space.tags.find((item) => item.name === name)) {
+      if (space.tags.find((item) => item.name === name && !item.isDeleted)) {
         throw new BadRequestException('name already exists');
       }
       space.tags.push(item);
@@ -1464,6 +1464,7 @@ export class HelpDeskService {
       .find({
         to: user.email,
         space: spaceId,
+        isDeleted: { $ne: true },
       })
       .populate('from', 'name avatar')
       .select('-to');
@@ -1477,5 +1478,23 @@ export class HelpDeskService {
     notification.unRead = false;
     await notification.save();
     return notification;
+  }
+  async deleteNotification(id: string, userId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    const notification = await this.spaceNotificationModel.findById(id);
+    if (!notification) {
+      throw new BadRequestException('Notification not found');
+    }
+    if (user.email !== notification.to) {
+      throw new BadRequestException(
+        'You do not have permission to delete notifications',
+      );
+    }
+    notification.isDeleted = true;
+    await notification.save();
+    return null;
   }
 }
