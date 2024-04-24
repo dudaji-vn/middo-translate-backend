@@ -432,7 +432,7 @@ export class HelpDeskService {
       },
     );
     await this.roomsService.changeHelpDeskRoomStatusByUser(
-      userId,
+      business.space.toString(),
       RoomStatus.DELETED,
     );
   }
@@ -577,14 +577,12 @@ export class HelpDeskService {
 
     const totalCompletedConversationWithTimePromise =
       this.roomsService.getTotalClientCompletedConversation(
-        business.user.toString(),
+        spaceId,
         fromDateBy[type],
         toDateBy[type],
       );
     const totalCompletedConversationPromise =
-      this.roomsService.getTotalClientCompletedConversation(
-        business.user.toString(),
-      );
+      this.roomsService.getTotalClientCompletedConversation(spaceId);
 
     const averageRatingPromise = this.getAverageRatingById(
       business._id,
@@ -610,7 +608,7 @@ export class HelpDeskService {
     const completedConversationsChartPromise =
       await this.roomsService.getChartCompletedConversation({
         type: type,
-        userId: business.user.toString(),
+        spaceId: business.space._id.toString(),
         fromDate: fromDateBy[type],
         toDate: toDateBy[type],
       });
@@ -622,7 +620,7 @@ export class HelpDeskService {
     });
     const responseChartPromise = await this.getChartAverageResponseChat({
       type: type,
-      userId: business.user.toString(),
+      spaceId: business.space?._id.toString(),
       fromDate: fromDateBy[type],
       toDate: toDateBy[type],
     });
@@ -810,7 +808,6 @@ export class HelpDeskService {
     const averageChatDurationWithTime =
       averageResponseChatWithTime[0]?.averageDifference || 0;
     const averageChatDuration = averageResponseChat[0].averageDifference;
-    console.log(averageChatDuration);
     return {
       client: {
         count: totalClientsWithTime,
@@ -1412,6 +1409,17 @@ export class HelpDeskService {
   }
 
   async addMissingData() {
+    await this.spaceModel.updateMany(
+      { tags: { $exists: false } },
+      {
+        $set: {
+          tags: [
+            { name: 'pending', color: '#FF3333', isReadonly: true },
+            { name: 'completed', color: '#00B512', isReadonly: true },
+          ],
+        },
+      },
+    );
     const spaces = await this.spaceModel.find().populate('owner');
 
     for (const space of spaces) {

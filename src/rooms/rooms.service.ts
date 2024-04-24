@@ -950,12 +950,12 @@ export class RoomsService {
   }
 
   async getTotalClientCompletedConversation(
-    userId: string,
+    spaceId: string,
     fromDate?: Date,
     toDate?: Date,
   ) {
     return await this.roomModel.countDocuments({
-      admin: userId,
+      space: new mongoose.Types.ObjectId(spaceId),
       status: RoomStatus.COMPLETED,
       ...(fromDate &&
         toDate && {
@@ -966,10 +966,10 @@ export class RoomsService {
         }),
     });
   }
-  async changeHelpDeskRoomStatusByUser(userId: string, status: RoomStatus) {
+  async changeHelpDeskRoomStatusByUser(spaceId: string, status: RoomStatus) {
     await this.roomModel.updateMany(
       {
-        admin: userId,
+        space: new mongoose.Types.ObjectId(spaceId),
         isHelpDesk: true,
       },
       {
@@ -979,13 +979,13 @@ export class RoomsService {
     return true;
   }
   async getChartCompletedConversation(payload: ChartQueryDto) {
-    const { userId, fromDate, toDate, type } = payload;
+    const { spaceId, fromDate, toDate, type } = payload;
     const query = queryReportByType(
       type,
       [
         {
           $match: {
-            admin: new mongoose.Types.ObjectId(userId),
+            space: new mongoose.Types.ObjectId(spaceId),
             status: RoomStatus.COMPLETED,
             ...(fromDate &&
               toDate && {
@@ -1056,11 +1056,11 @@ export class RoomsService {
     return await this.roomModel.aggregate(query);
   }
   async getChartAverageResponseChat(payload: ChartQueryDto) {
-    const { userId, fromDate, toDate, type } = payload;
+    const { spaceId, fromDate, toDate, type } = payload;
     const query = [
       {
         $match: {
-          admin: new mongoose.Types.ObjectId(userId),
+          space: new mongoose.Types.ObjectId(spaceId),
           status: RoomStatus.ACTIVE,
           isHelpDesk: true,
           ...(fromDate &&
