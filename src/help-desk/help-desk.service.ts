@@ -42,7 +42,7 @@ import {
 import { MailService } from 'src/mail/mail.service';
 import { envConfig } from 'src/configs/env.config';
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
-import { Space, StatusSpace } from './schemas/space.schema';
+import { Member, Space, StatusSpace } from './schemas/space.schema';
 import { SpaceNotification } from './schemas/space-notifications.schema';
 
 @Injectable()
@@ -230,11 +230,15 @@ export class HelpDeskService {
     } else {
       const spaceData = await this.spaceModel.findOne({
         _id: space.spaceId,
-        owner: userId,
         status: { $ne: StatusSpace.DELETED },
       });
       if (!spaceData) {
         throw new BadRequestException('Space not found');
+      }
+      if (!this.isAdminSpace(spaceData.members, userId)) {
+        throw new ForbiddenException(
+          'You do not have permission to edit space',
+        );
       }
       if (space.avatar) {
         spaceData.avatar = space.avatar;
@@ -512,9 +516,12 @@ export class HelpDeskService {
     const { name, phoneNumber } = clientDto;
     const space = await this.spaceModel.findOne({
       _id: clientDto.spaceId,
-      status: StatusSpace.ACTIVE,
-      'members.user': userId,
-      'members.status': MemberStatus.JOINED,
+      status: { $ne: StatusSpace.DELETED },
+      members: {
+        $elemMatch: {
+          user: new mongoose.Types.ObjectId(userId),
+        },
+      },
     });
     if (!space) {
       throw new ForbiddenException(
@@ -1196,13 +1203,20 @@ export class HelpDeskService {
   }
 
   async inviteMembers(userId: string, data: InviteMemberDto) {
+    const user = await this.userService.findById(userId);
     const spaceData = await this.spaceModel.findOne({
       _id: data.spaceId,
-      owner: userId,
+      status: { $ne: StatusSpace.DELETED },
     });
-    const user = await this.userService.findById(userId);
+
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
+    }
+
+    if (!this.isAdminSpace(spaceData.members, user._id.toString())) {
+      throw new ForbiddenException(
+        'You do not have permission to invite members to the group',
+      );
     }
 
     data.members.forEach((member) => {
@@ -1265,13 +1279,17 @@ export class HelpDeskService {
   async resendInvitation(userId: string, data: UpdateMemberDto) {
     const spaceData = await this.spaceModel.findOne({
       status: { $ne: StatusSpace.DELETED },
-      owner: userId,
       _id: data.spaceId,
     });
 
     const user = await this.userService.findById(userId);
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
+    }
+    if (!this.isAdminSpace(spaceData.members, userId)) {
+      throw new ForbiddenException(
+        'You do not have permission to resend invitation',
+      );
     }
 
     const index = spaceData.members.findIndex(
@@ -1314,7 +1332,6 @@ export class HelpDeskService {
   }
   async removeMember(userId: string, data: RemoveMemberDto) {
     const spaceData = await this.spaceModel.findOne({
-      owner: userId,
       _id: data.spaceId,
       status: { $ne: StatusSpace.DELETED },
     });
@@ -1343,12 +1360,14 @@ export class HelpDeskService {
   async changeRole(userId: string, data: UpdateMemberDto) {
     const spaceData = await this.spaceModel.findOne({
       status: { $ne: StatusSpace.DELETED },
-      owner: userId,
       _id: data.spaceId,
     });
 
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
+    }
+    if (!this.isAdminSpace(spaceData.members, userId)) {
+      throw new ForbiddenException('You do not have permission to change role');
     }
 
     const index = spaceData.members.findIndex(
@@ -1376,7 +1395,7 @@ export class HelpDeskService {
       throw new BadRequestException('Space not found');
     }
 
-    if (space.owner.toString() !== userId.toString()) {
+    if (!this.isAdminSpace(space.members, userId)) {
       throw new ForbiddenException(
         'You do not have permission to create or edit tag',
       );
@@ -1445,7 +1464,7 @@ export class HelpDeskService {
       throw new BadRequestException('Space not found');
     }
 
-    if (space.owner.toString() !== userId) {
+    if (!this.isAdminSpace(space.members, userId)) {
       throw new ForbiddenException(
         'You do not have permission to delete the tag',
       );
@@ -1466,12 +1485,11 @@ export class HelpDeskService {
     await space.save();
     return true;
   }
-  async getNotifications(userId: string, spaceId: string) {
+  async getNotifications(userId: string) {
     const user = await this.userService.findById(userId);
     const notifications = this.spaceNotificationModel
       .find({
         to: user.email,
-        space: spaceId,
         isDeleted: { $ne: true },
       })
       .populate('from', 'name avatar')
@@ -1504,5 +1522,13 @@ export class HelpDeskService {
     notification.isDeleted = true;
     await notification.save();
     return null;
+  }
+  isAdminSpace(members: Member[], userId: string) {
+    return members.find(
+      (member) =>
+        member.user?.toString() === userId &&
+        member.role === ROLE.ADMIN &&
+        member.status === MemberStatus.JOINED,
+    );
   }
 }
