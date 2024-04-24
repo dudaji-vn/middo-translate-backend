@@ -313,9 +313,9 @@ export class RoomsController {
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
     @Body() { status }: UpdateRoomStatusDto,
-  ): Promise<Response<null>> {
-    await this.roomsService.changeRoomStatus(id, userId, status);
-    return { message: 'Changed room status', data: null };
+  ): Promise<Response<Room>> {
+    const result = await this.roomsService.changeRoomStatus(id, userId, status);
+    return { message: 'Changed room status', data: result };
   }
 
   @Patch(':id/change-tag-room')
@@ -323,8 +323,8 @@ export class RoomsController {
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
     @Body() { tagId }: ChangeTagRoomDto,
-  ): Promise<Response<null>> {
-    await this.roomsService.changeTagRoom(id, userId, tagId);
-    return { message: 'Changed room tag', data: null };
+  ): Promise<Response<boolean>> {
+    const result = await this.roomsService.changeTagRoom(id, userId, tagId);
+    return { message: 'Changed room tag', data: result };
   }
 }

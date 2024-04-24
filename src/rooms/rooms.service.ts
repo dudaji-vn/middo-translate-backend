@@ -923,11 +923,11 @@ export class RoomsService {
     if (!space || !space.tags) {
       throw new BadRequestException(`Space has no tag`);
     }
-    const tag = space.tags.find((tag) => tag._id.toString() === tagId);
+    const tag = space.tags.find((tag) => tag._id?.toString() === tagId);
     if (!tag) {
       throw new BadRequestException(`Tag ${tagId} not exist in space`);
     }
-    if (room?.tag.toString() === tagId) {
+    if (room.tag && room.tag?.toString() === tagId) {
       throw new BadRequestException(
         'The current tag is the same as the old tag',
       );
@@ -945,7 +945,7 @@ export class RoomsService {
             : room.status,
       },
     );
-    return room;
+    return true;
   }
 
   async getTotalClientCompletedConversation(
