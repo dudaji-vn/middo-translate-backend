@@ -3,7 +3,7 @@ import mongoose, { HydratedDocument, ObjectId } from 'mongoose';
 
 import { Message } from 'src/messages/schemas/messages.schema';
 import { User } from 'src/users/schemas/user.schema';
-import { Space } from 'src/help-desk/schemas/space.schema';
+import { Space, Tag } from 'src/help-desk/schemas/space.schema';
 
 export type RoomDocument = HydratedDocument<Room>;
 export enum RoomStatus {
@@ -76,6 +76,12 @@ export class Room {
     ref: 'Space',
   })
   space: Space | ObjectId;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Tag',
+  })
+  tag: Tag | ObjectId;
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);

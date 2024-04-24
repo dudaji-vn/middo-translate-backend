@@ -103,6 +103,12 @@ export class Space {
   backgroundImage: string;
 
   @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  })
+  bot: User | string;
+
+  @Prop({
     type: [MemberSchema],
     default: [],
   })

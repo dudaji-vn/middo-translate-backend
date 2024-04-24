@@ -151,14 +151,14 @@ export class AuthController {
   async googleSignInCallback(@Req() req: any, @Res() res: any) {
     const user = req.user;
     const tokens = await this.authService.createTokens({ id: user._id });
-    res.cookie('refresh_token', tokens.refreshToken, {
-      httpOnly: true,
-      path: '/',
-    });
-    res.cookie('access_token', tokens.accessToken, {
-      httpOnly: true,
-      path: '/',
-    });
+    // res.cookie('refresh_token', tokens.refreshToken, {
+    //   httpOnly: true,
+    //   path: '/',
+    // });
+    // res.cookie('access_token', tokens.accessToken, {
+    //   httpOnly: true,
+    //   path: '/',
+    // });
     res.redirect(
       envConfig.app.url +
         `/api/callback?access_token=${tokens.accessToken}&refresh_token=${tokens.refreshToken}`,

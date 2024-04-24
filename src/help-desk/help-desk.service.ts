@@ -37,13 +37,13 @@ import {
   InviteMemberDto,
   MemberDto,
   RemoveMemberDto,
+  UpdateMemberDto,
 } from './dto/create-or-edit-space-dto';
 import { MailService } from 'src/mail/mail.service';
 import { envConfig } from 'src/configs/env.config';
-import { JwtService } from '@nestjs/jwt';
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
 import { Space, StatusSpace } from './schemas/space.schema';
-import { multipleTranslate } from '../messages/utils/translate';
+import { SpaceNotification } from './schemas/space-notifications.schema';
 
 @Injectable()
 export class HelpDeskService {
@@ -54,11 +54,12 @@ export class HelpDeskService {
     private userModel: Model<User>,
     @InjectModel(Space.name)
     private spaceModel: Model<Space>,
+    @InjectModel(SpaceNotification.name)
+    private spaceNotificationModel: Model<SpaceNotification>,
     private userService: UsersService,
     private roomsService: RoomsService,
     private messagesService: MessagesService,
     private mailService: MailService,
-    private jwtService: JwtService,
   ) {}
 
   async createClient(businessId: string, info: Partial<User>) {
@@ -77,26 +78,7 @@ export class HelpDeskService {
       language: info.language,
       tempEmail: info.email,
     });
-    // if (business.chatFlow) {
-    //   for (const index in business.chatFlow.nodes) {
-    //     const item = business.chatFlow.nodes[index];
-    //     if (info.language) {
-    //       const newTranslations = await multipleTranslate({
-    //         content: item.data.content,
-    //         sourceLang: business.language,
-    //         targetLangs: ['en', info.language],
-    //       });
 
-    //       item.data.translations = {
-    //         ...item.data.translations,
-    //         ...newTranslations,
-    //       };
-    //       business.chatFlow.nodes[index] = item;
-    //     }
-    //   }
-
-    //   business.save();
-    // }
     const participants: any = business.space.members
       .filter((item) => item.status === MemberStatus.JOINED && item.user)
       .map((item) => item.user);
@@ -139,7 +121,7 @@ export class HelpDeskService {
     };
   }
 
-  async createOrEditBusiness(userId: string, info: CreateOrEditBusinessDto) {
+  async createOrEditExtension(userId: string, info: CreateOrEditBusinessDto) {
     const space = await this.spaceModel.findOne({
       _id: info.spaceId,
       status: { $ne: StatusSpace.DELETED },
@@ -147,6 +129,7 @@ export class HelpDeskService {
     if (!space) {
       throw new BadRequestException('Space not found');
     }
+
     info.status = StatusBusiness.ACTIVE;
     if (info.chatFlow) {
       info.firstMessage = '';
@@ -161,41 +144,14 @@ export class HelpDeskService {
       );
     }
     info.user = userId;
-    const user = await this.helpDeskBusinessModel.findOneAndUpdate(
+    const extension = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
         space: info.spaceId,
       },
       info,
       { new: true, upsert: true },
     );
-    return user;
-  }
-
-  async sendEmailToListMember(
-    fullName: string,
-    spaceName: string,
-    members: MemberDto[],
-  ) {
-    for (const index in members) {
-      const item = members[index];
-      const token = `${generateSlug()}-${generateSlug()}`;
-
-      const verifyUrl = await this.createVerifyUrl(token);
-      await this.mailService.sendMail(
-        item.email,
-        `${fullName} has invited you to join the ${spaceName} space`,
-        'verify-member',
-        {
-          title: `Join the ${spaceName} space`,
-          verifyUrl: verifyUrl,
-        },
-      );
-      members[index].verifyToken = token;
-      members[index].invitedAt = new Date();
-      members[index].status = MemberStatus.INVITED;
-      members[index].expiredAt = moment().add('7', 'day').toDate();
-    }
-    return members;
+    return extension;
   }
 
   async createOrEditSpace(userId: string, space: CreateOrEditSpaceDto) {
@@ -220,20 +176,56 @@ export class HelpDeskService {
         );
       }
       space.members = space.members.filter((item) => item.email !== me.email);
-      const members = await this.sendEmailToListMember(
-        user.name,
-        space.name,
-        space.members,
-      );
-      space.members = [me, ...members];
+
+      const members = space.members.map((item) => {
+        const token = `${generateSlug()}-${generateSlug()}`;
+        return {
+          email: item.email,
+          role: item.role,
+          verifyToken: token,
+          invitedAt: new Date(),
+          expiredAt: moment().add('7', 'day').toDate(),
+          status: MemberStatus.INVITED,
+          verifyUrl: this.createVerifyUrl(token),
+        };
+      });
+
+      const bot = await this.userModel.create({
+        status: UserStatus.BOT,
+        email: `${generateSlug()}@gmail.com`,
+        name: space.name,
+        language: user.language,
+        avatar: space.avatar,
+      });
 
       const spaceData = await this.spaceModel.create({
         owner: user._id,
         avatar: space.avatar,
         backgroundImage: space.backgroundImage,
-        members: space.members,
+        members: [me, ...members],
         name: space.name,
+        bot: bot,
       });
+
+      await members.forEach((data) => {
+        this.spaceNotificationModel.create({
+          space: spaceData._id,
+          description: `You've been invited to join ${spaceData.name}`,
+          from: user,
+          to: data.email,
+          link: data.verifyUrl,
+        });
+        this.mailService.sendMail(
+          data.email,
+          `${user.name} has invited you to join the ${spaceData.name} space`,
+          'verify-member',
+          {
+            title: `Join the ${spaceData.name} space`,
+            verifyUrl: data.verifyUrl,
+          },
+        );
+      });
+
       return spaceData;
     } else {
       const spaceData = await this.spaceModel.findOne({
@@ -252,6 +244,11 @@ export class HelpDeskService {
       }
       if (space.name) {
         spaceData.name = space.name;
+      }
+      if (spaceData.bot) {
+        await this.userModel.findByIdAndUpdate(spaceData.bot, {
+          avatar: space.avatar,
+        });
       }
       await spaceData.save();
       return spaceData;
@@ -368,6 +365,7 @@ export class HelpDeskService {
     space.members = space.members.filter(
       (user) => user.status !== MemberStatus.DELETED,
     );
+    space.tags = space.tags.filter((tag) => !tag.isDeleted);
     return {
       ...space,
       extension: extension,
@@ -434,7 +432,7 @@ export class HelpDeskService {
       },
     );
     await this.roomsService.changeHelpDeskRoomStatusByUser(
-      userId,
+      business.space.toString(),
       RoomStatus.DELETED,
     );
   }
@@ -579,14 +577,12 @@ export class HelpDeskService {
 
     const totalCompletedConversationWithTimePromise =
       this.roomsService.getTotalClientCompletedConversation(
-        business.user.toString(),
+        spaceId,
         fromDateBy[type],
         toDateBy[type],
       );
     const totalCompletedConversationPromise =
-      this.roomsService.getTotalClientCompletedConversation(
-        business.user.toString(),
-      );
+      this.roomsService.getTotalClientCompletedConversation(spaceId);
 
     const averageRatingPromise = this.getAverageRatingById(
       business._id,
@@ -596,14 +592,13 @@ export class HelpDeskService {
 
     const averageResponseChatPromiseWithTimePromise =
       this.roomsService.getAverageResponseChat(
-        business.user.toString(),
+        spaceId,
         fromDateBy[type],
         toDateBy[type],
       );
 
-    const averageResponseChatPromise = this.roomsService.getAverageResponseChat(
-      business.user.toString(),
-    );
+    const averageResponseChatPromise =
+      this.roomsService.getAverageResponseChat(spaceId);
     const newClientsChartPromise = await this.getChartClient(
       business._id,
       type,
@@ -613,7 +608,7 @@ export class HelpDeskService {
     const completedConversationsChartPromise =
       await this.roomsService.getChartCompletedConversation({
         type: type,
-        userId: business.user.toString(),
+        spaceId: business.space._id.toString(),
         fromDate: fromDateBy[type],
         toDate: toDateBy[type],
       });
@@ -625,7 +620,7 @@ export class HelpDeskService {
     });
     const responseChartPromise = await this.getChartAverageResponseChat({
       type: type,
-      userId: business.user.toString(),
+      spaceId: business.space?._id.toString(),
       fromDate: fromDateBy[type],
       toDate: toDateBy[type],
     });
@@ -930,7 +925,7 @@ export class HelpDeskService {
         },
       })
       .populate('owner', 'email')
-      .select('name user members owner')
+      .select('name avatar backgroundImage members owner')
       .lean();
     return myInvitations.map((item) => {
       const memberInfo = item.members.find((item) => item.email === user.email);
@@ -1200,7 +1195,7 @@ export class HelpDeskService {
     return `${envConfig.app.url}/space-verify?token=${token}`;
   }
 
-  async inviteMember(userId: string, data: InviteMemberDto) {
+  async inviteMembers(userId: string, data: InviteMemberDto) {
     const spaceData = await this.spaceModel.findOne({
       _id: data.spaceId,
       owner: userId,
@@ -1209,45 +1204,65 @@ export class HelpDeskService {
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
     }
-    const index = spaceData.members.findIndex(
-      (item) => item.email === data.email,
-    );
-    if (index > 0) {
-      throw new BadRequestException('User already invited!');
-    }
 
-    const token = `${generateSlug()}-${generateSlug()}`;
-
-    const verifyUrl = await this.createVerifyUrl(token);
-    await this.mailService.sendMail(
-      data.email,
-      `${user.name} has invited you to join the ${spaceData.name} space`,
-      'verify-member',
-      {
-        title: `Join the ${spaceData.name} space`,
-        verifyUrl: verifyUrl,
-      },
-    );
-    spaceData.members.push({
-      email: data.email,
-      role: data.role,
-      verifyToken: token,
-      invitedAt: new Date(),
-      expiredAt: moment().add('7', 'day').toDate(),
-      status: MemberStatus.INVITED,
+    data.members.forEach((member) => {
+      const user = spaceData.members.find(
+        (item) => item.email === member.email,
+      );
+      if (user?.status === MemberStatus.INVITED) {
+        throw new BadRequestException(`Email ${user.email} already invited!`);
+      }
+      if (user?.status === MemberStatus.JOINED) {
+        throw new BadRequestException(`Email ${user.email} already joined!`);
+      }
     });
 
+    const newMembers = data.members.map((item) => {
+      const token = `${generateSlug()}-${generateSlug()}`;
+      return {
+        email: item.email,
+        role: item.role,
+        verifyToken: token,
+        invitedAt: new Date(),
+        expiredAt: moment().add('7', 'day').toDate(),
+        status: MemberStatus.INVITED,
+        verifyUrl: this.createVerifyUrl(token),
+      };
+    });
+
+    spaceData.members.push(...(newMembers as any));
     await spaceData.save();
+    newMembers.forEach((data) => {
+      this.spaceNotificationModel.create({
+        space: spaceData._id,
+        description: `You've been invited to join ${spaceData.name}`,
+        from: user,
+        to: data.email,
+        link: data.verifyUrl,
+      });
+      this.mailService.sendMail(
+        data.email,
+        `${user.name} has invited you to join the ${spaceData.name} space`,
+        'verify-member',
+        {
+          title: `Join the ${spaceData.name} space`,
+          verifyUrl: data.verifyUrl,
+        },
+      );
+    });
 
     return spaceData.members.map((item) => {
       return {
         email: item.email,
         role: item.role,
         status: item.status,
+        verifyToken: item.verifyToken,
+        invitedAt: item.invitedAt,
+        expiredAt: item.expiredAt,
       };
     });
   }
-  async resendInvitation(userId: string, data: InviteMemberDto) {
+  async resendInvitation(userId: string, data: UpdateMemberDto) {
     const spaceData = await this.spaceModel.findOne({
       status: { $ne: StatusSpace.DELETED },
       owner: userId,
@@ -1269,6 +1284,13 @@ export class HelpDeskService {
     const token = `${generateSlug()}-${generateSlug()}`;
 
     const verifyUrl = await this.createVerifyUrl(token);
+    await this.spaceNotificationModel.create({
+      space: spaceData._id,
+      description: `You've been invited to join ${spaceData.name}`,
+      from: user,
+      to: data.email,
+      link: verifyUrl,
+    });
     await this.mailService.sendMail(
       data.email,
       `${user.name} has invited you to join the ${spaceData.name} space`,
@@ -1318,7 +1340,7 @@ export class HelpDeskService {
     await spaceData.save();
     return true;
   }
-  async changeRole(userId: string, data: InviteMemberDto) {
+  async changeRole(userId: string, data: UpdateMemberDto) {
     const spaceData = await this.spaceModel.findOne({
       status: { $ne: StatusSpace.DELETED },
       owner: userId,
@@ -1365,7 +1387,7 @@ export class HelpDeskService {
     };
     if (!tagId) {
       space.tags = space.tags || [];
-      if (space.tags.find((item) => item.name === name)) {
+      if (space.tags.find((item) => item.name === name && !item.isDeleted)) {
         throw new BadRequestException('name already exists');
       }
       space.tags.push(item);
@@ -1384,5 +1406,103 @@ export class HelpDeskService {
     }
     await space.save();
     return space.tags;
+  }
+
+  async addMissingData() {
+    await this.spaceModel.updateMany(
+      { tags: { $exists: false } },
+      {
+        $set: {
+          tags: [
+            { name: 'pending', color: '#FF3333', isReadonly: true },
+            { name: 'completed', color: '#00B512', isReadonly: true },
+          ],
+        },
+      },
+    );
+    const spaces = await this.spaceModel.find().populate('owner');
+
+    for (const space of spaces) {
+      if (!space.bot) {
+        const bot = await this.userModel.create({
+          status: UserStatus.BOT,
+          email: `${generateSlug()}@gmail.com`,
+          name: space.name,
+          language: (space.owner as User).language,
+          avatar: space.avatar,
+        });
+        space.bot = bot;
+      }
+
+      await space.save();
+    }
+    return spaces;
+  }
+
+  async deleteTag(tagId: string, spaceId: string, userId: string) {
+    const space = await this.spaceModel.findById(spaceId);
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+
+    if (space.owner.toString() !== userId) {
+      throw new ForbiddenException(
+        'You do not have permission to delete the tag',
+      );
+    }
+
+    const indexTag = space.tags.findIndex(
+      (item) => item._id.toString() === tagId.toString(),
+    );
+
+    if (indexTag === -1 || space.tags[indexTag].isDeleted) {
+      throw new BadRequestException('Tag not found');
+    }
+    if (space.tags[indexTag].isReadonly) {
+      throw new BadRequestException('This tag is read only');
+    }
+    space.tags[indexTag].isDeleted = true;
+
+    await space.save();
+    return true;
+  }
+  async getNotifications(userId: string, spaceId: string) {
+    const user = await this.userService.findById(userId);
+    const notifications = this.spaceNotificationModel
+      .find({
+        to: user.email,
+        space: spaceId,
+        isDeleted: { $ne: true },
+      })
+      .populate('from', 'name avatar')
+      .select('-to');
+    return notifications;
+  }
+  async readNotification(id: string) {
+    const notification = await this.spaceNotificationModel.findById(id);
+    if (!notification) {
+      throw new BadRequestException('id not exist');
+    }
+    notification.unRead = false;
+    await notification.save();
+    return notification;
+  }
+  async deleteNotification(id: string, userId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    const notification = await this.spaceNotificationModel.findById(id);
+    if (!notification) {
+      throw new BadRequestException('Notification not found');
+    }
+    if (user.email !== notification.to) {
+      throw new BadRequestException(
+        'You do not have permission to delete notifications',
+      );
+    }
+    notification.isDeleted = true;
+    await notification.save();
+    return null;
   }
 }

@@ -247,6 +247,13 @@ export class MessagesService {
     if (room.isHelpDesk) {
       createdMessage.senderType =
         createMessageDto.senderType || SenderType.USER;
+      if (
+        createMessageDto.senderType === SenderType.BOT &&
+        room.space &&
+        room.space.bot
+      ) {
+        createdMessage.sender = room.space.bot;
+      }
       await this.roomsService.updateReadByWhenSendNewMessage(
         room._id,
         user._id.toString(),
@@ -286,7 +293,10 @@ export class MessagesService {
       deleteFor: [],
     });
     this.eventEmitter.emit(socketConfig.events.message.new, socketPayload);
-    this.sendMessageNotification(newMessageWithSender);
+    if (createMessageDto.senderType !== SenderType.BOT) {
+      this.sendMessageNotification(newMessageWithSender);
+    }
+
     return newMessageWithSender;
   }
 

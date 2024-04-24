@@ -3,7 +3,7 @@ import { AnalystType } from './analyst-query-dto';
 
 export class ChartQueryDto {
   type: AnalystType;
-  userId: string;
+  spaceId: string;
   fromDate: Date;
   toDate: Date;
 }
