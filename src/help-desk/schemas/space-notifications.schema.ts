@@ -40,6 +40,12 @@ export class SpaceNotification {
   unRead?: boolean;
 
   @Prop({
+    type: Boolean,
+    default: false,
+  })
+  isDeleted?: boolean;
+
+  @Prop({
     type: String,
   })
   link: string;
