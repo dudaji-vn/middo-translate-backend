@@ -28,6 +28,7 @@ import { CreateRoomDto } from './dto';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
+import { Space, Tag } from '../help-desk/schemas/space.schema';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -250,6 +251,10 @@ export class RoomsService {
         path: 'admin',
         select: userSelectFieldsString,
       },
+      {
+        path: 'space',
+        select: 'bot tags',
+      },
     ]);
 
     const data = roomRes.toObject();
@@ -353,11 +358,32 @@ export class RoomsService {
           'email',
           'language',
         ]),
+      )
+      .populate(
+        selectPopulateField<Room>(['space']),
+        selectPopulateField<Space>(['tags']),
       );
+
     const pageInfo: CursorPaginationInfo = {
       endCursor: rooms[rooms.length - 1]?.newMessageAt?.toISOString(),
       hasNextPage: rooms.length === limit,
     };
+    if (type === 'help-desk' || type === 'unread-help-desk') {
+      return {
+        items: rooms.map((room) => {
+          const tag = this.getTagByRoom(room);
+          return {
+            ...room.toObject(),
+            tag: tag as Tag,
+            space: (room.space as Space)._id,
+            isPinned: user?.pinRoomIds?.includes(room._id.toString()) || false,
+            lastMessage: convertMessageRemoved(room.lastMessage, userId),
+          };
+        }),
+        pageInfo,
+      };
+    }
+
     return {
       items: rooms.map((room) => ({
         ...room.toObject(),
@@ -887,6 +913,41 @@ export class RoomsService {
     );
     return room;
   }
+
+  async changeTagRoom(id: string, userId: string, tagId: string) {
+    const room = await this.findByIdAndUserId(id, userId, true);
+    if (!room) {
+      throw new Error('Room not found');
+    }
+    const space = room.space as Space;
+    if (!space || !space.tags) {
+      throw new BadRequestException(`Space has no tag`);
+    }
+    const tag = space.tags.find((tag) => tag._id?.toString() === tagId);
+    if (!tag) {
+      throw new BadRequestException(`Tag ${tagId} not exist in space`);
+    }
+    if (room.tag && room.tag?.toString() === tagId) {
+      throw new BadRequestException(
+        'The current tag is the same as the old tag',
+      );
+    }
+
+    await this.roomModel.updateOne(
+      {
+        _id: room._id,
+      },
+      {
+        tag: tagId,
+        status:
+          tag.name === RoomStatus.COMPLETED
+            ? RoomStatus.COMPLETED
+            : room.status,
+      },
+    );
+    return true;
+  }
+
   async getTotalClientCompletedConversation(
     userId: string,
     fromDate?: Date,
@@ -1090,5 +1151,16 @@ export class RoomsService {
       throw new BadRequestException('Business not found');
     }
     return business.chatFlow;
+  }
+
+  getTagByRoom(room: Room) {
+    let tag;
+    let space = room.space as Space;
+    if (space && space.tags && room.tag) {
+      tag = space.tags.find(
+        (tag) => tag._id.toString() === room.tag.toString(),
+      );
+    }
+    return tag;
   }
 }

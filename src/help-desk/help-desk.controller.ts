@@ -24,8 +24,8 @@ import {
   CreateOrEditSpaceDto,
   InviteMemberDto,
   RemoveMemberDto,
+  UpdateMemberDto,
 } from './dto/create-or-edit-space-dto';
-import { GetJwtInfo } from '../common/decorators/get-jwt-info.decorator';
 import { ValidateInviteDto } from './dto/validate-invite-dto';
 
 @ApiTags('help-desk')
@@ -47,7 +47,7 @@ export class HelpDeskController {
     @JwtUserId() userId: string,
     @Body() business: CreateOrEditBusinessDto,
   ) {
-    const result = await this.helpDeskService.createOrEditBusiness(
+    const result = await this.helpDeskService.createOrEditExtension(
       userId,
       business,
     );
@@ -74,12 +74,12 @@ export class HelpDeskController {
     };
   }
 
-  @Put('invite-member')
+  @Put('invite-members')
   async inviteMember(
     @JwtUserId() userId: string,
     @Body() member: InviteMemberDto,
   ) {
-    const result = await this.helpDeskService.inviteMember(userId, member);
+    const result = await this.helpDeskService.inviteMembers(userId, member);
     return {
       data: result,
     };
@@ -181,7 +181,7 @@ export class HelpDeskController {
   @Post('resend-invitation')
   async resendInvitation(
     @JwtUserId() userId: string,
-    @Body() member: InviteMemberDto,
+    @Body() member: UpdateMemberDto,
   ) {
     const result = await this.helpDeskService.resendInvitation(userId, member);
     return {
@@ -192,7 +192,7 @@ export class HelpDeskController {
   @Patch('change-role')
   async changeRole(
     @JwtUserId() userId: string,
-    @Body() member: InviteMemberDto,
+    @Body() member: UpdateMemberDto,
   ) {
     const result = await this.helpDeskService.changeRole(userId, member);
     return {
@@ -228,6 +228,37 @@ export class HelpDeskController {
     @ParamObjectId('spaceId') spaceId: string,
   ) {
     const result = await this.helpDeskService.deleteSpace(spaceId, userId);
+    return {
+      data: result,
+    };
+  }
+
+  @Delete('tags/:tagId')
+  async deleteTag(
+    @JwtUserId() userId: string,
+    @ParamObjectId('tagId') tagId: string,
+    @Body() { spaceId }: { spaceId: string },
+  ) {
+    const result = await this.helpDeskService.deleteTag(tagId, spaceId, userId);
+    return {
+      data: result,
+    };
+  }
+
+  @Get('notifications')
+  async getNotifications(
+    @JwtUserId() userId: string,
+    @Query('spaceId') spaceId: string,
+  ) {
+    const result = await this.helpDeskService.getNotifications(userId, spaceId);
+    return {
+      data: result,
+    };
+  }
+
+  @Patch('notifications/read/:id')
+  async readNotification(@ParamObjectId('id') id: string) {
+    const result = await this.helpDeskService.readNotification(id);
     return {
       data: result,
     };

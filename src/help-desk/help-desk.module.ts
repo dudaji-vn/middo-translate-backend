@@ -13,6 +13,10 @@ import {
 import { MessagesModule } from '../messages/messages.module';
 import { MailModule } from '../mail/mail.module';
 import { Space, SpaceSchema } from './schemas/space.schema';
+import {
+  SpaceNotification,
+  SpaceNotificationSchema,
+} from './schemas/space-notifications.schema';
 
 @Module({
   imports: [
@@ -20,6 +24,7 @@ import { Space, SpaceSchema } from './schemas/space.schema';
       { name: HelpDeskBusiness.name, schema: HelpDeskBusinessSchema },
       { name: User.name, schema: UserSchema },
       { name: Space.name, schema: SpaceSchema },
+      { name: SpaceNotification.name, schema: SpaceNotificationSchema },
     ]),
     UsersModule,
     MailModule,

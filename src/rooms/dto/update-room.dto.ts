@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsMongoId, IsOptional, IsString } from 'class-validator';
 import { RoomStatus } from '../schemas/room.schema';
 
 export class UpdateRoomDto {
@@ -13,4 +13,8 @@ export class UpdateRoomDto {
 export class UpdateRoomStatusDto {
   @IsEnum(RoomStatus)
   status: RoomStatus;
+}
+export class ChangeTagRoomDto {
+  @IsMongoId()
+  tagId: string;
 }
