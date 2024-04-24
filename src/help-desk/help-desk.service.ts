@@ -1196,13 +1196,20 @@ export class HelpDeskService {
   }
 
   async inviteMembers(userId: string, data: InviteMemberDto) {
+    const user = await this.userService.findById(userId);
     const spaceData = await this.spaceModel.findOne({
       _id: data.spaceId,
-      owner: userId,
+      status: { $ne: StatusSpace.DELETED },
     });
-    const user = await this.userService.findById(userId);
+
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
+    }
+
+    if (!this.isAdminSpace(spaceData, user.email)) {
+      throw new ForbiddenException(
+        'You do not have permission to invite members to the group',
+      );
     }
 
     data.members.forEach((member) => {
@@ -1503,5 +1510,10 @@ export class HelpDeskService {
     notification.isDeleted = true;
     await notification.save();
     return null;
+  }
+  isAdminSpace(spaceData: Space, email: string) {
+    return spaceData.members.find(
+      (member) => member.email === email && member.role === ROLE.ADMIN,
+    );
   }
 }
