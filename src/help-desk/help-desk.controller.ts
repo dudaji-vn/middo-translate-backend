@@ -246,11 +246,8 @@ export class HelpDeskController {
   }
 
   @Get('notifications')
-  async getNotifications(
-    @JwtUserId() userId: string,
-    @Query('spaceId') spaceId: string,
-  ) {
-    const result = await this.helpDeskService.getNotifications(userId, spaceId);
+  async getNotifications(@JwtUserId() userId: string) {
+    const result = await this.helpDeskService.getNotifications(userId);
     return {
       data: result,
     };

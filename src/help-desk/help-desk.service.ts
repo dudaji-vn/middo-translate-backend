@@ -1466,12 +1466,11 @@ export class HelpDeskService {
     await space.save();
     return true;
   }
-  async getNotifications(userId: string, spaceId: string) {
+  async getNotifications(userId: string) {
     const user = await this.userService.findById(userId);
     const notifications = this.spaceNotificationModel
       .find({
         to: user.email,
-        space: spaceId,
         isDeleted: { $ne: true },
       })
       .populate('from', 'name avatar')
