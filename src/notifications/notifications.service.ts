@@ -75,6 +75,24 @@ export class NotificationService {
               link: link || envConfig.app.url,
             },
           },
+          android: {
+            data: {
+              title,
+              body,
+              url: link || envConfig.app.url,
+              messageId: messageId || '',
+              roomId,
+            },
+            notification: {
+              title,
+              body,
+              channelId: 'default',
+              defaultSound: true,
+              defaultVibrateTimings: true,
+              priority: 'high',
+              visibility: 'public',
+            },
+          },
           apns: {
             payload: {
               aps: {
