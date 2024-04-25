@@ -1,13 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Notification } from './schemas/notifications.schema';
 import { messaging } from 'firebase-admin';
-import { RoomNotification } from './schemas/room-notifications.schema';
-import { envConfig } from 'src/configs/env.config';
-import { Expo, ExpoPushMessage } from 'expo-server-sdk';
-import { WatchingService } from 'src/watching/watching.service';
+import { Model } from 'mongoose';
 import { logger } from 'src/common/utils/logger';
+import { envConfig } from 'src/configs/env.config';
+import { WatchingService } from 'src/watching/watching.service';
+import { Notification } from './schemas/notifications.schema';
+import { RoomNotification } from './schemas/room-notifications.schema';
 
 @Injectable()
 export class NotificationService {
@@ -54,11 +53,6 @@ export class NotificationService {
       tokens = tokens.filter((token) => token !== watching.notifyToken);
     });
 
-    const expoTokens = tokens.filter((token) =>
-      token.includes('ExponentPushToken'),
-    );
-
-    tokens = tokens.filter((token) => !token.includes('ExponentPushToken'));
     try {
       if (tokens.length) {
         const response = await messaging().sendEachForMulticast({
@@ -83,15 +77,7 @@ export class NotificationService {
               messageId: messageId || '',
               roomId,
             },
-            notification: {
-              title,
-              body,
-              channelId: 'default',
-              defaultSound: true,
-              defaultVibrateTimings: true,
-              priority: 'high',
-              visibility: 'public',
-            },
+            priority: 'high',
           },
           apns: {
             payload: {
@@ -119,30 +105,6 @@ export class NotificationService {
             );
           }
         });
-      }
-      if (expoTokens.length) {
-        const expo = new Expo();
-        const messages: ExpoPushMessage[] = expoTokens.map((token) => ({
-          to: token,
-          sound: 'default',
-          title,
-          body,
-          data: { url: link || envConfig.app.url, messageId: messageId || '' },
-        }));
-        const chunks = expo.chunkPushNotifications(messages);
-
-        for (const chunk of chunks) {
-          try {
-            const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-            logger.info(JSON.stringify(ticketChunk));
-          } catch (error) {
-            logger.error(
-              `SERVER_ERROR in line 95: ${error['message']}`,
-              '',
-              NotificationService.name,
-            );
-          }
-        }
       }
     } catch (error) {
       logger.error(
