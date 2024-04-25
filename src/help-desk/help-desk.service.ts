@@ -1490,6 +1490,7 @@ export class HelpDeskService {
         to: user.email,
         isDeleted: { $ne: true },
       })
+      .sort({ _id: -1 })
       .populate('from', 'name avatar')
       .select('-to');
     return notifications;
