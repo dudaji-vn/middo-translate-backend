@@ -170,6 +170,17 @@ export class HelpDeskController {
     };
   }
 
+  @Get('space-verify/:token')
+  async spaceVerify(
+    @Param('token') token: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.spaceVerify(userId, token);
+    return {
+      data: result,
+    };
+  }
+
   @Get('my-invitations')
   async getMyInvitations(@JwtUserId() userId: string) {
     const result = await this.helpDeskService.getMyInvitations(userId);

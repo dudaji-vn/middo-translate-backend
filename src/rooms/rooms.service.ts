@@ -772,16 +772,20 @@ export class RoomsService {
       pinRoomIds: user.pinRoomIds,
     });
   }
-  async getPinnedRooms(userId: string) {
+  async getPinnedRooms(userId: string, spaceId: string) {
     const user = await this.usersService.findById(userId);
     const rooms = await this.roomModel
       .find({
         _id: {
           $in: user.pinRoomIds,
         },
-        status: RoomStatus.ACTIVE,
+        isHelpDesk: { $ne: true },
+        status: { $in: [RoomStatus.ACTIVE, RoomStatus.COMPLETED] },
         participants: userId,
         deleteFor: { $nin: [userId] },
+        ...(spaceId
+          ? { isHelpDesk: true, space: { $exists: true, $eq: spaceId } }
+          : {}),
       })
       .populate({
         path: 'lastMessage',
@@ -818,6 +822,10 @@ export class RoomsService {
           'email',
           'language',
         ]),
+      )
+      .populate(
+        selectPopulateField<Room>(['space']),
+        selectPopulateField<Space>(['tags']),
       );
     // sort by pin order
     const pinRoomIds = user.pinRoomIds;
@@ -826,6 +834,19 @@ export class RoomsService {
       const bIndex = pinRoomIds.indexOf(b._id.toString());
       return aIndex - bIndex;
     });
+
+    if (spaceId) {
+      return rooms.map((room) => {
+        const tag = this.getTagByRoom(room);
+        return {
+          ...room.toObject(),
+          tag: tag as Tag,
+          space: (room.space as Space)._id,
+          isPinned: user?.pinRoomIds?.includes(room._id.toString()) || false,
+          lastMessage: convertMessageRemoved(room.lastMessage, userId),
+        };
+      });
+    }
     return rooms.map((room) => ({
       ...room.toObject(),
       isPinned: true,

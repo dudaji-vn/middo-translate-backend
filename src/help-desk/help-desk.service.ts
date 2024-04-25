@@ -1,6 +1,8 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
+  GoneException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -907,7 +909,7 @@ export class HelpDeskService {
       );
     }
     if (space.members[memberIndex].status === MemberStatus.JOINED) {
-      throw new BadRequestException('You are joined this space');
+      throw new ConflictException('You are joined this space');
     }
     if (
       status === ValidateInviteStatus.DECLINE &&
@@ -930,6 +932,52 @@ export class HelpDeskService {
     }
 
     return true;
+  }
+  async spaceVerify(userId: string, token: string) {
+    const user = await this.userService.findById(userId);
+    const space = await this.spaceModel
+      .findOne({
+        'members.verifyToken': token,
+      })
+      .populate('owner', 'email')
+      .select('name avatar backgroundImage members owner')
+      .lean();
+
+    if (!space) {
+      throw new BadRequestException('Token is invalid');
+    }
+
+    if (space.status === StatusSpace.DELETED) {
+      throw new BadRequestException('This space is deleted');
+    }
+
+    const member = space.members.find((item) => item.verifyToken === token);
+
+    if (!member || member.email !== user.email) {
+      throw new ForbiddenException(
+        'You do not have permission to view this invitation',
+      );
+    }
+
+    if (member.status === MemberStatus.JOINED) {
+      throw new ConflictException('You have already joined this space');
+    }
+    if (moment().isAfter(member.expiredAt)) {
+      throw new GoneException('Token is expired');
+    }
+    return {
+      space: {
+        _id: space._id,
+        avatar: space.avatar,
+        backgroundImage: space.backgroundImage,
+        name: space.name,
+        owner: space.owner,
+      },
+      email: member.email,
+      verifyToken: member.verifyToken,
+      invitedAt: member.invitedAt,
+      isExpired: moment().isAfter(member.expiredAt),
+    };
   }
 
   async getMyInvitations(userId: string) {
@@ -1529,14 +1577,28 @@ export class HelpDeskService {
   }
   async getNotifications(userId: string) {
     const user = await this.userService.findById(userId);
-    const notifications = this.spaceNotificationModel
+    const notifications = await this.spaceNotificationModel
       .find({
         to: user.email,
         isDeleted: { $ne: true },
       })
+      .sort({ _id: -1 })
       .populate('from', 'name avatar')
+      .populate('space')
       .select('-to');
-    return notifications;
+    return notifications.map((item) => {
+      const isJoinedSpace = item.space?.members?.find(
+        (member) =>
+          member.user?.toString() === userId.toString() &&
+          member.status === MemberStatus.JOINED,
+      );
+      item.link = isJoinedSpace
+        ? `${envConfig.app.url}/spaces/${item.space._id}/conversations`
+        : item.link;
+      item.space = item.space._id as any;
+
+      return item;
+    });
   }
   async readNotification(id: string) {
     const notification = await this.spaceNotificationModel.findById(id);

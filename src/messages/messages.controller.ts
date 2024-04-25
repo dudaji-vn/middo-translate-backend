@@ -10,7 +10,7 @@ import {
 import { MessagesService } from './messages.service';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
 import { CreateMessageDto } from './dto';
-import { Message } from './schemas/messages.schema';
+import { Message, SenderType } from './schemas/messages.schema';
 import { Response } from 'src/common/types';
 import { RemoveParamsMessageDto } from './dto/remove-params-message.dto';
 import { ReactMessageDto } from './dto/react-message.dto';
@@ -184,6 +184,10 @@ export class MessagesController {
   async helpDeskCreate(
     @Body() createMessageDto: CreateHelpDeskMessageDto,
   ): Promise<Response<Message>> {
+    if (!createMessageDto.senderType) {
+      createMessageDto.senderType = SenderType.ANONYMOUS;
+    }
+
     const message = await this.messagesService.create(
       createMessageDto,
       createMessageDto.userId,
