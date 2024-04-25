@@ -1533,15 +1533,28 @@ export class HelpDeskService {
   }
   async getNotifications(userId: string) {
     const user = await this.userService.findById(userId);
-    const notifications = this.spaceNotificationModel
+    const notifications = await this.spaceNotificationModel
       .find({
         to: user.email,
         isDeleted: { $ne: true },
       })
       .sort({ _id: -1 })
       .populate('from', 'name avatar')
+      .populate('space')
       .select('-to');
-    return notifications;
+    return notifications.map((item) => {
+      const isJoinedSpace = item.space?.members?.find(
+        (member) =>
+          member.user?.toString() === userId.toString() &&
+          member.status === MemberStatus.JOINED,
+      );
+      item.link = isJoinedSpace
+        ? `${envConfig.app.url}/spaces/${item.space._id}/conversations`
+        : item.link;
+      item.space = item.space._id as any;
+
+      return item;
+    });
   }
   async readNotification(id: string) {
     const notification = await this.spaceNotificationModel.findById(id);
