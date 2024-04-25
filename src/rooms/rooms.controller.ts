@@ -88,8 +88,11 @@ export class RoomsController {
   }
 
   @Get('pin')
-  async getPinRooms(@JwtUserId() userId: string): Promise<Response<Room[]>> {
-    const rooms = await this.roomsService.getPinnedRooms(userId);
+  async getPinRooms(
+    @JwtUserId() userId: string,
+    @Query('spaceId') spaceId: string,
+  ): Promise<Response<Room[]>> {
+    const rooms = await this.roomsService.getPinnedRooms(userId, spaceId);
     return { message: 'Rooms found', data: rooms };
   }
 
