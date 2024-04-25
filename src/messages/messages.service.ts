@@ -34,7 +34,7 @@ import { Call } from 'src/call/schemas/call.schema';
 import { PinMessage } from './schemas/pin-messages.schema';
 import { convert } from 'html-to-text';
 import { generateSystemMessageContent } from './utils/generate-action-message-content';
-import { multipleTranslate } from './utils/translate';
+import { detectLanguage, multipleTranslate } from './utils/translate';
 import { logger } from 'src/common/utils/logger';
 
 @Injectable()
@@ -168,6 +168,9 @@ export class MessagesService {
     createdMessage.action = createMessageDto.action || ActionTypes.NONE;
 
     if (createdMessage.content) {
+      if (!createdMessage?.language) {
+        createdMessage.language = await detectLanguage(createdMessage.content);
+      }
       const data = await this.translateMessageInRoom({
         content: createdMessage.content,
         sourceLang: createdMessage.language,
@@ -359,6 +362,9 @@ export class MessagesService {
     }
 
     if (createdMessage.content) {
+      if (!createdMessage?.language) {
+        createdMessage.language = await detectLanguage(createdMessage.content);
+      }
       const data = await this.translateMessageInRoom({
         content: createdMessage.content,
         sourceLang: createdMessage.language,

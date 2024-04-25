@@ -60,3 +60,20 @@ export const multipleTranslate = async ({
     { [sourceLang]: content },
   );
 };
+
+export const detectLanguage = async (content: string) => {
+  const response = await fetch(`${envConfig.app.url}/api/languages/v3/detect`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ content }),
+  });
+  try {
+    const json = await response.json();
+    return json.data.language;
+  } catch (error) {
+    console.log('error', error);
+    return 'en';
+  }
+};

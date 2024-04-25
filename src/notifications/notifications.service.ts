@@ -83,15 +83,7 @@ export class NotificationService {
               messageId: messageId || '',
               roomId,
             },
-            notification: {
-              title,
-              body,
-              channelId: 'default',
-              defaultSound: true,
-              defaultVibrateTimings: true,
-              priority: 'high',
-              visibility: 'public',
-            },
+            priority: 'high',
           },
           apns: {
             payload: {
