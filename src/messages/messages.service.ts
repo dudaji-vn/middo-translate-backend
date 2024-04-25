@@ -577,7 +577,9 @@ export class MessagesService {
       (id) => !userIgnoredNotification.includes(id),
     );
     const link = `${envConfig.app.url}/${
-      room.isHelpDesk ? 'business/conversations' : 'talk'
+      room.isHelpDesk
+        ? `spaces/${room.space?.toString()}/conversations`
+        : 'talk'
     }/${room._id}`;
     this.notificationService.sendNotification({
       userIds: targetUserIds,
