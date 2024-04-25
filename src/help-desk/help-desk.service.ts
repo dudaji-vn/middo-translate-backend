@@ -171,9 +171,6 @@ export class HelpDeskService {
       };
       if (!space.members) {
         space.members = [];
-        space.members = space.members.filter(
-          (item) => item.email !== user.email,
-        );
       }
       space.members = space.members.filter((item) => item.email !== me.email);
 
