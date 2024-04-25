@@ -15,7 +15,7 @@ import { MessageType } from 'src/messages/schemas/messages.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { RoomStatus } from 'src/rooms/schemas/room.schema';
 import { SearchQueryParamsDto } from 'src/search/dtos';
-import { User, UserStatus } from 'src/users/schemas/user.schema';
+import { Provider, User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { AnalystQueryDto, AnalystType } from './dto/analyst-query-dto';
 import { AnalystResponseDto } from './dto/analyst-response-dto';
@@ -44,6 +44,8 @@ import { envConfig } from 'src/configs/env.config';
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
 import { Member, Space, StatusSpace } from './schemas/space.schema';
 import { SpaceNotification } from './schemas/space-notifications.schema';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { socketConfig } from 'src/configs/socket.config';
 
 @Injectable()
 export class HelpDeskService {
@@ -60,6 +62,7 @@ export class HelpDeskService {
     private roomsService: RoomsService,
     private messagesService: MessagesService,
     private mailService: MailService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async createClient(businessId: string, info: Partial<User>) {
@@ -204,14 +207,30 @@ export class HelpDeskService {
         bot: bot,
       });
 
+      // get all userId from members
+
       await members.forEach((data) => {
-        this.spaceNotificationModel.create({
-          space: spaceData._id,
-          description: `You've been invited to join ${spaceData.name}`,
-          from: user,
-          to: data.email,
-          link: data.verifyUrl,
-        });
+        this.spaceNotificationModel
+          .create({
+            space: spaceData._id,
+            description: `You've been invited to join ${spaceData.name}`,
+            from: user,
+            to: data.email,
+            link: data.verifyUrl,
+          })
+          .then((data) => {
+            this.userService.findByEmail(data.to).then((user) => {
+              if (user) {
+                this.eventEmitter.emit(
+                  socketConfig.events.space.notification.new,
+                  {
+                    data,
+                    receiverIds: [user?._id.toString()],
+                  },
+                );
+              }
+            });
+          });
         this.mailService.sendMail(
           data.email,
           `${user.name} has invited you to join the ${spaceData.name} space`,
@@ -1245,13 +1264,27 @@ export class HelpDeskService {
     spaceData.members.push(...(newMembers as any));
     await spaceData.save();
     newMembers.forEach((data) => {
-      this.spaceNotificationModel.create({
-        space: spaceData._id,
-        description: `You've been invited to join ${spaceData.name}`,
-        from: user,
-        to: data.email,
-        link: data.verifyUrl,
-      });
+      this.spaceNotificationModel
+        .create({
+          space: spaceData._id,
+          description: `You've been invited to join ${spaceData.name}`,
+          from: user,
+          to: data.email,
+          link: data.verifyUrl,
+        })
+        .then((data) => {
+          this.userService.findByEmail(data.to).then((user) => {
+            if (user) {
+              this.eventEmitter.emit(
+                socketConfig.events.space.notification.new,
+                {
+                  data,
+                  receiverIds: [user?._id.toString()],
+                },
+              );
+            }
+          });
+        });
       this.mailService.sendMail(
         data.email,
         `${user.name} has invited you to join the ${spaceData.name} space`,
@@ -1300,13 +1333,24 @@ export class HelpDeskService {
     const token = `${generateSlug()}-${generateSlug()}`;
 
     const verifyUrl = await this.createVerifyUrl(token);
-    await this.spaceNotificationModel.create({
-      space: spaceData._id,
-      description: `You've been invited to join ${spaceData.name}`,
-      from: user,
-      to: data.email,
-      link: verifyUrl,
-    });
+    await this.spaceNotificationModel
+      .create({
+        space: spaceData._id,
+        description: `You've been invited to join ${spaceData.name}`,
+        from: user,
+        to: data.email,
+        link: verifyUrl,
+      })
+      .then((data) => {
+        this.userService.findByEmail(data.to).then((user) => {
+          if (user) {
+            this.eventEmitter.emit(socketConfig.events.space.notification.new, {
+              data,
+              receiverIds: [user?._id.toString()],
+            });
+          }
+        });
+      });
     await this.mailService.sendMail(
       data.email,
       `${user.name} has invited you to join the ${spaceData.name} space`,

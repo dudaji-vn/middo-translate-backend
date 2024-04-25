@@ -78,5 +78,10 @@ export const socketConfig = {
         client: 'typing.update.client',
       },
     },
+    space: {
+      notification: {
+        new: 'space.notification.new',
+      },
+    },
   },
 };
