@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  GoneException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -912,6 +913,52 @@ export class HelpDeskService {
     }
 
     return true;
+  }
+  async spaceVerify(userId: string, token: string) {
+    const user = await this.userService.findById(userId);
+    const space = await this.spaceModel
+      .findOne({
+        'members.verifyToken': token,
+      })
+      .populate('owner', 'email')
+      .select('name avatar backgroundImage members owner')
+      .lean();
+
+    if (!space) {
+      throw new BadRequestException('Token is invalid');
+    }
+
+    if (space.status === StatusSpace.DELETED) {
+      throw new BadRequestException('This space is deleted');
+    }
+
+    const member = space.members.find((item) => item.verifyToken === token);
+
+    if (!member || member.email !== user.email) {
+      throw new ForbiddenException(
+        'You do not have permission to view this invitation',
+      );
+    }
+
+    if (member.status === MemberStatus.JOINED) {
+      throw new ConflictException('You have already joined this space');
+    }
+    if (moment().isAfter(member.expiredAt)) {
+      throw new GoneException('Token is expired');
+    }
+    return {
+      space: {
+        _id: space._id,
+        avatar: space.avatar,
+        backgroundImage: space.backgroundImage,
+        name: space.name,
+        owner: space.owner,
+      },
+      email: member.email,
+      verifyToken: member.verifyToken,
+      invitedAt: member.invitedAt,
+      isExpired: moment().isAfter(member.expiredAt),
+    };
   }
 
   async getMyInvitations(userId: string) {
