@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   UnauthorizedException,
@@ -888,7 +889,7 @@ export class HelpDeskService {
       );
     }
     if (space.members[memberIndex].status === MemberStatus.JOINED) {
-      throw new BadRequestException('You are joined this space');
+      throw new ConflictException('You are joined this space');
     }
     if (
       status === ValidateInviteStatus.DECLINE &&
