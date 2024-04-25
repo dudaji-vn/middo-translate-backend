@@ -304,6 +304,7 @@ export class HelpDeskService {
         });
     }
     const data = await dataPromise
+      .sort({ _id: -1 })
       .populate('owner', 'email')
       .select(
         'name avatar backgroundImage joinedAt createdAt members.email members.joinedAt members.status',
