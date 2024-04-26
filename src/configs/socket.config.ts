@@ -62,6 +62,8 @@ export const socketConfig = {
       starting_new_call: 'call.starting_new_call',
       meeting_end: 'call.meeting_end',
       invite_to_call: 'call.invite_to_call',
+      list_waiting_call: 'call.list_waiting_call',
+      decline_call: 'call.decline_call',
       send_caption: 'call.send_caption',
       update: 'call.update',
     },
