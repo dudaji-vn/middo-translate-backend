@@ -143,7 +143,7 @@ export class HelpDeskService {
       info.chatFlow = null;
     }
     info.space = info.spaceId;
-    if (userId.toString() !== space.owner.toString()) {
+    if (!this.isAdminSpace(space.members, userId)) {
       throw new ForbiddenException(
         'You do not have permission to create or edit extensions',
       );
