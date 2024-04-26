@@ -276,20 +276,61 @@ export class EventsGateway
   sendNotifyJoinCall(
     @MessageBody()
     payload: {
-      users: string[];
-      call: string;
+      users: any[];
+      room: any;
       user: any;
     },
   ) {
-    const socketIds = payload.users
+    const ids = payload.users.map((p) => p._id);
+    const socketIds = ids
       .map((p) => this.clients[p.toString()]?.socketIds || [])
       .flat();
-    if (socketIds.length === 0) return;
-    this.server.to(socketIds).emit(socketConfig.events.call.invite_to_call, {
-      call: payload.call,
-      user: payload.user,
+    if (socketIds.length > 0) {
+      this.server.to(socketIds).emit(socketConfig.events.call.invite_to_call, {
+        call: payload.room,
+        user: payload.user,
+      });
+    }
+    // call is roomId => send notify to all user in room
+    this.server
+      .to(payload.room._id)
+      .emit(socketConfig.events.call.list_waiting_call, {
+        users: payload.users,
+      });
+    setTimeout(() => {
+      payload.users.forEach((user: any) => {
+        this.server
+          .to(payload.room._id)
+          .emit(socketConfig.events.call.decline_call, {
+            roomId: payload.room._id,
+            userId: user._id,
+          });
+      });
+    }, 30000);
+  }
+
+  // Decline call
+  @SubscribeMessage(socketConfig.events.call.decline_call)
+  declineCall(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: {
+      roomId: string;
+      userId: string;
+    },
+  ) {
+    const socketIds = this.clients[payload.userId]?.socketIds || [];
+    this.server.to(socketIds).emit(socketConfig.events.call.decline_call, {
+      roomId: payload.roomId,
+      userId: payload.userId,
+    });
+
+    this.server.to(payload.roomId).emit(socketConfig.events.call.decline_call, {
+      roomId: payload.roomId,
+      userId: payload.userId,
     });
   }
+
   // Send signal event
   @SubscribeMessage(socketConfig.events.call.send_signal)
   sendSignal(
