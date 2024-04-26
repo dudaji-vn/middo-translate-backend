@@ -177,7 +177,17 @@ export class HelpDeskService {
       if (!space.members) {
         space.members = [];
       }
-      space.members = space.members.filter((item) => item.email !== me.email);
+      const uniqueEmails = new Set();
+      space.members = space.members
+        .filter((item) => item.email !== me.email)
+        .filter((member) => {
+          if (!uniqueEmails.has(member.email)) {
+            uniqueEmails.add(member.email);
+            return true;
+          }
+
+          return false;
+        });
 
       const members = space.members.map((item) => {
         const token = `${generateSlug()}-${generateSlug()}`;
@@ -1296,18 +1306,27 @@ export class HelpDeskService {
       }
     });
 
-    const newMembers = data.members.map((item) => {
-      const token = `${generateSlug()}-${generateSlug()}`;
-      return {
-        email: item.email,
-        role: item.role,
-        verifyToken: token,
-        invitedAt: new Date(),
-        expiredAt: moment().add('7', 'day').toDate(),
-        status: MemberStatus.INVITED,
-        verifyUrl: this.createVerifyUrl(token),
-      };
-    });
+    const uniqueEmails = new Set();
+    const newMembers = data.members
+      .filter((member) => {
+        if (!uniqueEmails.has(member.email)) {
+          uniqueEmails.add(member.email);
+          return true;
+        }
+        return false;
+      })
+      .map((item) => {
+        const token = `${generateSlug()}-${generateSlug()}`;
+        return {
+          email: item.email,
+          role: item.role,
+          verifyToken: token,
+          invitedAt: new Date(),
+          expiredAt: moment().add('7', 'day').toDate(),
+          status: MemberStatus.INVITED,
+          verifyUrl: this.createVerifyUrl(token),
+        };
+      });
 
     spaceData.members.push(...(newMembers as any));
     await spaceData.save();
@@ -1372,7 +1391,8 @@ export class HelpDeskService {
     }
 
     const index = spaceData.members.findIndex(
-      (item) => item.email === data.email,
+      (item) =>
+        item.email === data.email && item.status !== MemberStatus.DELETED,
     );
     if (index === -1) {
       throw new BadRequestException('User are not invite');
@@ -1436,7 +1456,8 @@ export class HelpDeskService {
     }
 
     const index = spaceData.members.findIndex(
-      (item) => item.email === data.email,
+      (item) =>
+        item.email === data.email && item.status !== MemberStatus.DELETED,
     );
     if (index === -1) {
       throw new BadRequestException('This user is not in space');
@@ -1461,7 +1482,8 @@ export class HelpDeskService {
     }
 
     const index = spaceData.members.findIndex(
-      (item) => item.email === data.email,
+      (item) =>
+        item.email === data.email && item.status !== MemberStatus.DELETED,
     );
     if (index === -1) {
       throw new BadRequestException('This user is not in space');
