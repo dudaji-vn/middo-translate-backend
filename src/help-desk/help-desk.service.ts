@@ -972,7 +972,10 @@ export class HelpDeskService {
     if (member.status === MemberStatus.JOINED) {
       throw new ConflictException('You have already joined this space');
     }
-    if (moment().isAfter(member.expiredAt)) {
+    if (
+      moment().isAfter(member.expiredAt) ||
+      member.status !== MemberStatus.INVITED
+    ) {
       throw new GoneException('Token is expired');
     }
     return {
