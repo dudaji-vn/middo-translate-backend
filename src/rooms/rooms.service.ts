@@ -249,7 +249,7 @@ export class RoomsService {
       },
       {
         path: 'space',
-        select: 'bot tags',
+        select: 'bot tags name avatar',
       },
     ]);
 

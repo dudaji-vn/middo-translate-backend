@@ -279,7 +279,8 @@ export class HelpDeskService {
       }
       if (spaceData.bot) {
         await this.userModel.findByIdAndUpdate(spaceData.bot, {
-          avatar: space.avatar,
+          ...(space.avatar ? { avatar: space.avatar } : {}),
+          ...(space.name ? { name: space.name } : {}),
         });
       }
       await spaceData.save();
