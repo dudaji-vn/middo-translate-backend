@@ -614,11 +614,15 @@ export class HelpDeskService {
     const totalCompletedConversationWithTimePromise =
       this.roomsService.getTotalClientCompletedConversation(
         spaceId,
+        business.space.tags,
         fromDateBy[type],
         toDateBy[type],
       );
     const totalCompletedConversationPromise =
-      this.roomsService.getTotalClientCompletedConversation(spaceId);
+      this.roomsService.getTotalClientCompletedConversation(
+        spaceId,
+        business.space.tags,
+      );
 
     const averageRatingPromise = this.getAverageRatingById(
       business._id,
@@ -645,6 +649,7 @@ export class HelpDeskService {
       await this.roomsService.getChartCompletedConversation({
         type: type,
         spaceId: business.space._id.toString(),
+        tags: business.space.tags,
         fromDate: fromDateBy[type],
         toDate: toDateBy[type],
       });
@@ -843,7 +848,7 @@ export class HelpDeskService {
 
     const averageChatDurationWithTime =
       averageResponseChatWithTime[0]?.averageDifference || 0;
-    const averageChatDuration = averageResponseChat[0].averageDifference;
+    const averageChatDuration = averageResponseChat[0]?.averageDifference;
     return {
       client: {
         count: totalClientsWithTime,
