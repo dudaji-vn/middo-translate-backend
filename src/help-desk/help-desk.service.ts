@@ -396,10 +396,10 @@ export class HelpDeskService {
       })
       .select('-space')
       .lean();
-    space.members = space.members.filter(
+    space.members = space.members?.filter(
       (user) => user.status !== MemberStatus.DELETED,
     );
-    space.tags = space.tags.filter((tag) => !tag.isDeleted);
+    space.tags = space.tags?.filter((tag) => !tag.isDeleted);
     return {
       ...space,
       extension: extension,
@@ -1658,6 +1658,7 @@ export class HelpDeskService {
     await notification.save();
     return null;
   }
+
   isAdminSpace(members: Member[], userId: string) {
     return members.find(
       (member) =>
