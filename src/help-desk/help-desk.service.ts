@@ -1680,7 +1680,7 @@ export class HelpDeskService {
   isAdminSpace(members: Member[], userId: string) {
     return members.find(
       (member) =>
-        member.user?.toString() === userId &&
+        member.user?.toString() === userId.toString() &&
         member.role === ROLE.ADMIN &&
         member.status === MemberStatus.JOINED,
     );
