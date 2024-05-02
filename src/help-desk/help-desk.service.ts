@@ -236,7 +236,7 @@ export class HelpDeskService {
                 ignoreNotFound: true,
               })
               .then((user) => {
-                if (user) {
+                if (user?._id) {
                   this.eventEmitter.emit(
                     socketConfig.events.space.notification.new,
                     {
@@ -1358,7 +1358,7 @@ export class HelpDeskService {
               ignoreNotFound: true,
             })
             .then((user) => {
-              if (user) {
+              if (user?._id) {
                 this.eventEmitter.emit(
                   socketConfig.events.space.notification.new,
                   {
@@ -1367,6 +1367,9 @@ export class HelpDeskService {
                   },
                 );
               }
+            })
+            .catch(() => {
+              console.log('User not found');
             });
         });
       this.mailService.sendMail(
@@ -1432,7 +1435,7 @@ export class HelpDeskService {
             ignoreNotFound: true,
           })
           .then((user) => {
-            if (user) {
+            if (user?._id) {
               this.eventEmitter.emit(
                 socketConfig.events.space.notification.new,
                 {
