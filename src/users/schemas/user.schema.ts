@@ -85,8 +85,7 @@ export class User {
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
-UserSchema.index({ email: 1 });
-UserSchema.index({ email: 1, provider: 1 }, { unique: true });
+UserSchema.index({ email: 1 }, { unique: true });
 // auto delete user if not verify in 24h
 UserSchema.index(
   { createdAt: 1 },
