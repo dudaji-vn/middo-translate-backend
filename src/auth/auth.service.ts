@@ -249,11 +249,10 @@ export class AuthService {
     language: string;
   }): Promise<Tokens & { user: User }> {
     const language = getLanguage(profile.language || 'en');
-    let user = await this.usersService.findByEmailAndProvider(
-      profile.email,
-      profile.provider,
-    );
-    if (!user) {
+    let user = await this.usersService.findByEmail(profile.email, {
+      ignoreNotFound: true,
+    });
+    if (!user?._id) {
       user = await this.usersService.create({
         ...profile,
         language,

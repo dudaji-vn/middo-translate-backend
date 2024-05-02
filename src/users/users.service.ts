@@ -136,11 +136,6 @@ export class UsersService {
     return users;
   }
 
-  async findByEmailAndProvider(email: string, provider: Provider) {
-    const user = await this.userModel.findOne({ email, provider }).lean();
-    return user as User;
-  }
-
   async create(info: Partial<User>) {
     const user = await this.userModel.create(info);
     return user;
