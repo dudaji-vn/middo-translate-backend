@@ -231,17 +231,21 @@ export class HelpDeskService {
             link: data.verifyUrl,
           })
           .then((data) => {
-            this.userService.findByEmail(data.to).then((user) => {
-              if (user) {
-                this.eventEmitter.emit(
-                  socketConfig.events.space.notification.new,
-                  {
-                    data,
-                    receiverIds: [user?._id.toString()],
-                  },
-                );
-              }
-            });
+            this.userService
+              .findByEmail(data.to, {
+                ignoreNotFound: true,
+              })
+              .then((user) => {
+                if (user) {
+                  this.eventEmitter.emit(
+                    socketConfig.events.space.notification.new,
+                    {
+                      data,
+                      receiverIds: [user?._id.toString()],
+                    },
+                  );
+                }
+              });
           });
         this.mailService.sendMail(
           data.email,
@@ -1349,17 +1353,21 @@ export class HelpDeskService {
           link: data.verifyUrl,
         })
         .then((data) => {
-          this.userService.findByEmail(data.to).then((user) => {
-            if (user) {
-              this.eventEmitter.emit(
-                socketConfig.events.space.notification.new,
-                {
-                  data,
-                  receiverIds: [user?._id.toString()],
-                },
-              );
-            }
-          });
+          this.userService
+            .findByEmail(data.to, {
+              ignoreNotFound: true,
+            })
+            .then((user) => {
+              if (user) {
+                this.eventEmitter.emit(
+                  socketConfig.events.space.notification.new,
+                  {
+                    data,
+                    receiverIds: [user?._id.toString()],
+                  },
+                );
+              }
+            });
         });
       this.mailService.sendMail(
         data.email,
@@ -1419,14 +1427,21 @@ export class HelpDeskService {
         link: verifyUrl,
       })
       .then((data) => {
-        this.userService.findByEmail(data.to).then((user) => {
-          if (user) {
-            this.eventEmitter.emit(socketConfig.events.space.notification.new, {
-              data,
-              receiverIds: [user?._id.toString()],
-            });
-          }
-        });
+        this.userService
+          .findByEmail(data.to, {
+            ignoreNotFound: true,
+          })
+          .then((user) => {
+            if (user) {
+              this.eventEmitter.emit(
+                socketConfig.events.space.notification.new,
+                {
+                  data,
+                  receiverIds: [user?._id.toString()],
+                },
+              );
+            }
+          });
       });
     await this.mailService.sendMail(
       data.email,
