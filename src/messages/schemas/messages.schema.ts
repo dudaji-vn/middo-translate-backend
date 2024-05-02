@@ -73,6 +73,7 @@ export enum ActionTypes {
 export enum SenderType {
   BOT = 'bot',
   USER = 'user',
+  ANONYMOUS = 'anonymous',
 }
 
 @Schema({

@@ -170,6 +170,17 @@ export class HelpDeskController {
     };
   }
 
+  @Get('space-verify/:token')
+  async spaceVerify(
+    @Param('token') token: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.spaceVerify(userId, token);
+    return {
+      data: result,
+    };
+  }
+
   @Get('my-invitations')
   async getMyInvitations(@JwtUserId() userId: string) {
     const result = await this.helpDeskService.getMyInvitations(userId);
@@ -246,11 +257,8 @@ export class HelpDeskController {
   }
 
   @Get('notifications')
-  async getNotifications(
-    @JwtUserId() userId: string,
-    @Query('spaceId') spaceId: string,
-  ) {
-    const result = await this.helpDeskService.getNotifications(userId, spaceId);
+  async getNotifications(@JwtUserId() userId: string) {
+    const result = await this.helpDeskService.getNotifications(userId);
     return {
       data: result,
     };

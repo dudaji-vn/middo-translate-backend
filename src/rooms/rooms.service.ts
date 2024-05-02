@@ -202,11 +202,7 @@ export class RoomsService {
         ? {}
         : {
             status: {
-              $in: [
-                RoomStatus.ACTIVE,
-                RoomStatus.ARCHIVED,
-                RoomStatus.COMPLETED,
-              ],
+              $in: [RoomStatus.ACTIVE, RoomStatus.ARCHIVED],
             },
           }),
     });
@@ -253,7 +249,7 @@ export class RoomsService {
       },
       {
         path: 'space',
-        select: 'bot tags',
+        select: 'bot tags name avatar',
       },
     ]);
 
@@ -772,16 +768,20 @@ export class RoomsService {
       pinRoomIds: user.pinRoomIds,
     });
   }
-  async getPinnedRooms(userId: string) {
+  async getPinnedRooms(userId: string, spaceId: string) {
     const user = await this.usersService.findById(userId);
     const rooms = await this.roomModel
       .find({
         _id: {
           $in: user.pinRoomIds,
         },
+        isHelpDesk: { $ne: true },
         status: RoomStatus.ACTIVE,
         participants: userId,
         deleteFor: { $nin: [userId] },
+        ...(spaceId
+          ? { isHelpDesk: true, space: { $exists: true, $eq: spaceId } }
+          : {}),
       })
       .populate({
         path: 'lastMessage',
@@ -818,6 +818,10 @@ export class RoomsService {
           'email',
           'language',
         ]),
+      )
+      .populate(
+        selectPopulateField<Room>(['space']),
+        selectPopulateField<Space>(['tags']),
       );
     // sort by pin order
     const pinRoomIds = user.pinRoomIds;
@@ -826,6 +830,19 @@ export class RoomsService {
       const bIndex = pinRoomIds.indexOf(b._id.toString());
       return aIndex - bIndex;
     });
+
+    if (spaceId) {
+      return rooms.map((room) => {
+        const tag = this.getTagByRoom(room);
+        return {
+          ...room.toObject(),
+          tag: tag as Tag,
+          space: (room.space as Space)._id,
+          isPinned: user?.pinRoomIds?.includes(room._id.toString()) || false,
+          lastMessage: convertMessageRemoved(room.lastMessage, userId),
+        };
+      });
+    }
     return rooms.map((room) => ({
       ...room.toObject(),
       isPinned: true,
@@ -940,10 +957,6 @@ export class RoomsService {
       },
       {
         tag: tagId,
-        status:
-          tag?.name === RoomStatus.COMPLETED
-            ? RoomStatus.COMPLETED
-            : room.status,
       },
     );
     return true;
@@ -951,12 +964,17 @@ export class RoomsService {
 
   async getTotalClientCompletedConversation(
     spaceId: string,
+    tags: Tag[],
     fromDate?: Date,
     toDate?: Date,
   ) {
+    if (!tags || tags.length === 0) {
+      throw new BadRequestException('tags not found');
+    }
+    const tagCompletedId = tags.find((tag) => tag.name === 'completed')?._id;
     return await this.roomModel.countDocuments({
       space: new mongoose.Types.ObjectId(spaceId),
-      status: RoomStatus.COMPLETED,
+      tag: tagCompletedId,
       ...(fromDate &&
         toDate && {
           updatedAt: {
@@ -979,14 +997,19 @@ export class RoomsService {
     return true;
   }
   async getChartCompletedConversation(payload: ChartQueryDto) {
-    const { spaceId, fromDate, toDate, type } = payload;
+    const { spaceId, fromDate, toDate, type, tags } = payload;
+    if (!tags || tags.length === 0) {
+      throw new BadRequestException('tags not found');
+    }
+    const tagCompletedId = tags.find((tag) => tag.name === 'completed')?._id;
+
     const query = queryReportByType(
       type,
       [
         {
           $match: {
             space: new mongoose.Types.ObjectId(spaceId),
-            status: RoomStatus.COMPLETED,
+            tag: tagCompletedId,
             ...(fromDate &&
               toDate && {
                 updatedAt: {
@@ -1011,7 +1034,7 @@ export class RoomsService {
         $match: {
           space: new mongoose.Types.ObjectId(spaceId),
           isHelpDesk: true,
-          status: { $in: [RoomStatus.ACTIVE, RoomStatus.COMPLETED] },
+          status: RoomStatus.ACTIVE,
           ...(fromDate &&
             toDate && {
               createdAt: {

@@ -1,6 +1,8 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
+  GoneException,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -15,7 +17,7 @@ import { MessageType } from 'src/messages/schemas/messages.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { RoomStatus } from 'src/rooms/schemas/room.schema';
 import { SearchQueryParamsDto } from 'src/search/dtos';
-import { User, UserStatus } from 'src/users/schemas/user.schema';
+import { Provider, User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { AnalystQueryDto, AnalystType } from './dto/analyst-query-dto';
 import { AnalystResponseDto } from './dto/analyst-response-dto';
@@ -42,8 +44,10 @@ import {
 import { MailService } from 'src/mail/mail.service';
 import { envConfig } from 'src/configs/env.config';
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
-import { Space, StatusSpace } from './schemas/space.schema';
+import { Member, Space, StatusSpace } from './schemas/space.schema';
 import { SpaceNotification } from './schemas/space-notifications.schema';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { socketConfig } from 'src/configs/socket.config';
 
 @Injectable()
 export class HelpDeskService {
@@ -60,6 +64,7 @@ export class HelpDeskService {
     private roomsService: RoomsService,
     private messagesService: MessagesService,
     private mailService: MailService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async createClient(businessId: string, info: Partial<User>) {
@@ -138,7 +143,7 @@ export class HelpDeskService {
       info.chatFlow = null;
     }
     info.space = info.spaceId;
-    if (userId.toString() !== space.owner.toString()) {
+    if (!this.isAdminSpace(space.members, userId)) {
       throw new ForbiddenException(
         'You do not have permission to create or edit extensions',
       );
@@ -171,11 +176,18 @@ export class HelpDeskService {
       };
       if (!space.members) {
         space.members = [];
-        space.members = space.members.filter(
-          (item) => item.email !== user.email,
-        );
       }
-      space.members = space.members.filter((item) => item.email !== me.email);
+      const uniqueEmails = new Set();
+      space.members = space.members
+        .filter((item) => item.email !== me.email)
+        .filter((member) => {
+          if (!uniqueEmails.has(member.email)) {
+            uniqueEmails.add(member.email);
+            return true;
+          }
+
+          return false;
+        });
 
       const members = space.members.map((item) => {
         const token = `${generateSlug()}-${generateSlug()}`;
@@ -207,14 +219,30 @@ export class HelpDeskService {
         bot: bot,
       });
 
+      // get all userId from members
+
       await members.forEach((data) => {
-        this.spaceNotificationModel.create({
-          space: spaceData._id,
-          description: `You've been invited to join ${spaceData.name}`,
-          from: user,
-          to: data.email,
-          link: data.verifyUrl,
-        });
+        this.spaceNotificationModel
+          .create({
+            space: spaceData._id,
+            description: `You've been invited to join ${spaceData.name}`,
+            from: user,
+            to: data.email,
+            link: data.verifyUrl,
+          })
+          .then((data) => {
+            this.userService.findByEmail(data.to).then((user) => {
+              if (user) {
+                this.eventEmitter.emit(
+                  socketConfig.events.space.notification.new,
+                  {
+                    data,
+                    receiverIds: [user?._id.toString()],
+                  },
+                );
+              }
+            });
+          });
         this.mailService.sendMail(
           data.email,
           `${user.name} has invited you to join the ${spaceData.name} space`,
@@ -230,11 +258,15 @@ export class HelpDeskService {
     } else {
       const spaceData = await this.spaceModel.findOne({
         _id: space.spaceId,
-        owner: userId,
         status: { $ne: StatusSpace.DELETED },
       });
       if (!spaceData) {
         throw new BadRequestException('Space not found');
+      }
+      if (!this.isAdminSpace(spaceData.members, userId)) {
+        throw new ForbiddenException(
+          'You do not have permission to edit space',
+        );
       }
       if (space.avatar) {
         spaceData.avatar = space.avatar;
@@ -247,7 +279,8 @@ export class HelpDeskService {
       }
       if (spaceData.bot) {
         await this.userModel.findByIdAndUpdate(spaceData.bot, {
-          avatar: space.avatar,
+          ...(space.avatar ? { avatar: space.avatar } : {}),
+          ...(space.name ? { name: space.name } : {}),
         });
       }
       await spaceData.save();
@@ -303,6 +336,7 @@ export class HelpDeskService {
         });
     }
     const data = await dataPromise
+      .sort({ _id: -1 })
       .populate('owner', 'email')
       .select(
         'name avatar backgroundImage joinedAt createdAt members.email members.joinedAt members.status',
@@ -512,9 +546,12 @@ export class HelpDeskService {
     const { name, phoneNumber } = clientDto;
     const space = await this.spaceModel.findOne({
       _id: clientDto.spaceId,
-      status: StatusSpace.ACTIVE,
-      'members.user': userId,
-      'members.status': MemberStatus.JOINED,
+      status: { $ne: StatusSpace.DELETED },
+      members: {
+        $elemMatch: {
+          user: new mongoose.Types.ObjectId(userId),
+        },
+      },
     });
     if (!space) {
       throw new ForbiddenException(
@@ -578,11 +615,15 @@ export class HelpDeskService {
     const totalCompletedConversationWithTimePromise =
       this.roomsService.getTotalClientCompletedConversation(
         spaceId,
+        business.space.tags,
         fromDateBy[type],
         toDateBy[type],
       );
     const totalCompletedConversationPromise =
-      this.roomsService.getTotalClientCompletedConversation(spaceId);
+      this.roomsService.getTotalClientCompletedConversation(
+        spaceId,
+        business.space.tags,
+      );
 
     const averageRatingPromise = this.getAverageRatingById(
       business._id,
@@ -609,6 +650,7 @@ export class HelpDeskService {
       await this.roomsService.getChartCompletedConversation({
         type: type,
         spaceId: business.space._id.toString(),
+        tags: business.space.tags,
         fromDate: fromDateBy[type],
         toDate: toDateBy[type],
       });
@@ -807,7 +849,7 @@ export class HelpDeskService {
 
     const averageChatDurationWithTime =
       averageResponseChatWithTime[0]?.averageDifference || 0;
-    const averageChatDuration = averageResponseChat[0].averageDifference;
+    const averageChatDuration = averageResponseChat[0]?.averageDifference;
     return {
       client: {
         count: totalClientsWithTime,
@@ -883,7 +925,7 @@ export class HelpDeskService {
       );
     }
     if (space.members[memberIndex].status === MemberStatus.JOINED) {
-      throw new BadRequestException('You are joined this space');
+      throw new ConflictException('You are joined this space');
     }
     if (
       status === ValidateInviteStatus.DECLINE &&
@@ -906,6 +948,55 @@ export class HelpDeskService {
     }
 
     return true;
+  }
+  async spaceVerify(userId: string, token: string) {
+    const user = await this.userService.findById(userId);
+    const space = await this.spaceModel
+      .findOne({
+        'members.verifyToken': token,
+      })
+      .populate('owner', 'email')
+      .select('name avatar backgroundImage members owner')
+      .lean();
+
+    if (!space) {
+      throw new BadRequestException('Token is invalid');
+    }
+
+    if (space.status === StatusSpace.DELETED) {
+      throw new BadRequestException('This space is deleted');
+    }
+
+    const member = space.members.find((item) => item.verifyToken === token);
+
+    if (!member || member.email !== user.email) {
+      throw new ForbiddenException(
+        'You do not have permission to view this invitation',
+      );
+    }
+
+    if (member.status === MemberStatus.JOINED) {
+      throw new ConflictException('You have already joined this space');
+    }
+    if (
+      moment().isAfter(member.expiredAt) ||
+      member.status !== MemberStatus.INVITED
+    ) {
+      throw new GoneException('Token is expired');
+    }
+    return {
+      space: {
+        _id: space._id,
+        avatar: space.avatar,
+        backgroundImage: space.backgroundImage,
+        name: space.name,
+        owner: space.owner,
+      },
+      email: member.email,
+      verifyToken: member.verifyToken,
+      invitedAt: member.invitedAt,
+      isExpired: moment().isAfter(member.expiredAt),
+    };
   }
 
   async getMyInvitations(userId: string) {
@@ -1196,13 +1287,20 @@ export class HelpDeskService {
   }
 
   async inviteMembers(userId: string, data: InviteMemberDto) {
+    const user = await this.userService.findById(userId);
     const spaceData = await this.spaceModel.findOne({
       _id: data.spaceId,
-      owner: userId,
+      status: { $ne: StatusSpace.DELETED },
     });
-    const user = await this.userService.findById(userId);
+
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
+    }
+
+    if (!this.isAdminSpace(spaceData.members, user._id.toString())) {
+      throw new ForbiddenException(
+        'You do not have permission to invite members to the group',
+      );
     }
 
     data.members.forEach((member) => {
@@ -1217,29 +1315,52 @@ export class HelpDeskService {
       }
     });
 
-    const newMembers = data.members.map((item) => {
-      const token = `${generateSlug()}-${generateSlug()}`;
-      return {
-        email: item.email,
-        role: item.role,
-        verifyToken: token,
-        invitedAt: new Date(),
-        expiredAt: moment().add('7', 'day').toDate(),
-        status: MemberStatus.INVITED,
-        verifyUrl: this.createVerifyUrl(token),
-      };
-    });
+    const uniqueEmails = new Set();
+    const newMembers = data.members
+      .filter((member) => {
+        if (!uniqueEmails.has(member.email)) {
+          uniqueEmails.add(member.email);
+          return true;
+        }
+        return false;
+      })
+      .map((item) => {
+        const token = `${generateSlug()}-${generateSlug()}`;
+        return {
+          email: item.email,
+          role: item.role,
+          verifyToken: token,
+          invitedAt: new Date(),
+          expiredAt: moment().add('7', 'day').toDate(),
+          status: MemberStatus.INVITED,
+          verifyUrl: this.createVerifyUrl(token),
+        };
+      });
 
     spaceData.members.push(...(newMembers as any));
     await spaceData.save();
     newMembers.forEach((data) => {
-      this.spaceNotificationModel.create({
-        space: spaceData._id,
-        description: `You've been invited to join ${spaceData.name}`,
-        from: user,
-        to: data.email,
-        link: data.verifyUrl,
-      });
+      this.spaceNotificationModel
+        .create({
+          space: spaceData._id,
+          description: `You've been invited to join ${spaceData.name}`,
+          from: user,
+          to: data.email,
+          link: data.verifyUrl,
+        })
+        .then((data) => {
+          this.userService.findByEmail(data.to).then((user) => {
+            if (user) {
+              this.eventEmitter.emit(
+                socketConfig.events.space.notification.new,
+                {
+                  data,
+                  receiverIds: [user?._id.toString()],
+                },
+              );
+            }
+          });
+        });
       this.mailService.sendMail(
         data.email,
         `${user.name} has invited you to join the ${spaceData.name} space`,
@@ -1265,7 +1386,6 @@ export class HelpDeskService {
   async resendInvitation(userId: string, data: UpdateMemberDto) {
     const spaceData = await this.spaceModel.findOne({
       status: { $ne: StatusSpace.DELETED },
-      owner: userId,
       _id: data.spaceId,
     });
 
@@ -1273,9 +1393,15 @@ export class HelpDeskService {
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
     }
+    if (!this.isAdminSpace(spaceData.members, userId)) {
+      throw new ForbiddenException(
+        'You do not have permission to resend invitation',
+      );
+    }
 
     const index = spaceData.members.findIndex(
-      (item) => item.email === data.email,
+      (item) =>
+        item.email === data.email && item.status !== MemberStatus.DELETED,
     );
     if (index === -1) {
       throw new BadRequestException('User are not invite');
@@ -1284,13 +1410,24 @@ export class HelpDeskService {
     const token = `${generateSlug()}-${generateSlug()}`;
 
     const verifyUrl = await this.createVerifyUrl(token);
-    await this.spaceNotificationModel.create({
-      space: spaceData._id,
-      description: `You've been invited to join ${spaceData.name}`,
-      from: user,
-      to: data.email,
-      link: verifyUrl,
-    });
+    await this.spaceNotificationModel
+      .create({
+        space: spaceData._id,
+        description: `You've been invited to join ${spaceData.name}`,
+        from: user,
+        to: data.email,
+        link: verifyUrl,
+      })
+      .then((data) => {
+        this.userService.findByEmail(data.to).then((user) => {
+          if (user) {
+            this.eventEmitter.emit(socketConfig.events.space.notification.new, {
+              data,
+              receiverIds: [user?._id.toString()],
+            });
+          }
+        });
+      });
     await this.mailService.sendMail(
       data.email,
       `${user.name} has invited you to join the ${spaceData.name} space`,
@@ -1314,7 +1451,6 @@ export class HelpDeskService {
   }
   async removeMember(userId: string, data: RemoveMemberDto) {
     const spaceData = await this.spaceModel.findOne({
-      owner: userId,
       _id: data.spaceId,
       status: { $ne: StatusSpace.DELETED },
     });
@@ -1329,7 +1465,8 @@ export class HelpDeskService {
     }
 
     const index = spaceData.members.findIndex(
-      (item) => item.email === data.email,
+      (item) =>
+        item.email === data.email && item.status !== MemberStatus.DELETED,
     );
     if (index === -1) {
       throw new BadRequestException('This user is not in space');
@@ -1343,16 +1480,19 @@ export class HelpDeskService {
   async changeRole(userId: string, data: UpdateMemberDto) {
     const spaceData = await this.spaceModel.findOne({
       status: { $ne: StatusSpace.DELETED },
-      owner: userId,
       _id: data.spaceId,
     });
 
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
     }
+    if (!this.isAdminSpace(spaceData.members, userId)) {
+      throw new ForbiddenException('You do not have permission to change role');
+    }
 
     const index = spaceData.members.findIndex(
-      (item) => item.email === data.email,
+      (item) =>
+        item.email === data.email && item.status !== MemberStatus.DELETED,
     );
     if (index === -1) {
       throw new BadRequestException('This user is not in space');
@@ -1376,7 +1516,7 @@ export class HelpDeskService {
       throw new BadRequestException('Space not found');
     }
 
-    if (space.owner.toString() !== userId.toString()) {
+    if (!this.isAdminSpace(space.members, userId)) {
       throw new ForbiddenException(
         'You do not have permission to create or edit tag',
       );
@@ -1445,7 +1585,7 @@ export class HelpDeskService {
       throw new BadRequestException('Space not found');
     }
 
-    if (space.owner.toString() !== userId) {
+    if (!this.isAdminSpace(space.members, userId)) {
       throw new ForbiddenException(
         'You do not have permission to delete the tag',
       );
@@ -1466,17 +1606,30 @@ export class HelpDeskService {
     await space.save();
     return true;
   }
-  async getNotifications(userId: string, spaceId: string) {
+  async getNotifications(userId: string) {
     const user = await this.userService.findById(userId);
-    const notifications = this.spaceNotificationModel
+    const notifications = await this.spaceNotificationModel
       .find({
         to: user.email,
-        space: spaceId,
         isDeleted: { $ne: true },
       })
+      .sort({ _id: -1 })
       .populate('from', 'name avatar')
+      .populate('space')
       .select('-to');
-    return notifications;
+    return notifications.map((item) => {
+      const isJoinedSpace = item.space?.members?.find(
+        (member) =>
+          member.user?.toString() === userId.toString() &&
+          member.status === MemberStatus.JOINED,
+      );
+      item.link = isJoinedSpace
+        ? `${envConfig.app.url}/spaces/${item.space._id}/conversations`
+        : item.link;
+      item.space = item.space._id as any;
+
+      return item;
+    });
   }
   async readNotification(id: string) {
     const notification = await this.spaceNotificationModel.findById(id);
@@ -1504,5 +1657,13 @@ export class HelpDeskService {
     notification.isDeleted = true;
     await notification.save();
     return null;
+  }
+  isAdminSpace(members: Member[], userId: string) {
+    return members.find(
+      (member) =>
+        member.user?.toString() === userId &&
+        member.role === ROLE.ADMIN &&
+        member.status === MemberStatus.JOINED,
+    );
   }
 }

@@ -123,6 +123,19 @@ export class UsersService {
     return user;
   }
 
+  async findManyByEmails(emails: string[]) {
+    const users = await this.userModel
+      .find({ email: { $in: emails } })
+      .select({
+        name: true,
+        username: true,
+        avatar: true,
+        email: true,
+      })
+      .lean();
+    return users;
+  }
+
   async findByEmailAndProvider(email: string, provider: Provider) {
     const user = await this.userModel.findOne({ email, provider }).lean();
     return user as User;
