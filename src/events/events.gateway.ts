@@ -325,7 +325,7 @@ export class EventsGateway
 
     this.server.to(payload.roomId).emit(socketConfig.events.call.decline_call, {
       roomId: payload.roomId,
-      userId: [payload.userId],
+      userIds: [payload.userId],
     });
   }
 
