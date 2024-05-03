@@ -298,21 +298,19 @@ export class EventsGateway
         users: payload.users,
       });
     setTimeout(() => {
-      payload.users.forEach((user: any) => {
-        this.server
-          .to(payload.room._id)
-          .emit(socketConfig.events.call.decline_call, {
-            roomId: payload.room._id,
-            userId: user._id,
-          });
-      });
+      const userIds = payload.users.map((p) => p._id);
+      this.server
+        .to(payload.room._id)
+        .emit(socketConfig.events.call.decline_call, {
+          roomId: payload.room._id,
+          userIds: userIds,
+        });
     }, this.CALLING_TIMEOUT);
   }
 
   // Decline call
   @SubscribeMessage(socketConfig.events.call.decline_call)
   declineCall(
-    @ConnectedSocket() client: Socket,
     @MessageBody()
     payload: {
       roomId: string;
@@ -322,12 +320,12 @@ export class EventsGateway
     const socketIds = this.clients[payload.userId]?.socketIds || [];
     this.server.to(socketIds).emit(socketConfig.events.call.decline_call, {
       roomId: payload.roomId,
-      userId: payload.userId,
+      userIds: [payload.userId],
     });
 
     this.server.to(payload.roomId).emit(socketConfig.events.call.decline_call, {
       roomId: payload.roomId,
-      userId: payload.userId,
+      userId: [payload.userId],
     });
   }
 
