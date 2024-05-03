@@ -1183,7 +1183,7 @@ export class RoomsService {
 
   getTagByRoom(room: Room) {
     let tag;
-    let space = room.space as Space;
+    const space = room.space as Space;
     if (space && space.tags && room.tag) {
       tag = space.tags.find(
         (tag) => tag._id.toString() === room.tag.toString(),

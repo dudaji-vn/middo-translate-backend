@@ -12,26 +12,26 @@ export async function translate(text: string, from?: string, to?: string) {
 
   if (from === to) return text;
 
-  const body = {
-    content: text,
-    from,
-    to,
-  };
-  const response = await fetch(
-    `${envConfig.app.url}/api/languages/v3/translate`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    },
-  );
   try {
+    const body = {
+      content: text,
+      from,
+      to,
+    };
+    const response = await fetch(
+      `${envConfig.app.url}/api/languages/v3/translate`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      },
+    );
     const json = await response.json();
     return json.data;
   } catch (error) {
-    return text;
+    return '';
   }
 }
 
