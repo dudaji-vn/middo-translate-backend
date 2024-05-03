@@ -951,14 +951,10 @@ export class RoomsService {
       );
     }
 
-    await this.roomModel.updateOne(
-      {
-        _id: room._id,
-      },
-      {
-        tag: tagId,
-      },
-    );
+    await this.updateRoom(room._id.toString(), {
+      tag: new mongoose.Types.ObjectId(tagId) as any,
+    });
+
     return true;
   }
 
