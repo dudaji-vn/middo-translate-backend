@@ -270,7 +270,7 @@ export class EventsGateway
       doodleImage: this.meetings[callId]?.doodle?.image,
     });
   }
-
+  private CALLING_TIMEOUT = 30000;
   // Send notify invite_to_call event
   @SubscribeMessage(socketConfig.events.call.invite_to_call)
   sendNotifyJoinCall(
@@ -306,7 +306,7 @@ export class EventsGateway
             userId: user._id,
           });
       });
-    }, 30000);
+    }, this.CALLING_TIMEOUT);
   }
 
   // Decline call
@@ -339,6 +339,7 @@ export class EventsGateway
       id: string;
       user: any;
       callerId: string;
+      isTurnOnMic: boolean;
       signal: any;
       isShareScreen: boolean;
       isElectron: boolean;
@@ -350,6 +351,7 @@ export class EventsGateway
       user: payload.user,
       isShareScreen: payload.isShareScreen,
       isElectron: payload.isElectron,
+      isTurnOnMic: payload.isTurnOnMic,
     });
   }
   // Return signal event
@@ -373,6 +375,27 @@ export class EventsGateway
         isShareScreen: payload.isShareScreen,
       });
   }
+
+  // Event for Mic status change
+  @SubscribeMessage(socketConfig.events.call.call_status.mic_change)
+  handleMicChange(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: {
+      userId: string;
+      status: boolean;
+      roomId: string;
+    },
+  ) {
+    this.server
+      .to(payload.roomId)
+      .emit(socketConfig.events.call.call_status.mic_change, {
+        userId: payload.userId,
+        status: payload.status,
+        roomId: payload.roomId,
+      });
+  }
+
   // SHARE_SCREEN
   @SubscribeMessage(socketConfig.events.call.share_screen)
   handleShareScreen(
