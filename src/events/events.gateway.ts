@@ -270,7 +270,7 @@ export class EventsGateway
       doodleImage: this.meetings[callId]?.doodle?.image,
     });
   }
-
+  private CALLING_TIMEOUT = 30000;
   // Send notify invite_to_call event
   @SubscribeMessage(socketConfig.events.call.invite_to_call)
   sendNotifyJoinCall(
@@ -298,21 +298,19 @@ export class EventsGateway
         users: payload.users,
       });
     setTimeout(() => {
-      payload.users.forEach((user: any) => {
-        this.server
-          .to(payload.room._id)
-          .emit(socketConfig.events.call.decline_call, {
-            roomId: payload.room._id,
-            userId: user._id,
-          });
-      });
-    }, 30000);
+      const userIds = payload.users.map((p) => p._id);
+      this.server
+        .to(payload.room._id)
+        .emit(socketConfig.events.call.decline_call, {
+          roomId: payload.room._id,
+          userIds: userIds,
+        });
+    }, this.CALLING_TIMEOUT);
   }
 
   // Decline call
   @SubscribeMessage(socketConfig.events.call.decline_call)
   declineCall(
-    @ConnectedSocket() client: Socket,
     @MessageBody()
     payload: {
       roomId: string;
@@ -322,12 +320,12 @@ export class EventsGateway
     const socketIds = this.clients[payload.userId]?.socketIds || [];
     this.server.to(socketIds).emit(socketConfig.events.call.decline_call, {
       roomId: payload.roomId,
-      userId: payload.userId,
+      userIds: [payload.userId],
     });
 
     this.server.to(payload.roomId).emit(socketConfig.events.call.decline_call, {
       roomId: payload.roomId,
-      userId: payload.userId,
+      userId: [payload.userId],
     });
   }
 
@@ -339,6 +337,7 @@ export class EventsGateway
       id: string;
       user: any;
       callerId: string;
+      isTurnOnMic: boolean;
       signal: any;
       isShareScreen: boolean;
       isElectron: boolean;
@@ -350,6 +349,7 @@ export class EventsGateway
       user: payload.user,
       isShareScreen: payload.isShareScreen,
       isElectron: payload.isElectron,
+      isTurnOnMic: payload.isTurnOnMic,
     });
   }
   // Return signal event
@@ -373,6 +373,27 @@ export class EventsGateway
         isShareScreen: payload.isShareScreen,
       });
   }
+
+  // Event for Mic status change
+  @SubscribeMessage(socketConfig.events.call.call_status.mic_change)
+  handleMicChange(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    payload: {
+      userId: string;
+      status: boolean;
+      roomId: string;
+    },
+  ) {
+    this.server
+      .to(payload.roomId)
+      .emit(socketConfig.events.call.call_status.mic_change, {
+        userId: payload.userId,
+        status: payload.status,
+        roomId: payload.roomId,
+      });
+  }
+
   // SHARE_SCREEN
   @SubscribeMessage(socketConfig.events.call.share_screen)
   handleShareScreen(
