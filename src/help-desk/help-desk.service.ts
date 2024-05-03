@@ -97,6 +97,7 @@ export class HelpDeskService {
         businessId: business._id.toString(),
         senderId: business.user.toString(),
         space: business.space._id,
+        isHelpDesk: true,
       },
       business.user.toString(),
     );
