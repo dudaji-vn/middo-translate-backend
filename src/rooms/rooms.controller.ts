@@ -209,6 +209,7 @@ export class RoomsController {
         content: updateRoomDto.name,
       });
     }
+    console.log('isRemoveName', isRemoveName);
 
     if (isRemoveName) {
       this.messagesService.createAction({
