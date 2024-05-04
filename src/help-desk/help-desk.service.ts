@@ -1306,7 +1306,7 @@ export class HelpDeskService {
     );
     if (!inviter) {
       throw new ForbiddenException(
-        'You do not have permission to invite members to the group!',
+        'You do not have permission to invite people as members to the space!',
       );
     }
 
@@ -1316,7 +1316,7 @@ export class HelpDeskService {
     ) {
       if (data.members.find((member) => member.role === ROLE.ADMIN)) {
         throw new ForbiddenException(
-          'You do not have permission to add admin to the group!',
+          'You do not have permission to invite people as admins to the space!',
         );
       }
     }
