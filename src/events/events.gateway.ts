@@ -726,6 +726,23 @@ export class EventsGateway
       .to(socketIds)
       .emit(socketConfig.events.space.notification.new, data);
   }
+
+  //Remove member
+  @OnEvent(socketConfig.events.space.member.remove)
+  async handleRemoveMember({
+    data,
+    receiverIds,
+  }: {
+    data: any;
+    receiverIds: string[];
+  }) {
+    const socketIds = receiverIds
+      .map((id) => this.clients[id.toString()]?.socketIds || [])
+      .flat();
+    this.server
+      .to(socketIds)
+      .emit(socketConfig.events.space.member.remove, data);
+  }
 }
 
 const findUserIdBySocketId = (clients: any, socketId: string) => {

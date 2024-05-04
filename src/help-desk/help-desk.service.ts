@@ -4,7 +4,6 @@ import {
   ForbiddenException,
   GoneException,
   Injectable,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
@@ -12,12 +11,11 @@ import mongoose, { Model, ObjectId, Types } from 'mongoose';
 import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import { queryReportByType } from 'src/common/utils/query-report';
-import { MessagesService } from 'src/messages/messages.service';
 import { MessageType } from 'src/messages/schemas/messages.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { RoomStatus } from 'src/rooms/schemas/room.schema';
 import { SearchQueryParamsDto } from 'src/search/dtos';
-import { Provider, User, UserStatus } from 'src/users/schemas/user.schema';
+import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { AnalystQueryDto, AnalystType } from './dto/analyst-query-dto';
 import { AnalystResponseDto } from './dto/analyst-response-dto';
@@ -32,22 +30,22 @@ import {
   StatusBusiness,
 } from './schemas/help-desk-business.schema';
 
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { envConfig } from 'src/configs/env.config';
+import { socketConfig } from 'src/configs/socket.config';
+import { MailService } from 'src/mail/mail.service';
+import { MessagesService } from 'src/messages/messages.service';
 import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
 import {
-  CreateOrEditTagDto,
   CreateOrEditSpaceDto,
+  CreateOrEditTagDto,
   InviteMemberDto,
-  MemberDto,
   RemoveMemberDto,
   UpdateMemberDto,
 } from './dto/create-or-edit-space-dto';
-import { MailService } from 'src/mail/mail.service';
-import { envConfig } from 'src/configs/env.config';
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
-import { Member, Space, StatusSpace } from './schemas/space.schema';
 import { SpaceNotification } from './schemas/space-notifications.schema';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import { socketConfig } from 'src/configs/socket.config';
+import { Member, Space, StatusSpace } from './schemas/space.schema';
 
 @Injectable()
 export class HelpDeskService {
@@ -1493,6 +1491,13 @@ export class HelpDeskService {
     spaceData.members[index].status = MemberStatus.DELETED;
 
     await spaceData.save();
+    if (!!spaceData.members[index].user) {
+      this.eventEmitter.emit(socketConfig.events.space.member.remove, {
+        data,
+        receiverIds: [spaceData.members[index].user?.toString()],
+      });
+    }
+
     return true;
   }
   async changeRole(userId: string, data: UpdateMemberDto) {
