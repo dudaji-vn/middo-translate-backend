@@ -892,7 +892,7 @@ export class RoomsService {
         select: userSelectFieldsString,
       },
     ]);
-    this.eventEmitter.emit(socketConfig.events.room.new, room);
+
     return responseRoom;
   }
   async updateReadByLastMessageInRoom(roomId: ObjectId, userId: string) {
