@@ -28,7 +28,7 @@ import { CreateRoomDto } from './dto';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
-import { Space, Tag } from '../help-desk/schemas/space.schema';
+import { MemberStatus, Space, Tag } from 'src/help-desk/schemas/space.schema';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -249,7 +249,7 @@ export class RoomsService {
       },
       {
         path: 'space',
-        select: 'bot tags name avatar',
+        select: 'bot tags name avatar members',
       },
     ]);
 
@@ -263,8 +263,16 @@ export class RoomsService {
     });
     let chatFlow = null;
     if (data.isHelpDesk) {
-      chatFlow = await this.getChatFlowBySpace(roomRes.space as ObjectId);
+      const space = data.space as Space;
+      if (!this.isAccessRoomBySpace(space, userId)) {
+        throw new ForbiddenException('You do not have permission in this room');
+      }
+
+      chatFlow = await this.getChatFlowBySpace(space._id);
+
+      delete (data.space as any).members;
     }
+
     return {
       ...data,
       chatFlow: chatFlow,
@@ -357,7 +365,7 @@ export class RoomsService {
       )
       .populate(
         selectPopulateField<Room>(['space']),
-        selectPopulateField<Space>(['tags']),
+        selectPopulateField<Space>(['tags', 'members']),
       );
 
     const pageInfo: CursorPaginationInfo = {
@@ -365,6 +373,13 @@ export class RoomsService {
       hasNextPage: rooms.length === limit,
     };
     if (type === 'help-desk' || type === 'unread-help-desk') {
+      const space = rooms[0]?.space as Space;
+      if (!this.isAccessRoomBySpace(space, userId)) {
+        throw new ForbiddenException(
+          'You do not have permission to view rooms in this space',
+        );
+      }
+
       return {
         items: rooms.map((room) => {
           const tag = this.getTagByRoom(room);
@@ -821,7 +836,7 @@ export class RoomsService {
       )
       .populate(
         selectPopulateField<Room>(['space']),
-        selectPopulateField<Space>(['tags']),
+        selectPopulateField<Space>(['tags', 'members']),
       );
     // sort by pin order
     const pinRoomIds = user.pinRoomIds;
@@ -832,6 +847,12 @@ export class RoomsService {
     });
 
     if (spaceId) {
+      const space = rooms[0]?.space as Space;
+      if (!this.isAccessRoomBySpace(space, userId)) {
+        throw new ForbiddenException(
+          'You do not have permission to view pin rooms in this space',
+        );
+      }
       return rooms.map((room) => {
         const tag = this.getTagByRoom(room);
         return {
@@ -892,7 +913,7 @@ export class RoomsService {
         select: userSelectFieldsString,
       },
     ]);
-    this.eventEmitter.emit(socketConfig.events.room.new, room);
+
     return responseRoom;
   }
   async updateReadByLastMessageInRoom(roomId: ObjectId, userId: string) {
@@ -951,14 +972,10 @@ export class RoomsService {
       );
     }
 
-    await this.roomModel.updateOne(
-      {
-        _id: room._id,
-      },
-      {
-        tag: tagId,
-      },
-    );
+    await this.updateRoom(room._id.toString(), {
+      tag: new mongoose.Types.ObjectId(tagId) as any,
+    });
+
     return true;
   }
 
@@ -1190,5 +1207,15 @@ export class RoomsService {
       );
     }
     return tag;
+  }
+  isAccessRoomBySpace(space: Space, userId: string) {
+    return (
+      space &&
+      space.members.find(
+        (member) =>
+          member.user?.toString() === userId.toString() &&
+          member.status === MemberStatus.JOINED,
+      )
+    );
   }
 }

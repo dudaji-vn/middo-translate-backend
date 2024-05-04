@@ -66,6 +66,9 @@ export const socketConfig = {
       decline_call: 'call.decline_call',
       send_caption: 'call.send_caption',
       update: 'call.update',
+      call_status: {
+        mic_change: 'call.status.mic_change',
+      },
     },
     speech_to_text: {
       start: 'speech_to_text.start',
@@ -83,6 +86,9 @@ export const socketConfig = {
     space: {
       notification: {
         new: 'space.notification.new',
+      },
+      member: {
+        remove: 'space.member.remove',
       },
     },
   },
