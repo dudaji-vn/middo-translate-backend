@@ -1298,11 +1298,27 @@ export class HelpDeskService {
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
     }
-
-    if (!this.isAdminSpace(spaceData.members, user._id.toString())) {
+    const inviter = spaceData.members.find(
+      (member) =>
+        member.user?.toString() === userId.toString() &&
+        member.status === MemberStatus.JOINED &&
+        member.role === ROLE.ADMIN,
+    );
+    if (!inviter) {
       throw new ForbiddenException(
-        'You do not have permission to invite members to the group',
+        'You do not have permission to invite people as members to the space!',
       );
+    }
+
+    if (
+      inviter.role === ROLE.ADMIN &&
+      userId.toString() !== spaceData.owner.toString()
+    ) {
+      if (data.members.find((member) => member.role === ROLE.ADMIN)) {
+        throw new ForbiddenException(
+          'You do not have permission to invite people as admins to the space!',
+        );
+      }
     }
 
     data.members.forEach((member) => {
