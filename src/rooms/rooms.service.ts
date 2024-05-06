@@ -28,7 +28,12 @@ import { CreateRoomDto } from './dto';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 import { UpdateRoomDto } from './dto/update-room.dto';
 import { Room, RoomStatus } from './schemas/room.schema';
-import { MemberStatus, Space, Tag } from 'src/help-desk/schemas/space.schema';
+import {
+  MemberStatus,
+  Space,
+  StatusSpace,
+  Tag,
+} from 'src/help-desk/schemas/space.schema';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -249,7 +254,7 @@ export class RoomsService {
       },
       {
         path: 'space',
-        select: 'bot tags name avatar members',
+        select: 'bot tags name avatar members status',
       },
     ]);
 
@@ -264,7 +269,10 @@ export class RoomsService {
     let chatFlow = null;
     if (data.isHelpDesk) {
       const space = data.space as Space;
-      if (!this.isAccessRoomBySpace(space, userId)) {
+      if (
+        user.status !== UserStatus.ANONYMOUS &&
+        !this.isAccessRoomBySpace(space, userId)
+      ) {
         throw new ForbiddenException('You do not have permission in this room');
       }
 
@@ -365,7 +373,7 @@ export class RoomsService {
       )
       .populate(
         selectPopulateField<Room>(['space']),
-        selectPopulateField<Space>(['tags', 'members']),
+        selectPopulateField<Space>(['tags', 'members', 'status']),
       );
 
     const pageInfo: CursorPaginationInfo = {
@@ -836,7 +844,7 @@ export class RoomsService {
       )
       .populate(
         selectPopulateField<Room>(['space']),
-        selectPopulateField<Space>(['tags', 'members']),
+        selectPopulateField<Space>(['tags', 'members', 'status']),
       );
     // sort by pin order
     const pinRoomIds = user.pinRoomIds;
@@ -1211,6 +1219,7 @@ export class RoomsService {
   isAccessRoomBySpace(space: Space, userId: string) {
     return (
       space &&
+      space.status !== StatusSpace.DELETED &&
       space.members.find(
         (member) =>
           member.user?.toString() === userId.toString() &&
