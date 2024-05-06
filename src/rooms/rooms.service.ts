@@ -269,7 +269,10 @@ export class RoomsService {
     let chatFlow = null;
     if (data.isHelpDesk) {
       const space = data.space as Space;
-      if (!this.isAccessRoomBySpace(space, userId)) {
+      if (
+        user.status !== UserStatus.ANONYMOUS &&
+        !this.isAccessRoomBySpace(space, userId)
+      ) {
         throw new ForbiddenException('You do not have permission in this room');
       }
 

@@ -75,6 +75,7 @@ export class UsersService {
         avatar: true,
         email: true,
         pinRoomIds: true,
+        status: true,
       })
       .lean();
     if (!user) {
