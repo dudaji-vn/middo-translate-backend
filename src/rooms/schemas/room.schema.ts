@@ -81,6 +81,9 @@ export class Room {
     ref: 'Tag',
   })
   tag: Tag | ObjectId;
+
+  @Prop({ type: String })
+  fromDomain: string;
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);

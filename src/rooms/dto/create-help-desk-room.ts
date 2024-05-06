@@ -34,4 +34,8 @@ export class CreateHelpDeskRoomDto {
 
   @IsMongoId()
   space: Schema.Types.ObjectId;
+
+  @IsOptional()
+  @IsString()
+  fromDomain: string;
 }
