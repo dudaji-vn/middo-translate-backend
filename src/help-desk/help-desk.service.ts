@@ -265,7 +265,7 @@ export class HelpDeskService {
       if (!spaceData) {
         throw new BadRequestException('Space not found');
       }
-      if (!this.isAdminSpace(spaceData.members, userId)) {
+      if (!this.isOwnerSpace(spaceData, userId)) {
         throw new ForbiddenException(
           'You do not have permission to edit space',
         );
@@ -481,7 +481,7 @@ export class HelpDeskService {
     if (!space) {
       throw new BadRequestException('Space not found');
     }
-    if (space?.owner.toString() !== userId.toString()) {
+    if (!this.isOwnerSpace(space, userId)) {
       throw new ForbiddenException(
         'You do not have permission to delete space',
       );
@@ -1705,5 +1705,8 @@ export class HelpDeskService {
         member.role === ROLE.ADMIN &&
         member.status === MemberStatus.JOINED,
     );
+  }
+  isOwnerSpace(space: Space, userId: string) {
+    return space?.owner.toString() === userId.toString();
   }
 }
