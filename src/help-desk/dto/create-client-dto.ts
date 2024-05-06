@@ -21,4 +21,9 @@ export class CreateClientDto {
   @ApiProperty()
   @IsOptional()
   phoneNumber?: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsString()
+  fromDomain: string;
 }

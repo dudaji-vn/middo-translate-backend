@@ -46,6 +46,7 @@ import {
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
 import { SpaceNotification } from './schemas/space-notifications.schema';
 import { Member, Space, StatusSpace } from './schemas/space.schema';
+import { CreateClientDto } from './dto/create-client-dto';
 
 @Injectable()
 export class HelpDeskService {
@@ -65,7 +66,7 @@ export class HelpDeskService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async createClient(businessId: string, info: Partial<User>) {
+  async createClient(businessId: string, info: CreateClientDto) {
     const business = await this.helpDeskBusinessModel
       .findById(businessId)
       .populate('space');
@@ -95,6 +96,7 @@ export class HelpDeskService {
         businessId: business._id.toString(),
         senderId: business.user.toString(),
         space: business.space._id,
+        fromDomain: info.fromDomain,
       },
       business.user.toString(),
     );
