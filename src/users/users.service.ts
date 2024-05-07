@@ -85,6 +85,9 @@ export class UsersService {
   }
 
   async findManyByIds(ids: ObjectId[] | string[]) {
+    if (!ids.length) {
+      return [];
+    }
     const users = await this.userModel
       .find({
         _id: {

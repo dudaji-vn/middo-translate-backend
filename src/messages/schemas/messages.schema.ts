@@ -24,6 +24,7 @@ export enum MessageStatus {
   READ = 'read',
   PENDING = 'pending',
   REMOVED = 'removed',
+  EDITED = 'edited',
 }
 
 export enum MessageType {
@@ -172,6 +173,8 @@ export class Message {
   translations: any;
   @Prop({ type: String })
   senderType: SenderType;
+  @Prop({ type: [String], default: [] })
+  editHistory: string[];
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);
