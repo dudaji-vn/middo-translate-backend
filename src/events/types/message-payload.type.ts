@@ -9,4 +9,5 @@ export type NewMessagePayload = {
 export type ReplyMessagePayload = {
   replyToMessageId: string;
   message: Message;
+  clientTempId: string;
 };

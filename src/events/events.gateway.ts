@@ -213,10 +213,17 @@ export class EventsGateway
   // Reply message events
 
   @OnEvent(socketConfig.events.message.reply.new)
-  async handleReplyMessage({ replyToMessageId, message }: ReplyMessagePayload) {
+  async handleReplyMessage({
+    replyToMessageId,
+    message,
+    clientTempId,
+  }: ReplyMessagePayload) {
     this.server
       .to(replyToMessageId)
-      .emit(socketConfig.events.message.reply.new, message);
+      .emit(socketConfig.events.message.reply.new, {
+        message,
+        clientTempId: clientTempId,
+      });
   }
 
   // pin message events
