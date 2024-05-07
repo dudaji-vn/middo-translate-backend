@@ -547,9 +547,9 @@ export class HelpDeskService {
     return data;
   }
   async editClientProfile(clientDto: EditClientDto, userId: string) {
-    const { name, phoneNumber } = clientDto;
+    const { name, phoneNumber, roomId, spaceId } = clientDto;
     const space = await this.spaceModel.findOne({
-      _id: clientDto.spaceId,
+      _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
       members: {
         $elemMatch: {
@@ -562,12 +562,7 @@ export class HelpDeskService {
         'You do not have permission to edit profile',
       );
     }
-    const business = await this.helpDeskBusinessModel.findOne({
-      space: clientDto.spaceId,
-    });
-    if (!business) {
-      throw new BadRequestException('Business not found');
-    }
+
     const user = await this.userModel.findOne({
       _id: clientDto.userId,
       status: UserStatus.ANONYMOUS,
@@ -582,6 +577,16 @@ export class HelpDeskService {
       user.name = name;
     }
     await user.save();
+
+    const room = await this.roomsService.findByIdAndUserId(roomId, userId);
+
+    await this.eventEmitter.emit(socketConfig.events.room.update, {
+      roomId: room._id.toString(),
+      participants: room.participants.map((p) => p._id),
+      data: {
+        participants: room.participants,
+      },
+    });
     return true;
   }
   async analyst(params: AnalystQueryDto, userId: string) {
