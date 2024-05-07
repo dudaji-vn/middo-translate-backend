@@ -21,6 +21,7 @@ import {
   ActionTypes,
   MediaTypes,
   Message,
+  MessageStatus,
   MessageType,
   Reaction,
   SenderType,
@@ -36,6 +37,7 @@ import { convert } from 'html-to-text';
 import { generateSystemMessageContent } from './utils/generate-action-message-content';
 import { detectLanguage, multipleTranslate } from './utils/translate';
 import { logger } from 'src/common/utils/logger';
+import { UpdateContentDto } from './dto/update-content.dto';
 
 @Injectable()
 export class MessagesService {
@@ -283,6 +285,10 @@ export class MessagesService {
           'language',
         ]),
       },
+      {
+        path: 'room',
+        select: selectPopulateField<Room>(['_id']),
+      },
     ]);
 
     const socketPayload: NewMessagePayload = {
@@ -430,6 +436,7 @@ export class MessagesService {
 
     const messages = await this.messageModel
       .find(query)
+      .populate('room', selectPopulateField<Room>(['_id']))
       .populate(
         'sender',
         selectPopulateField<User>([
@@ -451,6 +458,7 @@ export class MessagesService {
         ]),
       )
       .populate('call', selectPopulateField<Call>(['endTime', '_id', 'type']))
+      .populate('parent', selectPopulateField<Message>(['_id']))
       .populate(
         'reactions.user',
         selectPopulateField<User>([
@@ -515,12 +523,47 @@ export class MessagesService {
     });
   }
 
-  async update(id: string, updateMessageDto: Partial<Message>) {
+  async update(
+    id: string,
+    updateMessageDto: Partial<Message> & {
+      enContent?: string;
+      mentions?: string[];
+    },
+  ) {
     const message = await this.messageModel.findById(id).populate(['parent']);
     if (!message) {
       throw new Error('Message not found');
     }
+    if (updateMessageDto.content) {
+      const content = updateMessageDto.content;
+      let language = updateMessageDto.language;
+      const enContent = updateMessageDto.enContent;
+      if (!language) {
+        language = await detectLanguage(content);
+      }
+      const message = await this.findById(id);
+      const room = await this.roomsService.findById(
+        message.room._id.toString(),
+      );
+      if (!room) {
+        throw new NotFoundException('Room not found');
+      }
+      const data = await this.translateMessageInRoom({
+        content: content,
+        sourceLang: language,
+        participants: room.participants,
+        enContent: enContent,
+      });
+      const translations = data;
+      updateMessageDto.status = MessageStatus.EDITED;
+      updateMessageDto.translations = translations;
+      updateMessageDto.editHistory = [
+        content,
+        ...message.editHistory.map((item) => item),
+      ];
+    }
     await message.updateOne(updateMessageDto);
+
     this.eventEmitter.emit(socketConfig.events.message.update, {
       roomId: String(message?.room),
       message: {
@@ -709,6 +752,7 @@ export class MessagesService {
       .find(query)
       .sort({ _id: -1 })
       .limit(limit)
+      .populate('room', selectPopulateField<Room>(['_id']))
       .populate(
         'sender',
         selectPopulateField<User>([

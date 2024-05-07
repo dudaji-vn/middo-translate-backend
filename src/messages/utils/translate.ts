@@ -71,7 +71,7 @@ export const detectLanguage = async (content: string) => {
   });
   try {
     const json = await response.json();
-    return json.data.language;
+    return (json?.data?.language as string) || 'en';
   } catch (error) {
     console.log('error', error);
     return 'en';
