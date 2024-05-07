@@ -525,7 +525,6 @@ export class RoomsService {
       data,
       participants: updatedRoom?.participants.map((p) => p._id) || [],
     };
-    console.log({ updatePayload });
     this.eventEmitter.emit(socketConfig.events.room.update, {
       ...updatePayload,
     });
