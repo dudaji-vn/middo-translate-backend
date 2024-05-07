@@ -18,6 +18,7 @@ import { ForwardMessageDto } from './dto/forward-message.dto';
 import { convertMessageRemoved } from './utils/convert-message-removed';
 import { CreateHelpDeskMessageDto } from './dto/create-help-desk-message.dto';
 import { UpdateContentDto } from './dto/update-content.dto';
+import { EndConversationDto } from './dto/end-conversation-dto';
 
 @Controller('messages')
 export class MessagesController {
@@ -214,6 +215,15 @@ export class MessagesController {
     return {
       data: message,
       message: 'Message created',
+    };
+  }
+
+  @Public()
+  @Post('end-conversation')
+  async endConversation(@Body() { roomId, senderId }: EndConversationDto) {
+    const data = await this.messagesService.endConversation(roomId, senderId);
+    return {
+      data: data,
     };
   }
 }

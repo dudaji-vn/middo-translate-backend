@@ -1,7 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, Types } from 'mongoose';
+import mongoose, { FilterQuery, Model, Types } from 'mongoose';
 import {
   CursorPaginationInfo,
   ListQueryParamsCursor,
@@ -37,6 +41,7 @@ import { convert } from 'html-to-text';
 import { generateSystemMessageContent } from './utils/generate-action-message-content';
 import { detectLanguage, multipleTranslate } from './utils/translate';
 import { logger } from 'src/common/utils/logger';
+import { DefaultTag, Space } from '../help-desk/schemas/space.schema';
 
 @Injectable()
 export class MessagesService {
@@ -1366,6 +1371,28 @@ export class MessagesService {
       newMessageAt: new Date(),
     });
     return newMessage;
+  }
+  async endConversation(roomId: string, senderId: string) {
+    const room = await this.roomsService.findByIdAndUserId(roomId, senderId);
+    const space = room.space as Space;
+    if (!space || !space.tags) {
+      throw new BadRequestException(`Space has no tag`);
+    }
+
+    const tag = space.tags.find((tag) => tag.name === DefaultTag.COMPLETED);
+    if (!tag) {
+      throw new BadRequestException(`Tag not exist in space`);
+    }
+
+    await this.roomsService.updateRoom(room._id.toString(), {
+      tag: new mongoose.Types.ObjectId(tag._id) as any,
+    });
+    await this.createAction({
+      roomId: roomId,
+      senderId: senderId,
+      action: ActionTypes.LEAVE_HELP_DESK,
+    });
+    return null;
   }
   translateMessageInRoom = async ({
     content,
