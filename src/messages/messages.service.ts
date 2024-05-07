@@ -37,7 +37,6 @@ import { convert } from 'html-to-text';
 import { generateSystemMessageContent } from './utils/generate-action-message-content';
 import { detectLanguage, multipleTranslate } from './utils/translate';
 import { logger } from 'src/common/utils/logger';
-import { UpdateContentDto } from './dto/update-content.dto';
 
 @Injectable()
 export class MessagesService {
@@ -409,6 +408,7 @@ export class MessagesService {
     const socketPayload: ReplyMessagePayload = {
       replyToMessageId: id,
       message: newMessage,
+      clientTempId: createMessageDto.clientTempId,
     };
     this.eventEmitter.emit(
       socketConfig.events.message.reply.new,
