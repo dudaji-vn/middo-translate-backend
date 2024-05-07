@@ -524,6 +524,7 @@ export class RoomsService {
       data,
       participants: updatedRoom?.participants.map((p) => p._id) || [],
     };
+    console.log({ updatePayload });
     this.eventEmitter.emit(socketConfig.events.room.update, {
       ...updatePayload,
     });
@@ -856,7 +857,7 @@ export class RoomsService {
 
     if (spaceId) {
       const space = rooms[0]?.space as Space;
-      if (!this.isAccessRoomBySpace(space, userId)) {
+      if (space && !this.isAccessRoomBySpace(space, userId)) {
         throw new ForbiddenException(
           'You do not have permission to view pin rooms in this space',
         );
