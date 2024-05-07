@@ -14,6 +14,11 @@ export enum MemberStatus {
   DELETED = 'deleted',
 }
 
+export enum DefaultTag {
+  PENDING = 'pending',
+  COMPLETED = 'completed',
+}
+
 export enum ROLE {
   ADMIN = 'admin',
   MEMBER = 'member',
@@ -117,8 +122,8 @@ export class Space {
   @Prop({
     type: [TagSchema],
     default: [
-      { name: 'pending', color: '#FF3333', isReadonly: true },
-      { name: 'completed', color: '#00B512', isReadonly: true },
+      { name: DefaultTag.PENDING, color: '#FF3333', isReadonly: true },
+      { name: DefaultTag.COMPLETED, color: '#00B512', isReadonly: true },
     ],
   })
   tags: Tag[];

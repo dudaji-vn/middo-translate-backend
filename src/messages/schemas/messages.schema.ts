@@ -69,6 +69,7 @@ export enum ActionTypes {
   REMOVE_GROUP_NAME = 'removeGroupName',
   UPDATE_GROUP_AVATAR = 'updateGroupAvatar',
   CREATE_GROUP = 'createGroup',
+  LEAVE_HELP_DESK = 'leaveHelpDesk',
 }
 
 export enum SenderType {
