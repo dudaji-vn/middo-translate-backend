@@ -17,6 +17,7 @@ import { ReactMessageDto } from './dto/react-message.dto';
 import { ForwardMessageDto } from './dto/forward-message.dto';
 import { convertMessageRemoved } from './utils/convert-message-removed';
 import { CreateHelpDeskMessageDto } from './dto/create-help-desk-message.dto';
+import { UpdateContentDto } from './dto/update-content.dto';
 
 @Controller('messages')
 export class MessagesController {
@@ -89,6 +90,23 @@ export class MessagesController {
       data: {
         seen,
       },
+    };
+  }
+
+  @Patch(':id/edit')
+  async editMessage(
+    @ParamObjectId() id: string,
+    @Body() updateContentDto: UpdateContentDto,
+  ) {
+    const data = await this.messagesService.update(id, {
+      content: updateContentDto.content,
+      enContent: updateContentDto.enContent,
+      mentions: updateContentDto.mentions as any,
+      language: updateContentDto.language,
+    });
+    return {
+      data: data,
+      message: 'Message edited',
     };
   }
 

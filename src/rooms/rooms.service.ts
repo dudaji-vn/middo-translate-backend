@@ -909,6 +909,7 @@ export class RoomsService {
     newRoom.space = createRoomDto.space;
     newRoom.admin = creatorId as any;
     newRoom.readBy = createRoomDto.participants;
+    newRoom.fromDomain = createRoomDto.fromDomain;
 
     const room = await this.roomModel.create(newRoom);
     const responseRoom = await room.populate([
