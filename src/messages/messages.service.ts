@@ -39,7 +39,11 @@ import { Call } from 'src/call/schemas/call.schema';
 import { PinMessage } from './schemas/pin-messages.schema';
 import { convert } from 'html-to-text';
 import { generateSystemMessageContent } from './utils/generate-action-message-content';
-import { detectLanguage, multipleTranslate } from './utils/translate';
+import {
+  detectLanguage,
+  multipleTranslate,
+  translate,
+} from './utils/translate';
 import { logger } from 'src/common/utils/logger';
 import { DefaultTag, Space } from '../help-desk/schemas/space.schema';
 
@@ -174,16 +178,14 @@ export class MessagesService {
     createdMessage.action = createMessageDto.action || ActionTypes.NONE;
 
     if (createdMessage.content) {
-      if (!createdMessage?.language) {
-        createdMessage.language = await detectLanguage(createdMessage.content);
-      }
       const data = await this.translateMessageInRoom({
         content: createdMessage.content,
         sourceLang: createdMessage.language,
         participants: room.participants,
         enContent: createMessageDto.enContent,
       });
-      createdMessage.translations = data;
+      createdMessage.translations = data.translations;
+      createdMessage.language = data.sourceLang;
     }
 
     if (createdMessage.actions && createdMessage.actions.length > 0) {
@@ -372,16 +374,14 @@ export class MessagesService {
     }
 
     if (createdMessage.content) {
-      if (!createdMessage?.language) {
-        createdMessage.language = await detectLanguage(createdMessage.content);
-      }
       const data = await this.translateMessageInRoom({
         content: createdMessage.content,
         sourceLang: createdMessage.language,
         participants: room.participants,
         enContent: createMessageDto.enContent,
       });
-      createdMessage.translations = data;
+      createdMessage.translations = data.translations;
+      createdMessage.language = data.sourceLang;
     }
 
     if (createMessageDto.mentions && createMessageDto.mentions.length > 0) {
@@ -541,11 +541,7 @@ export class MessagesService {
     }
     if (updateMessageDto.content) {
       const content = updateMessageDto.content;
-      let language = updateMessageDto.language;
       const enContent = updateMessageDto.enContent;
-      if (!language) {
-        language = await detectLanguage(content);
-      }
       const message = await this.findById(id);
       const room = await this.roomsService.findById(
         message.room._id.toString(),
@@ -555,13 +551,14 @@ export class MessagesService {
       }
       const data = await this.translateMessageInRoom({
         content: content,
-        sourceLang: language,
+        sourceLang: updateMessageDto.language,
         participants: room.participants,
         enContent: enContent,
       });
-      const translations = data;
+
       updateMessageDto.status = MessageStatus.EDITED;
-      updateMessageDto.translations = translations;
+      updateMessageDto.translations = data.translations;
+      updateMessageDto.language = data.sourceLang;
       updateMessageDto.editHistory = [
         content,
         ...message.editHistory.map((item) => item),
@@ -575,6 +572,7 @@ export class MessagesService {
         _id: message._id,
         parent: message.parent,
         ...updateMessageDto,
+        editHistory: null,
       },
     });
     return message;
@@ -1403,26 +1401,57 @@ export class MessagesService {
     participants: User[];
     enContent?: string;
     content: string;
-    sourceLang: string;
+    sourceLang?: string;
   }) => {
-    let targetLangs = participants.map((p: any) => p.language);
-    if (!enContent) {
-      targetLangs.push('en');
-    } else {
-      targetLangs = targetLangs.filter((lang: string) => lang !== 'en');
+    // Get all languages in the room
+    console.log('Start ->');
+    const translations: Record<string, string> = {};
+    let targetLangs = participants.map((p) => p.language);
+    if (!sourceLang) {
+      console.log('detect language');
+      sourceLang = await detectLanguage(content);
+      console.log('sourceLang', sourceLang);
     }
+    translations[sourceLang] = content;
 
-    // Translate content
-    const data = await multipleTranslate({
-      content,
+    if (sourceLang !== 'en') {
+      if (!enContent) {
+        // Translate content to English first
+        console.log('translate content to English');
+        enContent = await translate(content, sourceLang, 'en');
+      }
+      translations.en = enContent;
+    }
+    console.log(1, translations);
+    // filter out sourceLang and en
+    targetLangs = targetLangs.filter(
+      (lang) => lang !== sourceLang && lang !== 'en',
+    );
+
+    console.log('filter out sourceLang and en', targetLangs);
+    if (targetLangs.length !== 0) {
+      // Translate content
+      console.log('translate content');
+      const data = await multipleTranslate({
+        content: translations.en,
+        sourceLang: 'en',
+        targetLangs,
+      });
+      console.log(2, {
+        ...translations,
+        ...data,
+      });
+      return {
+        translations: {
+          ...translations,
+          ...data,
+        },
+        sourceLang,
+      };
+    }
+    return {
+      translations,
       sourceLang,
-      targetLangs,
-    });
-
-    // Save translations
-    if (enContent) {
-      data.en = enContent;
-    }
-    return data;
+    };
   };
 }
