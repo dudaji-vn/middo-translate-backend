@@ -29,7 +29,7 @@ export async function translate(text: string, from?: string, to?: string) {
       },
     );
     const json = await response.json();
-    return json.data;
+    return json.data as string;
   } catch (error) {
     return '';
   }

@@ -13,4 +13,7 @@ export class EditClientDto {
 
   @IsMongoId()
   spaceId: string;
+
+  @IsMongoId()
+  roomId: string;
 }
