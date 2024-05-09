@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  GoneException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -18,7 +19,7 @@ import { socketConfig } from 'src/configs/socket.config';
 import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
 import { AnalystType } from 'src/help-desk/dto/analyst-query-dto';
 import { ChartQueryDto } from 'src/help-desk/dto/chart-query-dto';
-import { Message } from 'src/messages/schemas/messages.schema';
+import { Message, SenderType } from 'src/messages/schemas/messages.schema';
 import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
 import { RecommendQueryDto } from 'src/recommendation/dto/recommend-query-dto';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
@@ -34,6 +35,8 @@ import {
   StatusSpace,
   Tag,
 } from 'src/help-desk/schemas/space.schema';
+import * as moment from 'moment';
+import { envConfig } from 'src/configs/env.config';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -198,18 +201,15 @@ export class RoomsService {
     return room;
   }
 
-  async findByIdAndUserId(id: string, userId: string, inCludeDeleted = false) {
+  async findByIdAndUserId(id: string, userId: string, ignoreExpiredAt = false) {
     const user = await this.usersService.findById(userId);
     let room = await this.roomModel.findOne({
       _id: id,
       participants: userId,
-      ...(inCludeDeleted
-        ? {}
-        : {
-            status: {
-              $in: [RoomStatus.ACTIVE, RoomStatus.ARCHIVED],
-            },
-          }),
+
+      status: {
+        $in: [RoomStatus.ACTIVE, RoomStatus.ARCHIVED],
+      },
     });
 
     if (!room) {
@@ -219,7 +219,7 @@ export class RoomsService {
           $all: participantIds,
           $size: participantIds.length,
         },
-        ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
+        status: RoomStatus.ACTIVE,
       });
     }
     if (!room) {
@@ -268,6 +268,13 @@ export class RoomsService {
     });
     let chatFlow = null;
     if (data.isHelpDesk) {
+      if (
+        !ignoreExpiredAt &&
+        room.expiredAt &&
+        moment().isAfter(room.expiredAt)
+      ) {
+        throw new GoneException(`Room ${data._id} is expired`);
+      }
       const space = data.space as Space;
       if (
         user.status !== UserStatus.ANONYMOUS &&
@@ -911,6 +918,9 @@ export class RoomsService {
     newRoom.admin = creatorId as any;
     newRoom.readBy = createRoomDto.participants;
     newRoom.fromDomain = createRoomDto.fromDomain;
+    newRoom.expiredAt = moment()
+      .add(envConfig.helpDesk.room.expireIn, 'seconds')
+      .toDate();
 
     const room = await this.roomModel.create(newRoom);
     const responseRoom = await room.populate([
@@ -935,18 +945,27 @@ export class RoomsService {
       { new: true },
     );
   }
-  async updateReadByWhenSendNewMessage(roomId: ObjectId, userId: string) {
+  async updateRoomHelpDesk(
+    roomId: ObjectId,
+    userId: string,
+    senderType?: SenderType,
+  ) {
     return await this.roomModel.findByIdAndUpdate(
       roomId,
       {
         readBy: [userId],
+        ...(senderType === SenderType.ANONYMOUS && {
+          expiredAt: moment()
+            .add(envConfig.helpDesk.room.expireIn, 'seconds')
+            .toDate(),
+        }),
       },
       { new: true },
     );
   }
 
   async changeRoomStatus(id: string, userId: string, status: RoomStatus) {
-    const room = await this.findByIdAndUserId(id, userId, true);
+    const room = await this.findByIdAndUserId(id, userId);
     if (!room) {
       throw new Error('Room not found');
     }
@@ -963,7 +982,7 @@ export class RoomsService {
   }
 
   async changeTagRoom(id: string, userId: string, tagId: string) {
-    const room = await this.findByIdAndUserId(id, userId, true);
+    const room = await this.findByIdAndUserId(id, userId);
     if (!room) {
       throw new Error('Room not found');
     }
@@ -1213,7 +1232,7 @@ export class RoomsService {
     const space = room.space as Space;
     if (space && space.tags && room.tag) {
       tag = space.tags.find(
-        (tag) => tag._id.toString() === room.tag.toString(),
+        (tag) => tag._id.toString() === room.tag?.toString(),
       );
     }
     return tag;

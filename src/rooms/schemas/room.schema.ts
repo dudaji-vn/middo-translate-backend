@@ -84,6 +84,9 @@ export class Room {
 
   @Prop({ type: String })
   fromDomain: string;
+
+  @Prop({ type: Date })
+  expiredAt: Date;
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);
