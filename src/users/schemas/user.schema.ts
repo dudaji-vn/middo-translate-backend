@@ -81,6 +81,9 @@ export class User {
 
   @Prop({ type: String })
   phoneNumber: string;
+
+  @Prop({ type: String })
+  ip?: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

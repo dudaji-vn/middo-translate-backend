@@ -81,6 +81,7 @@ export class HelpDeskService {
       name: info.name,
       language: info.language,
       tempEmail: info.email,
+      ip: info.ip,
     });
 
     const participants: any = business.space.members
