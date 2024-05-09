@@ -273,7 +273,7 @@ export class RoomsService {
         room.expiredAt &&
         moment().isAfter(room.expiredAt)
       ) {
-        throw new GoneException(`Room ${data._id} is expired`);
+        throw new NotFoundException('Room not found');
       }
       const space = data.space as Space;
       if (
