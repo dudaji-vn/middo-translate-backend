@@ -56,7 +56,7 @@ export const envConfig = {
   },
   helpDesk: {
     room: {
-      expireIn: process.env.HELP_DESK_ROOM_EXPIRES_IN || 60,
+      expireIn: process.env.HELP_DESK_ROOM_EXPIRES_IN || 60 * 60 * 24,
     },
   },
 };
