@@ -26,9 +26,4 @@ export class CreateClientDto {
   @IsOptional()
   @IsString()
   fromDomain: string;
-
-  @ApiProperty()
-  @IsOptional()
-  @IsString()
-  ip: string;
 }
