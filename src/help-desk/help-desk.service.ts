@@ -442,6 +442,14 @@ export class HelpDeskService {
       })
       .select('-space')
       .lean();
+
+    const countries = await this.userModel
+      .find({
+        business: extension?._id,
+      })
+      .select('language')
+      .lean();
+
     space.members = space.members?.filter(
       (user) => user.status !== MemberStatus.DELETED,
     );
@@ -449,6 +457,7 @@ export class HelpDeskService {
     return {
       ...space,
       extension: extension,
+      countries: [...new Set(countries.map((item) => item.language))],
     };
   }
 
