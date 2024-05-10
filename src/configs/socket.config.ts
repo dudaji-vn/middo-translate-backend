@@ -15,6 +15,7 @@ export const socketConfig = {
         leave: 'message.reply.leave',
         update: 'message.reply.update',
         remove: 'message.reply.remove',
+        count: 'message.reply.count',
       },
       pin: 'message.pin',
     },

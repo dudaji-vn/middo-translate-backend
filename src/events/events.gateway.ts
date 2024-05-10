@@ -224,6 +224,12 @@ export class EventsGateway
         message,
         clientTempId: clientTempId,
       });
+    this.server
+      .to(replyToMessageId)
+      .emit(socketConfig.events.message.reply.count, {
+        message,
+        clientTempId: clientTempId,
+      });
   }
 
   // pin message events

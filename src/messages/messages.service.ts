@@ -1404,43 +1404,46 @@ export class MessagesService {
     sourceLang?: string;
   }) => {
     // Get all languages in the room
-    console.log('Start ->');
+    logger.info('Start ->');
     const translations: Record<string, string> = {};
     let targetLangs = participants.map((p) => p.language);
     if (!sourceLang) {
-      console.log('detect language');
+      logger.info('detect language');
       sourceLang = await detectLanguage(content);
-      console.log('sourceLang', sourceLang);
+      logger.info('sourceLang', sourceLang);
     }
     translations[sourceLang] = content;
 
     if (sourceLang !== 'en') {
       if (!enContent) {
         // Translate content to English first
-        console.log('translate content to English');
+        logger.info('translate content to English');
         enContent = await translate(content, sourceLang, 'en');
       }
       translations.en = enContent;
     }
-    console.log(1, translations);
+    logger.info('1', JSON.stringify(translations));
     // filter out sourceLang and en
     targetLangs = targetLangs.filter(
       (lang) => lang !== sourceLang && lang !== 'en',
     );
 
-    console.log('filter out sourceLang and en', targetLangs);
+    logger.info('filter out sourceLang and en', JSON.stringify(targetLangs));
     if (targetLangs.length !== 0) {
       // Translate content
-      console.log('translate content');
+      logger.info('translate content');
       const data = await multipleTranslate({
         content: translations.en,
         sourceLang: 'en',
         targetLangs,
       });
-      console.log(2, {
-        ...translations,
-        ...data,
-      });
+      logger.info(
+        '2',
+        JSON.stringify({
+          ...translations,
+          ...data,
+        }),
+      );
       return {
         translations: {
           ...translations,
