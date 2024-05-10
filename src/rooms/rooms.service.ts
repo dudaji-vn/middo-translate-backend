@@ -270,6 +270,7 @@ export class RoomsService {
     if (data.isHelpDesk) {
       if (
         !ignoreExpiredAt &&
+        user.status === UserStatus.ANONYMOUS &&
         room.expiredAt &&
         moment().isAfter(room.expiredAt)
       ) {
@@ -300,12 +301,30 @@ export class RoomsService {
       type?: 'all' | 'group' | 'individual' | 'help-desk' | 'unread-help-desk';
       spaceId?: string;
       status?: RoomStatus;
+      countries?: string[];
+      domains?: string[];
+      tags?: string[];
     },
     userId: string,
   ): Promise<Pagination<Room, CursorPaginationInfo>> {
-    const { limit = 10, cursor, type, status, spaceId } = queryParams;
+    const {
+      limit = 10,
+      cursor,
+      type,
+      status,
+      spaceId,
+      countries = [],
+      domains,
+      tags,
+    } = queryParams;
 
     const user = await this.usersService.findById(userId);
+    let userIds: ObjectId[] = [];
+    if (spaceId && countries.length > 0) {
+      userIds = (
+        await this.usersService.findBySpaceAndCountries(spaceId, countries)
+      ).map((item) => item._id);
+    }
 
     const query: FilterQuery<Room> = {
       _id: {
@@ -318,6 +337,7 @@ export class RoomsService {
       status: {
         $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED],
       },
+      ...(userIds.length > 0 ? { participants: { $in: userIds } } : {}),
       ...(status ? { status: status } : {}),
       deleteFor: { $nin: [userId] },
       isHelpDesk: { $ne: true },

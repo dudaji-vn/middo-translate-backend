@@ -165,7 +165,7 @@ export class MessagesService {
       room = await this.roomsService.findByIdAndUserId(
         createMessageDto.roomId,
         user._id.toString(),
-        createMessageDto.senderType === SenderType.ANONYMOUS,
+        true,
       );
     }
     const createdMessage = new this.messageModel();
