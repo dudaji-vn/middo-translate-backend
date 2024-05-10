@@ -333,7 +333,21 @@ export class HelpDeskService {
             {
               $match: {
                 $expr: {
-                  $eq: ['$$spaceId', '$space'],
+                  $and: [
+                    { $eq: ['$$spaceId', '$space'] },
+                    { $eq: [RoomStatus.ACTIVE, '$status'] },
+                    {
+                      $eq: [
+                        {
+                          $indexOfArray: [
+                            '$deleteFor',
+                            new mongoose.Types.ObjectId(userId),
+                          ],
+                        },
+                        -1,
+                      ],
+                    },
+                  ],
                 },
               },
             },
