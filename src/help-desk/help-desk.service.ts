@@ -300,65 +300,106 @@ export class HelpDeskService {
     if (!user) {
       throw new BadRequestException('User not found');
     }
-    let dataPromise;
-    switch (type) {
-      case 'my_spaces':
-        dataPromise = this.spaceModel.find({
-          owner: userId,
-          status: { $ne: StatusSpace.DELETED },
-        });
-
-        break;
-      case 'joined_spaces':
-        dataPromise = this.spaceModel.find({
-          owner: { $ne: user._id },
-          status: { $ne: StatusSpace.DELETED },
-          members: {
-            $elemMatch: {
-              email: user.email,
-              status: MemberStatus.JOINED,
-            },
-          },
-        });
-        break;
-      default:
-        dataPromise = this.spaceModel.find({
-          status: { $ne: StatusSpace.DELETED },
-          $or: [
+    const query = [
+      {
+        $match: {
+          status: StatusSpace.ACTIVE,
+          'members.user': new Types.ObjectId(userId),
+          ...(type === 'my_spaces' && { owner: new Types.ObjectId(userId) }),
+          ...(type === 'joined_spaces' && {
+            owner: { $ne: new Types.ObjectId(userId) },
+          }),
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'owner',
+          foreignField: '_id',
+          as: 'owner',
+        },
+      },
+      {
+        $addFields: {
+          owner: { $arrayElemAt: ['$owner', 0] },
+        },
+      },
+      {
+        $lookup: {
+          from: 'rooms',
+          let: { spaceId: '$_id' },
+          pipeline: [
             {
-              members: {
-                $elemMatch: {
-                  email: user.email,
-                  status: MemberStatus.JOINED,
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$$spaceId', '$space'] },
+                    { $eq: [RoomStatus.ACTIVE, '$status'] },
+                    {
+                      $eq: [
+                        {
+                          $indexOfArray: [
+                            '$readBy',
+                            new mongoose.Types.ObjectId(userId),
+                          ],
+                        },
+                        -1,
+                      ],
+                    },
+                    {
+                      $eq: [
+                        {
+                          $indexOfArray: [
+                            '$deleteFor',
+                            new mongoose.Types.ObjectId(userId),
+                          ],
+                        },
+                        -1,
+                      ],
+                    },
+                  ],
                 },
               },
             },
-            {
-              owner: userId,
-            },
           ],
-        });
-    }
-    const data = await dataPromise
-      .sort({ _id: -1 })
-      .populate('owner', 'email')
-      .select(
-        'name avatar backgroundImage joinedAt createdAt members.email members.joinedAt members.status',
-      )
-      .lean();
+          as: 'rooms',
+        },
+      },
+      {
+        $addFields: {
+          totalNewMessages: { $size: '$rooms' },
+        },
+      },
+      {
+        $project: {
+          name: 1,
+          avatar: 1,
+          backgroundImage: 1,
+          joinedAt: 1,
+          createdAt: 1,
+          'members.email': 1,
+          'members.joinedAt': 1,
+          'members.status': 1,
+          'owner.email': 1,
+          'owner._id': 1,
+          totalNewMessages: 1,
+        },
+      },
+    ];
+
+    const data = await this.spaceModel.aggregate(query).sort({ _id: -1 });
 
     return data.map((item) => {
-      const members = item.members.filter(
+      const members = (item.members as Member[]).filter(
         (user) => user.status === MemberStatus.JOINED,
       );
-      const joinedAt = item.members.find(
-        (item) => item.email === user.email,
+      const joinedAt = (item.members as Member[]).find(
+        (item) => item.user?.toString() === user._id.toString(),
       )?.joinedAt;
       return {
         ...item,
         members: members,
         joinedAt: joinedAt,
-        totalNewMessages: 3,
         totalMembers: members.length,
       };
     });
