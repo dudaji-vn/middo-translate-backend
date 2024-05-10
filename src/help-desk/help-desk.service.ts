@@ -304,8 +304,7 @@ export class HelpDeskService {
       {
         $match: {
           status: StatusSpace.ACTIVE,
-          'members.email': user.email,
-          'members.status': MemberStatus.JOINED,
+          'members.user': new Types.ObjectId(userId),
           ...(type === 'my_spaces' && { owner: new Types.ObjectId(userId) }),
           ...(type === 'joined_spaces' && {
             owner: { $ne: new Types.ObjectId(userId) },
@@ -340,6 +339,17 @@ export class HelpDeskService {
                       $eq: [
                         {
                           $indexOfArray: [
+                            '$readBy',
+                            new mongoose.Types.ObjectId(userId),
+                          ],
+                        },
+                        -1,
+                      ],
+                    },
+                    {
+                      $eq: [
+                        {
+                          $indexOfArray: [
                             '$deleteFor',
                             new mongoose.Types.ObjectId(userId),
                           ],
@@ -351,48 +361,13 @@ export class HelpDeskService {
                 },
               },
             },
-            {
-              $lookup: {
-                from: 'messages',
-                let: { roomId: '$_id' },
-                pipeline: [
-                  {
-                    $match: {
-                      $expr: {
-                        $and: [
-                          { $eq: ['$room', '$$roomId'] },
-                          {
-                            $eq: [
-                              {
-                                $indexOfArray: [
-                                  '$readBy',
-                                  new mongoose.Types.ObjectId(userId),
-                                ],
-                              },
-                              -1,
-                            ],
-                          },
-                          { $eq: ['$senderType', 'anonymous'] },
-                        ],
-                      },
-                    },
-                  },
-                ],
-                as: 'messages',
-              },
-            },
-            {
-              $addFields: {
-                totalNewMessages: { $size: '$messages' },
-              },
-            },
           ],
           as: 'rooms',
         },
       },
       {
         $addFields: {
-          totalNewMessages: { $sum: '$rooms.totalNewMessages' },
+          totalNewMessages: { $size: '$rooms' },
         },
       },
       {
@@ -412,7 +387,7 @@ export class HelpDeskService {
       },
     ];
 
-    const data = await this.spaceModel.aggregate(query);
+    const data = await this.spaceModel.aggregate(query).sort({ _id: -1 });
 
     return data.map((item) => {
       const members = (item.members as Member[]).filter(
