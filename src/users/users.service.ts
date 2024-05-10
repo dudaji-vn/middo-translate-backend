@@ -320,4 +320,12 @@ export class UsersService {
       items: data,
     };
   }
+  async findBySpaceAndCountries(spaceId: string, countries: string[]) {
+    return await this.userModel
+      .find({
+        space: spaceId,
+        language: { $in: countries },
+      })
+      .lean();
+  }
 }

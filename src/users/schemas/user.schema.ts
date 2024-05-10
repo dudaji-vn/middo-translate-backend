@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 import { HelpDeskBusiness } from 'src/help-desk/schemas/help-desk-business.schema';
+import { Space } from 'src/help-desk/schemas/space.schema';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -72,9 +73,15 @@ export class User {
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
-    ref: HelpDeskBusiness.name,
+    ref: 'HelpDeskBusiness',
   })
   business: HelpDeskBusiness;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: Space.name,
+  })
+  space: Space;
 
   @Prop({ type: String, default: false })
   tempEmail: string;
