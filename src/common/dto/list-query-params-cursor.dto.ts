@@ -1,4 +1,4 @@
-import { IsOptional, IsString, Min } from 'class-validator';
+import { IsMongoId, IsOptional, IsString, Min } from 'class-validator';
 
 import { Transform } from 'class-transformer';
 import { ParseArrayPipe, Query } from '@nestjs/common';
@@ -27,7 +27,7 @@ export class ListQueryParamsCursorDto {
   readonly domains: string[];
 
   @IsOptional()
-  @IsString({ each: true })
+  @IsMongoId({ each: true })
   @Transform(({ value }: { value: string }) => {
     return !value ? [] : value.split(',');
   })
