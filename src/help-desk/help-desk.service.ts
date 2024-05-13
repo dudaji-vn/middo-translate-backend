@@ -81,6 +81,7 @@ export class HelpDeskService {
       name: info.name,
       language: info.language,
       tempEmail: info.email,
+      space: business.space._id,
     });
 
     const participants: any = business.space.members
@@ -441,6 +442,14 @@ export class HelpDeskService {
       })
       .select('-space')
       .lean();
+
+    const countries = await this.userModel
+      .find({
+        business: extension?._id,
+      })
+      .select('language')
+      .lean();
+
     space.members = space.members?.filter(
       (user) => user.status !== MemberStatus.DELETED,
     );
@@ -448,6 +457,7 @@ export class HelpDeskService {
     return {
       ...space,
       extension: extension,
+      countries: [...new Set(countries.map((item) => item.language))],
     };
   }
 
@@ -1636,34 +1646,16 @@ export class HelpDeskService {
   }
 
   async addMissingData() {
-    await this.spaceModel.updateMany(
-      { tags: { $exists: false } },
-      {
-        $set: {
-          tags: [
-            { name: 'pending', color: '#FF3333', isReadonly: true },
-            { name: 'completed', color: '#00B512', isReadonly: true },
-          ],
-        },
-      },
-    );
-    const spaces = await this.spaceModel.find().populate('owner');
-
-    for (const space of spaces) {
-      if (!space.bot) {
-        const bot = await this.userModel.create({
-          status: UserStatus.BOT,
-          email: `${generateSlug()}@gmail.com`,
-          name: space.name,
-          language: (space.owner as User).language,
-          avatar: space.avatar,
-        });
-        space.bot = bot;
+    const users = await this.userModel
+      .find({ business: { $exists: true } })
+      .populate('business');
+    for (let user of users) {
+      if (user.business) {
+        user.space = user.business.space;
+        user.save();
       }
-
-      await space.save();
     }
-    return spaces;
+    return users;
   }
 
   async deleteTag(tagId: string, spaceId: string, userId: string) {

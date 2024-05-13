@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  GoneException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -18,7 +19,7 @@ import { socketConfig } from 'src/configs/socket.config';
 import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
 import { AnalystType } from 'src/help-desk/dto/analyst-query-dto';
 import { ChartQueryDto } from 'src/help-desk/dto/chart-query-dto';
-import { Message } from 'src/messages/schemas/messages.schema';
+import { Message, SenderType } from 'src/messages/schemas/messages.schema';
 import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
 import { RecommendQueryDto } from 'src/recommendation/dto/recommend-query-dto';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
@@ -34,6 +35,8 @@ import {
   StatusSpace,
   Tag,
 } from 'src/help-desk/schemas/space.schema';
+import * as moment from 'moment';
+import { envConfig } from 'src/configs/env.config';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -198,18 +201,15 @@ export class RoomsService {
     return room;
   }
 
-  async findByIdAndUserId(id: string, userId: string, inCludeDeleted = false) {
+  async findByIdAndUserId(id: string, userId: string, ignoreExpiredAt = false) {
     const user = await this.usersService.findById(userId);
     let room = await this.roomModel.findOne({
       _id: id,
       participants: userId,
-      ...(inCludeDeleted
-        ? {}
-        : {
-            status: {
-              $in: [RoomStatus.ACTIVE, RoomStatus.ARCHIVED],
-            },
-          }),
+
+      status: {
+        $in: [RoomStatus.ACTIVE, RoomStatus.ARCHIVED],
+      },
     });
 
     if (!room) {
@@ -219,7 +219,7 @@ export class RoomsService {
           $all: participantIds,
           $size: participantIds.length,
         },
-        ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
+        status: RoomStatus.ACTIVE,
       });
     }
     if (!room) {
@@ -268,6 +268,14 @@ export class RoomsService {
     });
     let chatFlow = null;
     if (data.isHelpDesk) {
+      if (
+        !ignoreExpiredAt &&
+        user.status === UserStatus.ANONYMOUS &&
+        room.expiredAt &&
+        moment().isAfter(room.expiredAt)
+      ) {
+        throw new NotFoundException('Room not found');
+      }
       const space = data.space as Space;
       if (
         user.status !== UserStatus.ANONYMOUS &&
@@ -293,12 +301,30 @@ export class RoomsService {
       type?: 'all' | 'group' | 'individual' | 'help-desk' | 'unread-help-desk';
       spaceId?: string;
       status?: RoomStatus;
+      domains?: string[];
+      tags?: string[];
+      countries: string[];
     },
     userId: string,
   ): Promise<Pagination<Room, CursorPaginationInfo>> {
-    const { limit = 10, cursor, type, status, spaceId } = queryParams;
+    const {
+      limit = 10,
+      cursor,
+      type,
+      status,
+      spaceId,
+      domains,
+      tags,
+      countries = [],
+    } = queryParams;
 
     const user = await this.usersService.findById(userId);
+    let userIds: ObjectId[] = [];
+    if (spaceId && countries && countries.length > 0) {
+      userIds = (
+        await this.usersService.findBySpaceAndCountries(spaceId, countries)
+      ).map((item) => item._id);
+    }
 
     const query: FilterQuery<Room> = {
       _id: {
@@ -312,6 +338,18 @@ export class RoomsService {
         $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED],
       },
       ...(status ? { status: status } : {}),
+      ...(countries && countries.length > 0
+        ? {
+            $and: [
+              { participants: { $in: userIds } },
+              { participants: userId },
+            ],
+          }
+        : {}),
+      ...(tags && tags.length > 0 ? { tag: { $in: tags } } : {}),
+      ...(domains && domains.length > 0
+        ? { fromDomain: { $in: domains } }
+        : {}),
       deleteFor: { $nin: [userId] },
       isHelpDesk: { $ne: true },
       ...(type === 'group' ? { isGroup: true } : {}),
@@ -383,7 +421,7 @@ export class RoomsService {
     };
     if (type === 'help-desk' || type === 'unread-help-desk') {
       const space = rooms[0]?.space as Space;
-      if (!this.isAccessRoomBySpace(space, userId)) {
+      if (rooms.length > 0 && !this.isAccessRoomBySpace(space, userId)) {
         throw new ForbiddenException(
           'You do not have permission to view rooms in this space',
         );
@@ -911,6 +949,9 @@ export class RoomsService {
     newRoom.admin = creatorId as any;
     newRoom.readBy = createRoomDto.participants;
     newRoom.fromDomain = createRoomDto.fromDomain;
+    newRoom.expiredAt = moment()
+      .add(envConfig.helpDesk.room.expireIn, 'seconds')
+      .toDate();
 
     const room = await this.roomModel.create(newRoom);
     const responseRoom = await room.populate([
@@ -935,18 +976,27 @@ export class RoomsService {
       { new: true },
     );
   }
-  async updateReadByWhenSendNewMessage(roomId: ObjectId, userId: string) {
+  async updateRoomHelpDesk(
+    roomId: ObjectId,
+    userId: string,
+    senderType?: SenderType,
+  ) {
     return await this.roomModel.findByIdAndUpdate(
       roomId,
       {
         readBy: [userId],
+        ...(senderType === SenderType.ANONYMOUS && {
+          expiredAt: moment()
+            .add(envConfig.helpDesk.room.expireIn, 'seconds')
+            .toDate(),
+        }),
       },
       { new: true },
     );
   }
 
   async changeRoomStatus(id: string, userId: string, status: RoomStatus) {
-    const room = await this.findByIdAndUserId(id, userId, true);
+    const room = await this.findByIdAndUserId(id, userId);
     if (!room) {
       throw new Error('Room not found');
     }
@@ -963,7 +1013,7 @@ export class RoomsService {
   }
 
   async changeTagRoom(id: string, userId: string, tagId: string) {
-    const room = await this.findByIdAndUserId(id, userId, true);
+    const room = await this.findByIdAndUserId(id, userId);
     if (!room) {
       throw new Error('Room not found');
     }
@@ -1213,7 +1263,7 @@ export class RoomsService {
     const space = room.space as Space;
     if (space && space.tags && room.tag) {
       tag = space.tags.find(
-        (tag) => tag._id.toString() === room.tag.toString(),
+        (tag) => tag._id.toString() === room.tag?.toString(),
       );
     }
     return tag;

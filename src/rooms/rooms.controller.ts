@@ -6,7 +6,6 @@ import {
   Patch,
   Post,
   Query,
-  Req,
 } from '@nestjs/common';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
 import { ListQueryParamsCursorDto } from 'src/common/dto';
@@ -27,7 +26,6 @@ import {
 } from './dto/update-room.dto';
 import { HelpDeskService } from 'src/help-desk/help-desk.service';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
-import { Request } from 'express';
 
 @Controller('rooms')
 export class RoomsController {
@@ -332,12 +330,5 @@ export class RoomsController {
   ): Promise<Response<boolean>> {
     const result = await this.roomsService.changeTagRoom(id, userId, tagId);
     return { message: 'Changed room tag', data: result };
-  }
-
-  @Public()
-  @Get('try-get-ip/test')
-  async tryGetIpAddress(@Req() req: Request) {
-    const ip = req.connection.remoteAddress;
-    return ip?.toString();
   }
 }

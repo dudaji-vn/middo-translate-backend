@@ -165,6 +165,7 @@ export class MessagesService {
       room = await this.roomsService.findByIdAndUserId(
         createMessageDto.roomId,
         user._id.toString(),
+        true,
       );
     }
     const createdMessage = new this.messageModel();
@@ -265,9 +266,10 @@ export class MessagesService {
       ) {
         createdMessage.sender = room.space.bot;
       }
-      await this.roomsService.updateReadByWhenSendNewMessage(
+      await this.roomsService.updateRoomHelpDesk(
         room._id,
         user._id.toString(),
+        createMessageDto.senderType,
       );
     }
     const newMessage = await createdMessage.save();
