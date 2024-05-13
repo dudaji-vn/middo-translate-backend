@@ -282,4 +282,10 @@ export class HelpDeskController {
       data: result,
     };
   }
+
+  // @Public()
+  // @Get('add-missing-data')
+  // async addMissingData() {
+  //   return await this.helpDeskService.addMissingData();
+  // }
 }
