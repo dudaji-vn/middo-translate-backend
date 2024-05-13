@@ -317,7 +317,6 @@ export class RoomsService {
       tags,
       countries = [],
     } = queryParams;
-    console.log(tags);
 
     const user = await this.usersService.findById(userId);
     let userIds: ObjectId[] = [];
