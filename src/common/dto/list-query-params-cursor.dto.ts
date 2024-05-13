@@ -1,6 +1,7 @@
-import { IsOptional, Min } from 'class-validator';
+import { IsOptional, IsString, Min } from 'class-validator';
 
 import { Transform } from 'class-transformer';
+import { ParseArrayPipe, Query } from '@nestjs/common';
 
 export class ListQueryParamsCursorDto {
   @IsOptional()
@@ -10,4 +11,25 @@ export class ListQueryParamsCursorDto {
 
   @IsOptional()
   readonly cursor: string;
+
+  @IsOptional()
+  @IsString({ each: true })
+  @Transform(({ value }: { value: string }) => {
+    return !value ? [] : value.split(',');
+  })
+  readonly countries: string[];
+
+  @IsOptional()
+  @IsString({ each: true })
+  @Transform(({ value }: { value: string }) => {
+    return !value ? [] : value.split(',');
+  })
+  readonly domains: string[];
+
+  @IsOptional()
+  @IsString({ each: true })
+  @Transform(({ value }: { value: string }) => {
+    return !value ? [] : value.split(',');
+  })
+  readonly tags: string[];
 }

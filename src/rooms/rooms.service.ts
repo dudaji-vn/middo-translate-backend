@@ -301,9 +301,9 @@ export class RoomsService {
       type?: 'all' | 'group' | 'individual' | 'help-desk' | 'unread-help-desk';
       spaceId?: string;
       status?: RoomStatus;
-      countries?: string[];
       domains?: string[];
       tags?: string[];
+      countries: string[];
     },
     userId: string,
   ): Promise<Pagination<Room, CursorPaginationInfo>> {
@@ -313,14 +313,15 @@ export class RoomsService {
       type,
       status,
       spaceId,
-      countries = [],
       domains,
       tags,
+      countries = [],
     } = queryParams;
+    console.log(tags);
 
     const user = await this.usersService.findById(userId);
     let userIds: ObjectId[] = [];
-    if (spaceId && countries.length > 0) {
+    if (spaceId && countries && countries.length > 0) {
       userIds = (
         await this.usersService.findBySpaceAndCountries(spaceId, countries)
       ).map((item) => item._id);
@@ -337,8 +338,19 @@ export class RoomsService {
       status: {
         $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED],
       },
-      ...(userIds.length > 0 ? { participants: { $in: userIds } } : {}),
       ...(status ? { status: status } : {}),
+      ...(countries && countries.length > 0
+        ? {
+            $and: [
+              { participants: { $in: userIds } },
+              { participants: userId },
+            ],
+          }
+        : {}),
+      ...(tags && tags.length > 0 ? { tag: { $in: tags } } : {}),
+      ...(domains && domains.length > 0
+        ? { fromDomain: { $in: domains } }
+        : {}),
       deleteFor: { $nin: [userId] },
       isHelpDesk: { $ne: true },
       ...(type === 'group' ? { isGroup: true } : {}),
@@ -410,7 +422,7 @@ export class RoomsService {
     };
     if (type === 'help-desk' || type === 'unread-help-desk') {
       const space = rooms[0]?.space as Space;
-      if (!this.isAccessRoomBySpace(space, userId)) {
+      if (rooms.length > 0 && !this.isAccessRoomBySpace(space, userId)) {
         throw new ForbiddenException(
           'You do not have permission to view rooms in this space',
         );
