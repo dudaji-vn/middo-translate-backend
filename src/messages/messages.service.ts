@@ -34,7 +34,7 @@ import { convertMessageRemoved } from './utils/convert-message-removed';
 import { NotificationService } from 'src/notifications/notifications.service';
 import { envConfig } from 'src/configs/env.config';
 import { ForwardMessageDto } from './dto/forward-message.dto';
-import { Room } from 'src/rooms/schemas/room.schema';
+import { Room, RoomStatus } from 'src/rooms/schemas/room.schema';
 import { Call } from 'src/call/schemas/call.schema';
 import { PinMessage } from './schemas/pin-messages.schema';
 import { convert } from 'html-to-text';
@@ -307,6 +307,7 @@ export class MessagesService {
     this.roomsService.updateRoom(String(newMessage.room._id), {
       lastMessage: newMessageWithSender,
       newMessageAt: new Date(),
+      status: RoomStatus.ACTIVE,
       deleteFor: [],
     });
     this.eventEmitter.emit(socketConfig.events.message.new, socketPayload);
