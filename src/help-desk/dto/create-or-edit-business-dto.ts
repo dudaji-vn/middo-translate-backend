@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsMongoId,
+  IsOptional,
   IsString,
   MinLength,
   ValidateNested,
@@ -44,6 +45,11 @@ export class CreateOrEditBusinessDto {
   @ApiProperty()
   @IsMongoId()
   spaceId: string;
+
+  @ApiProperty()
+  @IsOptional()
+  @IsMongoId()
+  currentScript: string | null;
 
   space: string;
   user: any;

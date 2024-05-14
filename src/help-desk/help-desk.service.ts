@@ -35,7 +35,7 @@ import { envConfig } from 'src/configs/env.config';
 import { socketConfig } from 'src/configs/socket.config';
 import { MailService } from 'src/mail/mail.service';
 import { MessagesService } from 'src/messages/messages.service';
-import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
+import { CreateOrEditBusinessDto as CreateOrEditExtensionDto } from './dto/create-or-edit-business-dto';
 import {
   CreateOrEditSpaceDto,
   CreateOrEditTagDto,
@@ -45,8 +45,10 @@ import {
 } from './dto/create-or-edit-space-dto';
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
 import { SpaceNotification } from './schemas/space-notifications.schema';
-import { Member, Space, StatusSpace } from './schemas/space.schema';
+import { Member, Script, Space, StatusSpace } from './schemas/space.schema';
 import { CreateClientDto } from './dto/create-client-dto';
+import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
+import { ChatFlow } from './schemas/chat-flow.schema';
 
 @Injectable()
 export class HelpDeskService {
@@ -59,6 +61,8 @@ export class HelpDeskService {
     private spaceModel: Model<Space>,
     @InjectModel(SpaceNotification.name)
     private spaceNotificationModel: Model<SpaceNotification>,
+    @InjectModel(Script.name)
+    private scriptModel: Model<Script>,
     private userService: UsersService,
     private roomsService: RoomsService,
     private messagesService: MessagesService,
@@ -103,7 +107,7 @@ export class HelpDeskService {
     );
 
     if (
-      !business.chatFlow &&
+      !business.currentScript &&
       business.firstMessage &&
       business.firstMessageEnglish
     ) {
@@ -127,7 +131,7 @@ export class HelpDeskService {
     };
   }
 
-  async createOrEditExtension(userId: string, info: CreateOrEditBusinessDto) {
+  async createOrEditExtension(userId: string, info: CreateOrEditExtensionDto) {
     const space = await this.spaceModel.findOne({
       _id: info.spaceId,
       status: { $ne: StatusSpace.DELETED },
@@ -135,21 +139,31 @@ export class HelpDeskService {
     if (!space) {
       throw new BadRequestException('Space not found');
     }
-
-    info.status = StatusBusiness.ACTIVE;
-    if (info.chatFlow) {
-      info.firstMessage = '';
-      info.firstMessageEnglish = '';
-    } else {
-      info.chatFlow = null;
-    }
-    info.space = info.spaceId;
     if (!this.isAdminSpace(space.members, userId)) {
       throw new ForbiddenException(
         'You do not have permission to create or edit extensions',
       );
     }
+    info.status = StatusBusiness.ACTIVE;
+    info.space = info.spaceId;
     info.user = userId;
+
+    if (info.currentScript) {
+      const script = await this.scriptModel.find({
+        _id: info.currentScript,
+        isDeleted: { $ne: true },
+      });
+      if (!script) {
+        throw new BadRequestException(
+          `Script ${info.currentScript} not exist in this space`,
+        );
+      }
+      info.firstMessage = '';
+      info.firstMessageEnglish = '';
+    } else {
+      info.currentScript = null;
+    }
+
     const extension = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
         space: info.spaceId,
@@ -293,6 +307,52 @@ export class HelpDeskService {
     }
   }
 
+  async createOrEditScript(userId: string, payload: CreateOrEditScriptDto) {
+    const { spaceId, name, chatFlow, scriptId } = payload;
+    const space = await this.spaceModel.findOne({
+      _id: spaceId,
+      status: { $ne: StatusSpace.DELETED },
+    });
+
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+
+    if (!this.isAdminSpace(space.members, userId)) {
+      throw new ForbiddenException(
+        'You do not have permission to create or edit script',
+      );
+    }
+
+    if (!scriptId) {
+      const item: Partial<Script> = {
+        name: name,
+        chatFlow: chatFlow as ChatFlow,
+        lastEditedBy: userId,
+        createdBy: userId,
+        space: space,
+      };
+      await this.scriptModel.create(item);
+    } else {
+      const script = await this.scriptModel.findById(scriptId);
+      if (!script) {
+        throw new BadRequestException('Script not found');
+      }
+
+      script.lastEditedBy = userId;
+
+      if (name) {
+        script.name = name;
+      }
+      if (chatFlow) {
+        script.chatFlow = chatFlow as ChatFlow;
+      }
+      await script.save();
+    }
+
+    return true;
+  }
+
   async getSpacesBy(
     userId: string,
     type: 'all_spaces' | 'my_spaces' | 'joined_spaces',
@@ -421,6 +481,7 @@ export class HelpDeskService {
         ],
       })
       .populate('owner', 'email')
+
       .select('-members.verifyToken')
       .lean();
     if (!space) {
@@ -488,7 +549,7 @@ export class HelpDeskService {
       .lean();
   }
   async getBusinessById(id: string) {
-    return this.helpDeskBusinessModel
+    const business = await this.helpDeskBusinessModel
       .findOne({
         _id: id,
         status: { $ne: StatusBusiness.DELETED },
@@ -497,8 +558,17 @@ export class HelpDeskService {
         path: 'user',
         select: selectPopulateField<User>(['name', 'avatar', 'language']),
       })
+      .populate('currentScript')
       .populate('space', '-members.verifyToken')
       .lean();
+
+    const chatFLow = business?.currentScript?.chatFlow;
+
+    return {
+      ...business,
+      currentScript: business?.currentScript?._id,
+      chatFlow: chatFLow,
+    };
   }
   async deleteExtension(userId: string, extensionId: string) {
     const business = await this.helpDeskBusinessModel
@@ -1096,6 +1166,134 @@ export class HelpDeskService {
         isExpired: moment().isAfter(memberInfo?.expiredAt),
       };
     });
+  }
+
+  async getScriptsBy(searchQuery: SearchQueryParamsDto, userId: string) {
+    const { q, limit = 10, currentPage = 1, spaceId } = searchQuery;
+    const extension = await this.helpDeskBusinessModel.findOne({
+      space: spaceId,
+      status: StatusSpace.ACTIVE,
+    });
+
+    const allItemsPromise = this.scriptModel.aggregate([
+      {
+        $match: {
+          space: new Types.ObjectId(spaceId),
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'createdByUser',
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'lastEditedBy',
+          foreignField: '_id',
+          as: 'lastEditedByUser',
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { 'createdByUser.name': { $regex: q, $options: 'i' } },
+            { 'lastEditedByUser.name': { $regex: q, $options: 'i' } },
+            { name: { $regex: q, $options: 'i' } },
+          ],
+        },
+      },
+    ]);
+
+    const query = [
+      {
+        $match: {
+          space: new Types.ObjectId(spaceId),
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'createdBy',
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'lastEditedBy',
+          foreignField: '_id',
+          as: 'lastEditedBy',
+        },
+      },
+      {
+        $addFields: {
+          lastEditedBy: { $arrayElemAt: ['$lastEditedBy', 0] },
+          createdBy: { $arrayElemAt: ['$createdBy', 0] },
+          isUsing: {
+            $cond: [{ $eq: ['$_id', extension?.currentScript] }, true, false],
+          },
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { 'createdByUser.name': { $regex: q, $options: 'i' } },
+            { 'lastEditedByUser.name': { $regex: q, $options: 'i' } },
+            { name: { $regex: q, $options: 'i' } },
+          ],
+        },
+      },
+
+      {
+        $skip: (currentPage - 1) * limit,
+      },
+      {
+        $limit: limit,
+      },
+
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          'createdBy.name': 1,
+          'createdBy.avatar': 1,
+          'lastEditedBy.name': 1,
+          'lastEditedBy.avatar': 1,
+          isUsing: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+    ];
+    const dataPromise = this.scriptModel.aggregate(query) as any;
+    const [allItems, data] = await Promise.all([allItemsPromise, dataPromise]);
+
+    return {
+      totalPage: Math.ceil(allItems.length / limit),
+      items: data,
+    };
+  }
+  async getScriptById(id: string, userId: string) {
+    const script = await this.scriptModel
+      .findById(id)
+      .populate('space')
+      .select('name chatFlow space');
+    if (!script) {
+      throw new BadRequestException('Script not found');
+    }
+    if (!script.space || script.space.status === StatusSpace.DELETED) {
+      throw new BadRequestException('Space not found');
+    }
+    if (!this.isAdminSpace(script.space.members, userId)) {
+      throw new ForbiddenException('You do not permission do view this script');
+    }
+    script.space = script.space._id as any;
+    return script;
   }
 
   addMissingDates(

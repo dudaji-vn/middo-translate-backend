@@ -12,7 +12,12 @@ import {
 
 import { MessagesModule } from '../messages/messages.module';
 import { MailModule } from '../mail/mail.module';
-import { Space, SpaceSchema } from './schemas/space.schema';
+import {
+  Script,
+  ScriptSchema,
+  Space,
+  SpaceSchema,
+} from './schemas/space.schema';
 import {
   SpaceNotification,
   SpaceNotificationSchema,
@@ -25,6 +30,7 @@ import {
       { name: User.name, schema: UserSchema },
       { name: Space.name, schema: SpaceSchema },
       { name: SpaceNotification.name, schema: SpaceNotificationSchema },
+      { name: Script.name, schema: ScriptSchema },
     ]),
     UsersModule,
     MailModule,
