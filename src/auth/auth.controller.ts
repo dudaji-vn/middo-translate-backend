@@ -8,6 +8,7 @@ import {
   Put,
   Res,
   Req,
+  Delete,
 } from '@nestjs/common';
 
 import { ApiTags } from '@nestjs/swagger';
@@ -282,6 +283,14 @@ export class AuthController {
     const data = await this.authService.verifyTokenApple(payload);
     return {
       data: data,
+    };
+  }
+  @Delete('account')
+  async deleteAccount(@JwtUserId() userId: string) {
+    await this.authService.deleteAccount(userId);
+    return {
+      message: 'ok',
+      data: null,
     };
   }
 }
