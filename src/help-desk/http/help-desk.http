@@ -1,12 +1,12 @@
 @SERVER_URL = http://localhost:8080
-@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMzUwOTE1MywiZXhwIjoxNzEzNTk1NTUzfQ.tXIdL67BSpHSaDgfK89P3OGhfwlpmhTgU2kRQ-uf7a4
+@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxNTY1NzgxMywiZXhwIjoxNzE1NzQ0MjEzfQ.QJ5VLulVHpHBadPqpvpAfc6gayg6ykt9wqEQ96Ox0Xs
 
 @ROOM_ID =6621dc60fd6facdd5522307d
 
 @BUSINESS_ID=65effd002d3c6a72235bbe8e
 
 ####
-PUT {{SERVER_URL}}/api/help-desk/create-or-edit-business
+PUT {{SERVER_URL}}/api/help-desk/create-or-edit-extension
 Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
@@ -16,34 +16,8 @@ Content-Type: application/json
   "language": "vis",
   "firstMessage": "Xin chào",
   "firstMessageEnglish": "Hi, how can I help you?",
-  "chatFlow": {
-    "content": "Root Node111",
-    "contentEnglish":"Hello",
-    "type": "button",
-    "media":[],
-    "childrens": [
-      {
-        "content": "Child Node 12",
-        "type": "message",
-        "childrens": [
-        {
-          "content": "Grandchild Node 13",
-          "type": "link",
-          "childrens": [],
-          "media":[]
-        },
-        {
-          "id": 5,
-          "content": "Grandchild Node 2",
-          "contentEnglish":"test",
-          "type": "button",
-          "childrens": []
-        }
-      ]
-      }
-    ]
-  },
-  "spaceId":"661df29b8ef8108600f0f9c5"
+  "currentScript":"664318b55d6c5103926416ea",
+  "spaceId":"6628764846f721ef0c128461"
 }
 
 ###
@@ -55,12 +29,12 @@ Content-Type: application/json
 }
 
 ###
-GET {{SERVER_URL}}/api/help-desk/spaces/6622111da182f6d2fb794758
+GET {{SERVER_URL}}/api/help-desk/spaces/6628764846f721ef0c128461
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 ###
-GET {{SERVER_URL}}/api/help-desk/business/660ce2a734af0a4726d05497
+GET {{SERVER_URL}}/api/help-desk/extensions/6641e8041259239b4b116918
 
 
 
@@ -126,15 +100,15 @@ DELETE  {{SERVER_URL}}/api/help-desk/65eec80a2d3c6a722349d697
 Authorization: Bearer {{ACCESS_TOKEN}} 
 
 ###
-GET  {{SERVER_URL}}/api/rooms/anonymous/{{ROOM_ID}}?userId=6621dc5dfd6facdd55223077
+GET  {{SERVER_URL}}/api/rooms/anonymous/6642debed0610e11aee4ff53?userId=6642debdd0610e11aee4ff4d
 
 ###
 GET {{SERVER_URL}}/api/rooms/anonymous/{{ROOM_ID}}/message?userId=6621dc5dfd6facdd55223077&limit=16
 
 
 ####
-GET {{SERVER_URL}}/api/rooms?type=help-desk&spaceId=661dd18f79fa16e0ac8777db
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxMzMyMTQ3OCwiZXhwIjoxNzEzNDA3ODc4fQ.mCYDcDk_p73VPMhSzYFE06xUDbsnFVuAUPukwD0FuPM
+GET {{SERVER_URL}}/api/rooms?type=help-desk&spaceId=662b0790c61253cdd4dd08b4&tags=664174bf41d68f5be788586b,6641754a41d68f5be78858ed&domains=http://localhost:3001
+Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
 GET {{SERVER_URL}}/api/rooms?type=help-desk
@@ -196,7 +170,7 @@ GET {{SERVER_URL}}/api/recommendation/chat?type=help-desk&spaceId=661dd18f79fa16
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
-GET {{SERVER_URL}}/api/rooms/{{ROOM_ID}}
+GET {{SERVER_URL}}/api/rooms/663c73ac9cd78fe9f0a873fd
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 
@@ -221,7 +195,7 @@ Content-Type: application/json
 
 //joined-spaces|my-spaces
 ####
-GET {{SERVER_URL}}/api/help-desk/spaces?type=my_spaces
+GET {{SERVER_URL}}/api/help-desk/spaces?type=joined_spaces
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
@@ -285,4 +259,63 @@ Content-Type: application/json
   "role":"member"
 }
 
+####
+PUT  {{SERVER_URL}}/api/help-desk/create-or-edit-script
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
 
+{
+  "name":"Hello111222",
+   "spaceId":"6628764846f721ef0c128461",
+    "chatFlow": {
+            "edges": [
+                {
+                    "id": "e1-2",
+                    "label": "Start conversation",
+                    "source": "1",
+                    "target": "2",
+                    "animated": true
+                }
+            ],
+            "nodes": [
+                {
+                    "id": "1",
+                    "type": "root",
+                    "data": {
+                        "content": "start conversation",
+                        "label": "Start conversation"
+                    },
+                    "width": 64,
+                    "height": 64,
+                    "position": {
+                        "x": 0,
+                        "y": 0
+                    }
+                },
+                {
+                    "id": "2",
+                    "type": "message",
+                    "data": {
+                        "content": "Xin chào Lộc Shadow1",
+                        "media": []
+                    },
+                    "width": 380,
+                    "height": 228,
+                    "position": {
+                        "x": 200,
+                        "y": 6
+                    }
+                }
+            ]
+        }
+    
+ 
+}
+
+###GET
+GET {{SERVER_URL}}/api/help-desk/scripts?spaceId=6628764846f721ef0c128461&q=
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/help-desk/scripts/66432635ec02b1535def25ea
+Authorization: Bearer {{ACCESS_TOKEN}}
