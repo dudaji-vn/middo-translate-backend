@@ -27,6 +27,7 @@ import {
   UpdateMemberDto,
 } from './dto/create-or-edit-space-dto';
 import { ValidateInviteDto } from './dto/validate-invite-dto';
+import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -279,6 +280,42 @@ export class HelpDeskController {
   ) {
     const result = await this.helpDeskService.deleteNotification(id, userId);
     return {
+      data: result,
+    };
+  }
+
+  @Put('create-or-edit-script')
+  async createOrEditScript(
+    @JwtUserId() userId: string,
+    @Body() payload: CreateOrEditScriptDto,
+  ) {
+    const result = await this.helpDeskService.createOrEditScript(
+      userId,
+      payload,
+    );
+    return { data: result };
+  }
+
+  @Get('scripts')
+  async getScriptsBy(
+    @Query() query: SearchQueryParamsDto,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.getScriptsBy(query, userId);
+    return {
+      message: 'My scripts',
+      data: result,
+    };
+  }
+
+  @Get('scripts/:id')
+  async getScriptsById(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.getScriptById(id, userId);
+    return {
+      message: 'My scripts',
       data: result,
     };
   }
