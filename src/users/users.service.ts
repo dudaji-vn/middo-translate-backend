@@ -328,4 +328,25 @@ export class UsersService {
       })
       .lean();
   }
+  async delete(id: string) {
+    const deletedEmail = `deleted${id}@mail.com`;
+    const user = await this.userModel.updateOne(
+      { _id: id },
+      {
+        status: UserStatus.DELETED,
+        avatar: '',
+        name: 'User',
+        email: deletedEmail,
+        bio: '',
+        blacklist: [],
+        pinRoomIds: [],
+        verifyToken: '',
+        provider: Provider.LOCAL,
+      },
+    );
+    if (!user) {
+      throw new HttpException(`User ${id} not found`, 404);
+    }
+    return user;
+  }
 }

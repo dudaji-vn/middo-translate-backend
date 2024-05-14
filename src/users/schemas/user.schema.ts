@@ -13,6 +13,7 @@ export enum UserStatus {
   INACTIVE = 'inactive',
   ANONYMOUS = 'anonymous',
   BOT = 'bot',
+  DELETED = 'deleted',
 }
 
 export enum Provider {
