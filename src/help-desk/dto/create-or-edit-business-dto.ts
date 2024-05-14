@@ -35,11 +35,6 @@ export class CreateOrEditBusinessDto {
   @ApiProperty()
   firstMessageEnglish: string;
 
-  @ApiProperty()
-  @ValidateNested()
-  @Type(() => ChatFlowDto)
-  chatFlow: ChatFlowDto | null;
-
   status: StatusBusiness;
 
   @ApiProperty()
