@@ -1,6 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { ObjectId, Document } from 'mongoose';
 import { User } from 'src/users/schemas/user.schema';
+import { HelpDeskBusiness } from './help-desk-business.schema';
+import { ChatFlow } from './chat-flow.schema';
 
 export enum StatusSpace {
   DELETED = 'deleted',
@@ -133,3 +135,25 @@ export class Space {
 }
 
 export const SpaceSchema = SchemaFactory.createForClass(Space);
+
+@Schema({ timestamps: true })
+export class Script extends Document {
+  @Prop({ type: String, required: true })
+  name: string;
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true })
+  createdBy: string;
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true })
+  lastEditedBy: string;
+  @Prop({ type: ChatFlow })
+  chatFlow: ChatFlow;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Space', required: true })
+  space: Space;
+
+  @Prop({
+    type: Boolean,
+  })
+  isDeleted: boolean;
+}
+
+export const ScriptSchema = SchemaFactory.createForClass(Script);
