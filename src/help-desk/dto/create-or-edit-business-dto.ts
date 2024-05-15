@@ -38,10 +38,6 @@ export class CreateOrEditBusinessDto {
   status: StatusBusiness;
 
   @ApiProperty()
-  @IsMongoId()
-  spaceId: string;
-
-  @ApiProperty()
   @IsOptional()
   @IsMongoId()
   currentScript: string | null;

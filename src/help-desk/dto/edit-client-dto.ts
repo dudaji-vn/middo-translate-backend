@@ -12,8 +12,5 @@ export class EditClientDto {
   userId: string;
 
   @IsMongoId()
-  spaceId: string;
-
-  @IsMongoId()
   roomId: string;
 }

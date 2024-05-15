@@ -15,10 +15,6 @@ export class CreateOrEditScriptDto {
   name: string;
 
   @ApiProperty()
-  @IsMongoId()
-  spaceId: string;
-
-  @ApiProperty()
   @IsOptional()
   @ValidateNested()
   @Type(() => ChatFlowDto)

@@ -131,9 +131,13 @@ export class HelpDeskService {
     };
   }
 
-  async createOrEditExtension(userId: string, info: CreateOrEditExtensionDto) {
+  async createOrEditExtension(
+    spaceId: string,
+    userId: string,
+    info: CreateOrEditExtensionDto,
+  ) {
     const space = await this.spaceModel.findOne({
-      _id: info.spaceId,
+      _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
     });
     if (!space) {
@@ -145,7 +149,7 @@ export class HelpDeskService {
       );
     }
     info.status = StatusBusiness.ACTIVE;
-    info.space = info.spaceId;
+    info.space = spaceId;
     info.user = userId;
 
     if (info.currentScript) {
@@ -166,7 +170,7 @@ export class HelpDeskService {
 
     const extension = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
-        space: info.spaceId,
+        space: spaceId,
       },
       info,
       { new: true, upsert: true },
@@ -307,8 +311,12 @@ export class HelpDeskService {
     }
   }
 
-  async createOrEditScript(userId: string, payload: CreateOrEditScriptDto) {
-    const { spaceId, name, chatFlow, scriptId } = payload;
+  async createOrEditScript(
+    spaceId: string,
+    userId: string,
+    payload: CreateOrEditScriptDto,
+  ) {
+    const { name, chatFlow, scriptId } = payload;
     const space = await this.spaceModel.findOne({
       _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
@@ -551,7 +559,7 @@ export class HelpDeskService {
       .populate('space', '-members.verifyToken')
       .lean();
   }
-  async getBusinessById(id: string) {
+  async getExtensionById(id: string) {
     const business = await this.helpDeskBusinessModel
       .findOne({
         _id: id,
@@ -653,10 +661,14 @@ export class HelpDeskService {
     await business.save();
     return true;
   }
-  async getClientsByUser(query: SearchQueryParamsDto, userId: string) {
+  async getClientsByUser(
+    spaceId: string,
+    query: SearchQueryParamsDto,
+    userId: string,
+  ) {
     const { q, limit, currentPage } = query;
     const business = await this.helpDeskBusinessModel.findOne({
-      space: query.spaceId,
+      space: spaceId,
     });
     if (!business) {
       throw new BadRequestException('space not found');
@@ -670,8 +682,12 @@ export class HelpDeskService {
     });
     return data;
   }
-  async editClientProfile(clientDto: EditClientDto, userId: string) {
-    const { name, phoneNumber, roomId, spaceId } = clientDto;
+  async editClientProfile(
+    spaceId: string,
+    clientDto: EditClientDto,
+    userId: string,
+  ) {
+    const { name, phoneNumber, roomId } = clientDto;
     const space = await this.spaceModel.findOne({
       _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
@@ -713,8 +729,7 @@ export class HelpDeskService {
     });
     return true;
   }
-  async analyst(params: AnalystQueryDto, userId: string) {
-    const spaceId = params.spaceId;
+  async analyst(spaceId: string, params: AnalystQueryDto, userId: string) {
     const business = await this.getBusinessByUser(userId, spaceId);
     if (!business) {
       throw new BadRequestException('You have not created an extension yet');
@@ -1171,8 +1186,12 @@ export class HelpDeskService {
     });
   }
 
-  async getScriptsBy(searchQuery: SearchQueryParamsDto, userId: string) {
-    const { q, limit = 10, currentPage = 1, spaceId } = searchQuery;
+  async getScriptsBy(
+    spaceId: string,
+    searchQuery: SearchQueryParamsDto,
+    userId: string,
+  ) {
+    const { q, limit = 10, currentPage = 1 } = searchQuery;
     const extension = await this.helpDeskBusinessModel.findOne({
       space: spaceId,
       status: StatusSpace.ACTIVE,
@@ -1283,9 +1302,9 @@ export class HelpDeskService {
       items: data,
     };
   }
-  async getScriptById(id: string, userId: string) {
+  async getDetailScript(spaceId: string, id: string, userId: string) {
     const script = await this.scriptModel
-      .findOne({ _id: id, isDeleted: { $ne: true } })
+      .findOne({ _id: id, space: spaceId, isDeleted: { $ne: true } })
       .populate('space')
       .select('name chatFlow space');
     if (!script) {
@@ -1301,8 +1320,14 @@ export class HelpDeskService {
     return script;
   }
 
-  async removeScript(scriptId: string, userId: string) {
-    const script = await this.scriptModel.findById(scriptId).populate('space');
+  async removeScript(spaceId: string, scriptId: string, userId: string) {
+    const script = await this.scriptModel
+      .findOne({
+        _id: scriptId,
+        space: spaceId,
+        isDeleted: { $ne: true },
+      })
+      .populate('space');
     if (!script || script.isDeleted) {
       throw new BadRequestException('Script not found');
     }
@@ -1474,10 +1499,10 @@ export class HelpDeskService {
     return this.roomsService.getChartAverageResponseChat(payload);
   }
 
-  async inviteMembers(userId: string, data: InviteMemberDto) {
+  async inviteMembers(spaceId: string, userId: string, data: InviteMemberDto) {
     const user = await this.userService.findById(userId);
     const spaceData = await this.spaceModel.findOne({
-      _id: data.spaceId,
+      _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
     });
 
@@ -1594,10 +1619,14 @@ export class HelpDeskService {
       };
     });
   }
-  async resendInvitation(userId: string, data: UpdateMemberDto) {
+  async resendInvitation(
+    spaceId: string,
+    userId: string,
+    data: UpdateMemberDto,
+  ) {
     const spaceData = await this.spaceModel.findOne({
       status: { $ne: StatusSpace.DELETED },
-      _id: data.spaceId,
+      _id: spaceId,
     });
 
     const user = await this.userService.findById(userId);
@@ -1667,9 +1696,9 @@ export class HelpDeskService {
     await spaceData.save();
     return true;
   }
-  async removeMember(userId: string, data: RemoveMemberDto) {
+  async removeMember(spaceId: string, userId: string, data: RemoveMemberDto) {
     const spaceData = await this.spaceModel.findOne({
-      _id: data.spaceId,
+      _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
     });
 
@@ -1702,10 +1731,10 @@ export class HelpDeskService {
 
     return true;
   }
-  async changeRole(userId: string, data: UpdateMemberDto) {
+  async changeRole(spaceId: string, userId: string, data: UpdateMemberDto) {
     const spaceData = await this.spaceModel.findOne({
       status: { $ne: StatusSpace.DELETED },
-      _id: data.spaceId,
+      _id: spaceId,
     });
 
     if (!spaceData) {
@@ -1729,8 +1758,12 @@ export class HelpDeskService {
     return true;
   }
 
-  async createOrEditTag(userId: string, tagDto: CreateOrEditTagDto) {
-    const { spaceId, name, color, tagId } = tagDto;
+  async createOrEditTag(
+    spaceId: string,
+    userId: string,
+    tagDto: CreateOrEditTagDto,
+  ) {
+    const { name, color, tagId } = tagDto;
     const space = await this.spaceModel
       .findOne({
         _id: spaceId,
@@ -1786,7 +1819,7 @@ export class HelpDeskService {
     return users;
   }
 
-  async deleteTag(tagId: string, spaceId: string, userId: string) {
+  async deleteTag(spaceId: string, tagId: string, userId: string) {
     const space = await this.spaceModel.findById(spaceId);
     if (!space) {
       throw new BadRequestException('Space not found');

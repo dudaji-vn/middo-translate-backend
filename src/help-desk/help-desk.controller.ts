@@ -33,9 +33,10 @@ import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 @Controller('help-desk')
 export class HelpDeskController {
   constructor(private readonly helpDeskService: HelpDeskService) {}
+
   @Public()
-  @Post('create-client')
-  async createClient(@Req() request: Request, @Body() client: CreateClientDto) {
+  @Post('clients')
+  async createClient(@Body() client: CreateClientDto) {
     const result = await this.helpDeskService.createClient(
       client.businessId,
       client,
@@ -43,25 +44,11 @@ export class HelpDeskController {
     return { data: result };
   }
 
-  @Put('create-or-edit-extension')
-  async createOrEditBusiness(
-    @JwtUserId() userId: string,
-    @Body() business: CreateOrEditBusinessDto,
-  ) {
-    const result = await this.helpDeskService.createOrEditExtension(
-      userId,
-      business,
-    );
-    return { data: result };
-  }
-
-  @Put('create-or-edit-space')
-  async createOrEditSpace(
-    @JwtUserId() userId: string,
-    @Body() space: CreateOrEditSpaceDto,
-  ) {
-    const result = await this.helpDeskService.createOrEditSpace(userId, space);
-    return { data: result };
+  @Public()
+  @Post('clients/rating')
+  async rating(@Body() createRatingDto: CreateRatingDto) {
+    const rating = await this.helpDeskService.rating(createRatingDto);
+    return { message: 'Rating success', data: rating };
   }
 
   @Get('spaces')
@@ -75,35 +62,59 @@ export class HelpDeskController {
     };
   }
 
-  @Put('invite-members')
+  @Get('spaces/:id')
+  async getBusinessInfo(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+  ) {
+    const result = await this.helpDeskService.getSpaceById(userId, id);
+    return { data: result };
+  }
+
+  @Put('spaces')
+  async createOrEditSpace(
+    @JwtUserId() userId: string,
+    @Body() space: CreateOrEditSpaceDto,
+  ) {
+    const result = await this.helpDeskService.createOrEditSpace(userId, space);
+    return { data: result };
+  }
+
+  @Put('spaces/:id/extensions')
+  async createOrEditExtension(
+    @JwtUserId() userId: string,
+    @ParamObjectId() id: string,
+    @Body() business: CreateOrEditBusinessDto,
+  ) {
+    const result = await this.helpDeskService.createOrEditExtension(
+      id,
+      userId,
+      business,
+    );
+    return { data: result };
+  }
+
+  @Post('spaces/:id/invite-members')
   async inviteMember(
     @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
     @Body() member: InviteMemberDto,
   ) {
-    const result = await this.helpDeskService.inviteMembers(userId, member);
+    const result = await this.helpDeskService.inviteMembers(id, userId, member);
     return {
       data: result,
     };
   }
 
-  @Get('spaces/:spaceId')
-  async getBusinessInfo(
-    @JwtUserId() userId: string,
-    @Param('spaceId') spaceId: string,
-  ) {
-    const result = await this.helpDeskService.getSpaceById(userId, spaceId);
-    return { data: result };
-  }
-
   @Public()
   @Get('extensions/:id')
-  async getBusinessById(@ParamObjectId('id') id: string) {
-    const result = await this.helpDeskService.getBusinessById(id);
+  async getExtensionById(@ParamObjectId('id') id: string) {
+    const result = await this.helpDeskService.getExtensionById(id);
     return { data: result };
   }
 
   @Delete('extensions/:id')
-  async deleteBusiness(
+  async deleteExtension(
     @JwtUserId() userId: string,
     @ParamObjectId('id') id: string,
   ) {
@@ -111,42 +122,43 @@ export class HelpDeskController {
     return { message: 'Business deleted', data: null };
   }
 
-  @Public()
-  @Post('rating')
-  async rating(@Body() createRatingDto: CreateRatingDto) {
-    const rating = await this.helpDeskService.rating(createRatingDto);
-    return { message: 'Rating success', data: rating };
-  }
-
-  @Get('my-clients')
+  @Get('spaces/:id/my-clients')
   async myClients(
     @Query() query: SearchQueryParamsDto,
+    @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
   ) {
-    const result = await this.helpDeskService.getClientsByUser(query, userId);
+    const result = await this.helpDeskService.getClientsByUser(
+      id,
+      query,
+      userId,
+    );
     return {
       message: 'My clients',
       data: result,
     };
   }
 
-  @Get('analytics')
+  @Get('spaces/:id/analytics')
   async analytics(
     @Query() query: AnalystQueryDto,
+    @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
   ) {
-    const result = await this.helpDeskService.analyst(query, userId);
+    const result = await this.helpDeskService.analyst(id, query, userId);
     return {
       data: result,
     };
   }
 
-  @Patch('edit-client-profile')
+  @Patch('spaces/:id/edit-client-profile')
   async editClientProfile(
+    @ParamObjectId('id') id: string,
     @Body() clientDto: EditClientDto,
     @JwtUserId() userId: string,
   ) {
     const result = await this.helpDeskService.editClientProfile(
+      id,
       clientDto,
       userId,
     );
@@ -156,7 +168,7 @@ export class HelpDeskController {
     };
   }
 
-  @Post('validate-invite')
+  @Post('spaces/validate-invite')
   async validateInvite(
     @Body() { token, status }: ValidateInviteDto,
     @JwtUserId() userId: string,
@@ -166,6 +178,85 @@ export class HelpDeskController {
       token,
       status,
     );
+    return {
+      data: result,
+    };
+  }
+
+  @Post('spaces/:id/resend-invitation')
+  async resendInvitation(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') spaceId: string,
+    @Body() member: UpdateMemberDto,
+  ) {
+    const result = await this.helpDeskService.resendInvitation(
+      spaceId,
+      userId,
+      member,
+    );
+    return {
+      data: result,
+    };
+  }
+
+  @Patch('spaces/:id/change-role')
+  async changeRole(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') spaceId: string,
+    @Body() member: UpdateMemberDto,
+  ) {
+    const result = await this.helpDeskService.changeRole(
+      spaceId,
+      userId,
+      member,
+    );
+    return {
+      data: result,
+    };
+  }
+
+  @Delete('spaces/:id/remove-member')
+  async removeMember(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+    @Body() member: RemoveMemberDto,
+  ) {
+    const result = await this.helpDeskService.removeMember(id, userId, member);
+    return {
+      data: result,
+    };
+  }
+
+  @Delete('spaces/:spaceId')
+  async deleteSpace(
+    @JwtUserId() userId: string,
+    @ParamObjectId('spaceId') spaceId: string,
+  ) {
+    const result = await this.helpDeskService.deleteSpace(spaceId, userId);
+    return {
+      data: result,
+    };
+  }
+
+  @Put('spaces/:id/tags')
+  async createOrEditTag(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+    @Body() tag: CreateOrEditTagDto,
+  ) {
+    const result = await this.helpDeskService.createOrEditTag(id, userId, tag);
+    return {
+      data: result,
+    };
+  }
+
+  @Delete('spaces/:spaceId/tags/:tagId')
+  async deleteTag(
+    @JwtUserId() userId: string,
+    @ParamObjectId('spaceId') spaceId: string,
+    @ParamObjectId('tagId') tagId: string,
+  ) {
+    const result = await this.helpDeskService.deleteTag(spaceId, tagId, userId);
     return {
       data: result,
     };
@@ -189,74 +280,6 @@ export class HelpDeskController {
       data: result,
     };
   }
-
-  @Post('resend-invitation')
-  async resendInvitation(
-    @JwtUserId() userId: string,
-    @Body() member: UpdateMemberDto,
-  ) {
-    const result = await this.helpDeskService.resendInvitation(userId, member);
-    return {
-      data: result,
-    };
-  }
-
-  @Patch('change-role')
-  async changeRole(
-    @JwtUserId() userId: string,
-    @Body() member: UpdateMemberDto,
-  ) {
-    const result = await this.helpDeskService.changeRole(userId, member);
-    return {
-      data: result,
-    };
-  }
-
-  @Delete('remove-member')
-  async removeMember(
-    @JwtUserId() userId: string,
-    @Body() member: RemoveMemberDto,
-  ) {
-    const result = await this.helpDeskService.removeMember(userId, member);
-    return {
-      data: result,
-    };
-  }
-
-  @Put('create-or-edit-tag')
-  async createOrEditTag(
-    @JwtUserId() userId: string,
-    @Body() tag: CreateOrEditTagDto,
-  ) {
-    const result = await this.helpDeskService.createOrEditTag(userId, tag);
-    return {
-      data: result,
-    };
-  }
-
-  @Delete('spaces/:spaceId')
-  async deleteSpace(
-    @JwtUserId() userId: string,
-    @ParamObjectId('spaceId') spaceId: string,
-  ) {
-    const result = await this.helpDeskService.deleteSpace(spaceId, userId);
-    return {
-      data: result,
-    };
-  }
-
-  @Delete('tags/:tagId')
-  async deleteTag(
-    @JwtUserId() userId: string,
-    @ParamObjectId('tagId') tagId: string,
-    @Body() { spaceId }: { spaceId: string },
-  ) {
-    const result = await this.helpDeskService.deleteTag(tagId, spaceId, userId);
-    return {
-      data: result,
-    };
-  }
-
   @Get('notifications')
   async getNotifications(@JwtUserId() userId: string) {
     const result = await this.helpDeskService.getNotifications(userId);
@@ -284,48 +307,59 @@ export class HelpDeskController {
     };
   }
 
-  @Put('create-or-edit-script')
+  @Put('spaces/:id/scripts')
   async createOrEditScript(
     @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
     @Body() payload: CreateOrEditScriptDto,
   ) {
     const result = await this.helpDeskService.createOrEditScript(
+      id,
       userId,
       payload,
     );
     return { data: result };
   }
 
-  @Get('scripts')
+  @Get('spaces/:id/scripts')
   async getScriptsBy(
     @Query() query: SearchQueryParamsDto,
+    @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
   ) {
-    const result = await this.helpDeskService.getScriptsBy(query, userId);
+    const result = await this.helpDeskService.getScriptsBy(id, query, userId);
     return {
-      message: 'My scripts',
       data: result,
     };
   }
 
-  @Get('scripts/:id')
+  @Get('spaces/:id/scripts/:scriptId')
   async getScriptsById(
     @ParamObjectId('id') id: string,
+    @ParamObjectId('scriptId') scriptId: string,
     @JwtUserId() userId: string,
   ) {
-    const result = await this.helpDeskService.getScriptById(id, userId);
+    const result = await this.helpDeskService.getDetailScript(
+      id,
+      scriptId,
+      userId,
+    );
     return {
-      message: 'My scripts',
       data: result,
     };
   }
 
-  @Delete('scripts/:id')
+  @Delete('spaces/:id/scripts/:scriptId')
   async removeScript(
     @ParamObjectId('id') id: string,
+    @ParamObjectId('scriptId') scriptId: string,
     @JwtUserId() userId: string,
   ) {
-    const result = await this.helpDeskService.removeScript(id, userId);
+    const result = await this.helpDeskService.removeScript(
+      id,
+      scriptId,
+      userId,
+    );
     return {
       data: result,
     };

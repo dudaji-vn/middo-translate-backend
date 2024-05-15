@@ -27,8 +27,4 @@ export class SearchQueryParamsDto {
   @IsInt()
   @Transform(({ value }) => parseInt(value))
   currentPage: number;
-
-  @IsOptional()
-  @IsMongoId()
-  spaceId: string;
 }

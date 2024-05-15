@@ -58,7 +58,7 @@ export class RoomsController {
       createRoomDto.senderId,
     );
     if (createRoomDto.businessId) {
-      const business = await this.helpDeskService.getBusinessById(
+      const business = await this.helpDeskService.getExtensionById(
         createRoomDto.businessId,
       );
       if (business) {
