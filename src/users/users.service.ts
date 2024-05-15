@@ -1,4 +1,4 @@
-import { HttpException, Injectable, Logger } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId, Types } from 'mongoose';
 import { FindParams } from 'src/common/types';
@@ -39,7 +39,9 @@ export class UsersService {
       .find({
         $or: [
           { name: { $regex: q, $options: 'i' } },
-          { username: { $regex: q, $options: 'i' } },
+          {
+            username: { $regex: q, $options: 'i' },
+          },
           {
             ...(type === 'help-desk'
               ? { tempEmail: { $regex: q, $options: 'i' } }
@@ -152,7 +154,46 @@ export class UsersService {
     return !!res;
   }
 
+  async isUsernameExist(username: string) {
+    const res = await this.userModel.exists({
+      username: { $regex: username, $options: 'i' },
+    });
+    return !!res;
+  }
+
+  async generateUsernameByEmail(email: string) {
+    const emailPrefix = email.split('@')[0];
+    let username = emailPrefix.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+    const maxLength = 15;
+    if (username.length > maxLength) {
+      username = username.slice(0, maxLength);
+    }
+    let isExist = await this.isUsernameExist(username);
+    if (isExist) {
+      let i = 1;
+      const baseLength = username.length;
+      while (isExist) {
+        const suffixLength = String(i).length + 1; // Adding 1 for the extra character between username and i
+        const remainingLength = maxLength - baseLength - suffixLength;
+        const truncatedUsername = username.slice(0, remainingLength);
+        username = `${truncatedUsername}${i}`;
+        isExist = await this.isUsernameExist(username);
+        i++;
+      }
+    }
+    return username;
+  }
+
   async update(id: ObjectId | string, info: Partial<User>) {
+    if (info.username) {
+      const isExist = await this.isUsernameExist(info.username);
+      if (isExist) {
+        throw new HttpException(
+          `Username ${info.username} is already taken`,
+          400,
+        );
+      }
+    }
     const user = await this.userModel.findByIdAndUpdate(id, info, {
       new: true,
     });
@@ -348,5 +389,17 @@ export class UsersService {
       throw new HttpException(`User ${id} not found`, 404);
     }
     return user;
+  }
+
+  async updateAllUsername() {
+    const users = await this.userModel.find();
+    for (const user of users) {
+      if (!user.username) {
+        const username = await this.generateUsernameByEmail(user.email);
+        await this.userModel.findByIdAndUpdate(user._id, {
+          username: username,
+        });
+      }
+    }
   }
 }

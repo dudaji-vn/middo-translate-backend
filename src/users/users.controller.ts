@@ -49,6 +49,15 @@ export class UsersController {
       data: userResponse,
     };
   }
+  @Public()
+  @Get('/update-all')
+  async updateUsernameAll(): Promise<Response<null>> {
+    await this.usersService.updateAllUsername();
+    return {
+      message: 'User information updated successfully!',
+      data: null,
+    };
+  }
 
   @Patch('change-password')
   async changePassword(
