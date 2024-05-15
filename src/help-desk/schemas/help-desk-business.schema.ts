@@ -1,8 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document, ObjectId } from 'mongoose';
+import mongoose, { Document } from 'mongoose';
 import { User } from 'src/users/schemas/user.schema';
 import { ChatFlow, ChatFlowSchema } from './chat-flow.schema';
-import { Script, ScriptSchema, Space, SpaceSchema } from './space.schema';
+import { Script, Space } from './space.schema';
 
 export enum StatusBusiness {
   DELETED = 'deleted',

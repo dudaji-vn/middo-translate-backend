@@ -1303,10 +1303,10 @@ export class HelpDeskService {
 
   async removeScript(scriptId: string, userId: string) {
     const script = await this.scriptModel.findById(scriptId).populate('space');
-    const space = script?.space;
     if (!script || script.isDeleted) {
       throw new BadRequestException('Script not found');
     }
+    const space = script?.space;
     if (!space) {
       throw new BadRequestException('Space not found');
     }
@@ -1325,103 +1325,6 @@ export class HelpDeskService {
     script.isDeleted = true;
     await script.save();
     return null;
-  }
-
-  addMissingDates(
-    data: AnalystResponseDto[],
-    fromDate: Date,
-    toDate: Date,
-  ): AnalystResponseDto[] {
-    // Convert existing dates to a Map for easy lookup
-    const existingDates = new Map<string, AnalystResponseDto>();
-    data.forEach((entry) => {
-      existingDates.set(entry.date, entry);
-    });
-
-    // Get the start and end dates from the existing data
-    const startDate = fromDate;
-    const endDate = toDate;
-
-    // Generate dates for the entire week
-    const currentDate = new Date(startDate);
-    const allDates: string[] = [];
-    while (currentDate <= endDate) {
-      const dateString = `${currentDate.getDate()}-${
-        currentDate.getMonth() + 1
-      }-${currentDate.getFullYear()}`;
-      allDates.push(dateString);
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-
-    // Add missing dates with count 0
-    const newData: AnalystResponseDto[] = allDates.map((date) => {
-      if (existingDates.has(date)) {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        return existingDates.get(date)!;
-      } else {
-        const [day, month, year] = date.split('-').map(Number);
-        return {
-          date,
-          day,
-          month,
-          year,
-          count: 0,
-        };
-      }
-    });
-
-    return newData;
-  }
-  addMissingMonths(data: AnalystResponseDto[]) {
-    // Get the current month and year
-    const currentDate: Date = new Date();
-    const currentMonth: number = currentDate.getMonth();
-    const currentYear: number = currentDate.getFullYear();
-
-    // Calculate the start month and year
-    let startMonth: number = (currentMonth + 1) % 12; // Last month of last year
-    const startYear: number = currentYear - 1;
-    if (startMonth === 0) {
-      startMonth = 12;
-    }
-
-    // Create a list of months from the start month and year to the current month and year
-    const months = [];
-    for (let year = startYear; year <= currentYear; year++) {
-      for (
-        let month = year === startYear ? startMonth : 1;
-        month <= (year === currentYear ? currentMonth + 1 : 12);
-        month++
-      ) {
-        months.push({ count: 0, month, year });
-      }
-    }
-
-    // Iterate through each month and add it to the data if it doesn't exist
-    months.forEach(({ month, year }) => {
-      const monthExists: boolean = data.some(
-        (item) => item.month === month && item.year === year,
-      );
-      if (!monthExists) {
-        data.push({
-          count: 0,
-          month,
-          year,
-          date: '',
-          day: 1,
-        });
-      }
-    });
-
-    // Sort the data by year and month
-    data.sort((a, b) => {
-      if (a.year === b.year) {
-        return a.month - b.month;
-      }
-      return a.year - b.year;
-    });
-
-    return data;
   }
 
   async getAverageRatingById(
@@ -1569,10 +1472,6 @@ export class HelpDeskService {
   }
   async getChartAverageResponseChat(payload: ChartQueryDto) {
     return this.roomsService.getChartAverageResponseChat(payload);
-  }
-
-  createVerifyUrl(token: string) {
-    return `${envConfig.app.url}/space-verify?token=${token}`;
   }
 
   async inviteMembers(userId: string, data: InviteMemberDto) {
@@ -1977,5 +1876,106 @@ export class HelpDeskService {
   }
   isOwnerSpace(space: Space, userId: string) {
     return space?.owner.toString() === userId.toString();
+  }
+
+  createVerifyUrl(token: string) {
+    return `${envConfig.app.url}/space-verify?token=${token}`;
+  }
+
+  addMissingDates(
+    data: AnalystResponseDto[],
+    fromDate: Date,
+    toDate: Date,
+  ): AnalystResponseDto[] {
+    // Convert existing dates to a Map for easy lookup
+    const existingDates = new Map<string, AnalystResponseDto>();
+    data.forEach((entry) => {
+      existingDates.set(entry.date, entry);
+    });
+
+    // Get the start and end dates from the existing data
+    const startDate = fromDate;
+    const endDate = toDate;
+
+    // Generate dates for the entire week
+    const currentDate = new Date(startDate);
+    const allDates: string[] = [];
+    while (currentDate <= endDate) {
+      const dateString = `${currentDate.getDate()}-${
+        currentDate.getMonth() + 1
+      }-${currentDate.getFullYear()}`;
+      allDates.push(dateString);
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Add missing dates with count 0
+    const newData: AnalystResponseDto[] = allDates.map((date) => {
+      if (existingDates.has(date)) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        return existingDates.get(date)!;
+      } else {
+        const [day, month, year] = date.split('-').map(Number);
+        return {
+          date,
+          day,
+          month,
+          year,
+          count: 0,
+        };
+      }
+    });
+
+    return newData;
+  }
+  addMissingMonths(data: AnalystResponseDto[]) {
+    // Get the current month and year
+    const currentDate: Date = new Date();
+    const currentMonth: number = currentDate.getMonth();
+    const currentYear: number = currentDate.getFullYear();
+
+    // Calculate the start month and year
+    let startMonth: number = (currentMonth + 1) % 12; // Last month of last year
+    const startYear: number = currentYear - 1;
+    if (startMonth === 0) {
+      startMonth = 12;
+    }
+
+    // Create a list of months from the start month and year to the current month and year
+    const months = [];
+    for (let year = startYear; year <= currentYear; year++) {
+      for (
+        let month = year === startYear ? startMonth : 1;
+        month <= (year === currentYear ? currentMonth + 1 : 12);
+        month++
+      ) {
+        months.push({ count: 0, month, year });
+      }
+    }
+
+    // Iterate through each month and add it to the data if it doesn't exist
+    months.forEach(({ month, year }) => {
+      const monthExists: boolean = data.some(
+        (item) => item.month === month && item.year === year,
+      );
+      if (!monthExists) {
+        data.push({
+          count: 0,
+          month,
+          year,
+          date: '',
+          day: 1,
+        });
+      }
+    });
+
+    // Sort the data by year and month
+    data.sort((a, b) => {
+      if (a.year === b.year) {
+        return a.month - b.month;
+      }
+      return a.year - b.year;
+    });
+
+    return data;
   }
 }

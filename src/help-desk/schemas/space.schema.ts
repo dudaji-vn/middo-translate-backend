@@ -1,7 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { ObjectId, Document } from 'mongoose';
+import mongoose, { Document } from 'mongoose';
 import { User } from 'src/users/schemas/user.schema';
-import { HelpDeskBusiness } from './help-desk-business.schema';
 import { ChatFlow } from './chat-flow.schema';
 
 export enum StatusSpace {
