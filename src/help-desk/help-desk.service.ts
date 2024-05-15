@@ -581,7 +581,7 @@ export class HelpDeskService {
     return {
       ...business,
       currentScript: business?.currentScript?._id,
-      chatFlow: chatFLow,
+      chatFlow: chatFLow ?? business?.chatFlow,
     };
   }
   async deleteExtension(userId: string, extensionId: string) {
