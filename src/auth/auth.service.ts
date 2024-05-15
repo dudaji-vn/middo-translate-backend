@@ -148,6 +148,9 @@ export class AuthService {
       password: hashPassword,
       status: UserStatus.PENDING,
       verifyToken,
+      username: await this.usersService.generateUsernameByEmail(
+        signUpDto.email,
+      ),
     });
     const verifyUrl = this.createVerifyUrl(verifyToken);
     await this.mailService.sendMail(
@@ -257,6 +260,9 @@ export class AuthService {
         ...profile,
         language,
         status: UserStatus.ACTIVE,
+        username: await this.usersService.generateUsernameByEmail(
+          profile.email,
+        ),
       });
     }
     const accessToken = await this.createAccessToken({
