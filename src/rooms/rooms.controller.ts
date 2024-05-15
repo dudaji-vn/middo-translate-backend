@@ -312,6 +312,24 @@ export class RoomsController {
     return { message: 'Room pinned', data: null };
   }
 
+  @Patch(':id/archive')
+  async archive(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ): Promise<Response<null>> {
+    await this.roomsService.archive(id, userId);
+    return { message: 'Room archived', data: null };
+  }
+
+  @Patch(':id/unarchive')
+  async unarchive(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ): Promise<Response<null>> {
+    await this.roomsService.unarchive(id, userId);
+    return { message: 'Room unarchive', data: null };
+  }
+
   @Patch(':id/change-status-room')
   async changeRoomStatus(
     @ParamObjectId('id') id: string,

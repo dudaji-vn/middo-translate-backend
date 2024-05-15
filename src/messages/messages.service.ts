@@ -309,6 +309,7 @@ export class MessagesService {
       newMessageAt: new Date(),
       status: RoomStatus.ACTIVE,
       deleteFor: [],
+      archiveFor: [],
     });
     this.eventEmitter.emit(socketConfig.events.message.new, socketPayload);
     if (createMessageDto.senderType !== SenderType.BOT) {
