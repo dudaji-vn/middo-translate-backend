@@ -304,7 +304,7 @@ export class RoomsService {
           user.status === UserStatus.ANONYMOUS ? user.tempEmail : user.email,
       };
     });
-    let chatFlow = null;
+
     if (data.isHelpDesk) {
       if (
         !ignoreExpiredAt &&
@@ -321,15 +321,11 @@ export class RoomsService {
       ) {
         throw new ForbiddenException('You do not have permission in this room');
       }
-
-      chatFlow = await this.getChatFlowBySpace(space._id);
-
       delete (data.space as any).members;
     }
 
     return {
       ...data,
-      chatFlow: chatFlow,
       isPinned: user?.pinRoomIds?.includes(id) || false,
     };
   }
@@ -1295,15 +1291,6 @@ export class RoomsService {
       },
     ];
     return await this.roomModel.aggregate(query);
-  }
-  async getChatFlowBySpace(spaceId: ObjectId) {
-    const business = await this.helpDeskBusinessModel
-      .findOne({ space: spaceId })
-      .lean();
-    if (!business) {
-      throw new BadRequestException('Business not found');
-    }
-    return business.chatFlow;
   }
 
   getTagByRoom(room: Room) {

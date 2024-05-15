@@ -4,6 +4,7 @@ import {
   ArrayMaxSize,
   IsArray,
   IsMongoId,
+  IsOptional,
   IsString,
   MinLength,
   ValidateNested,
@@ -34,16 +35,12 @@ export class CreateOrEditBusinessDto {
   @ApiProperty()
   firstMessageEnglish: string;
 
-  @ApiProperty()
-  @ValidateNested()
-  @Type(() => ChatFlowDto)
-  chatFlow: ChatFlowDto | null;
-
   status: StatusBusiness;
 
   @ApiProperty()
+  @IsOptional()
   @IsMongoId()
-  spaceId: string;
+  currentScript: string | null;
 
   space: string;
   user: any;

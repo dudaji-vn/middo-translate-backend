@@ -2,7 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
 import { User } from 'src/users/schemas/user.schema';
 import { ChatFlow, ChatFlowSchema } from './chat-flow.schema';
-import { Space } from './space.schema';
+import { Script, Space } from './space.schema';
 
 export enum StatusBusiness {
   DELETED = 'deleted',
@@ -35,30 +35,7 @@ export class Rating extends Document {
   user: User;
 }
 
-@Schema({ _id: false })
-export class Member {
-  @Prop({ type: String, default: MemberStatus.INVITED })
-  status: MemberStatus;
-
-  @Prop({ type: String, default: ROLE.MEMBER })
-  role: ROLE;
-
-  @Prop({ type: String })
-  email: string;
-
-  @Prop({ type: String })
-  verifyToken: string;
-
-  @Prop({ type: Date })
-  invitedAt: Date;
-
-  @Prop({ type: Date })
-  joinedAt?: Date;
-}
-
 export const RatingSchema = SchemaFactory.createForClass(Rating);
-
-export const MemberSchema = SchemaFactory.createForClass(Member);
 
 @Schema({
   timestamps: true,
@@ -109,6 +86,12 @@ export class HelpDeskBusiness {
 
   @Prop({ type: ChatFlowSchema })
   chatFlow: ChatFlow;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Script',
+  })
+  currentScript: Script;
 }
 
 export const HelpDeskBusinessSchema =

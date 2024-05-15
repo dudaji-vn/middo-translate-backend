@@ -35,7 +35,7 @@ import { envConfig } from 'src/configs/env.config';
 import { socketConfig } from 'src/configs/socket.config';
 import { MailService } from 'src/mail/mail.service';
 import { MessagesService } from 'src/messages/messages.service';
-import { CreateOrEditBusinessDto } from './dto/create-or-edit-business-dto';
+import { CreateOrEditBusinessDto as CreateOrEditExtensionDto } from './dto/create-or-edit-business-dto';
 import {
   CreateOrEditSpaceDto,
   CreateOrEditTagDto,
@@ -45,8 +45,10 @@ import {
 } from './dto/create-or-edit-space-dto';
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
 import { SpaceNotification } from './schemas/space-notifications.schema';
-import { Member, Space, StatusSpace } from './schemas/space.schema';
+import { Member, Script, Space, StatusSpace } from './schemas/space.schema';
 import { CreateClientDto } from './dto/create-client-dto';
+import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
+import { ChatFlow } from './schemas/chat-flow.schema';
 
 @Injectable()
 export class HelpDeskService {
@@ -59,6 +61,8 @@ export class HelpDeskService {
     private spaceModel: Model<Space>,
     @InjectModel(SpaceNotification.name)
     private spaceNotificationModel: Model<SpaceNotification>,
+    @InjectModel(Script.name)
+    private scriptModel: Model<Script>,
     private userService: UsersService,
     private roomsService: RoomsService,
     private messagesService: MessagesService,
@@ -103,7 +107,7 @@ export class HelpDeskService {
     );
 
     if (
-      !business.chatFlow &&
+      !business.currentScript &&
       business.firstMessage &&
       business.firstMessageEnglish
     ) {
@@ -127,32 +131,46 @@ export class HelpDeskService {
     };
   }
 
-  async createOrEditExtension(userId: string, info: CreateOrEditBusinessDto) {
+  async createOrEditExtension(
+    spaceId: string,
+    userId: string,
+    info: CreateOrEditExtensionDto,
+  ) {
     const space = await this.spaceModel.findOne({
-      _id: info.spaceId,
+      _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
     });
     if (!space) {
       throw new BadRequestException('Space not found');
     }
-
-    info.status = StatusBusiness.ACTIVE;
-    if (info.chatFlow) {
-      info.firstMessage = '';
-      info.firstMessageEnglish = '';
-    } else {
-      info.chatFlow = null;
-    }
-    info.space = info.spaceId;
     if (!this.isAdminSpace(space.members, userId)) {
       throw new ForbiddenException(
         'You do not have permission to create or edit extensions',
       );
     }
+    info.status = StatusBusiness.ACTIVE;
+    info.space = spaceId;
     info.user = userId;
+
+    if (info.currentScript) {
+      const script = await this.scriptModel.find({
+        _id: info.currentScript,
+        isDeleted: { $ne: true },
+      });
+      if (!script) {
+        throw new BadRequestException(
+          `Script ${info.currentScript} not exist in this space`,
+        );
+      }
+      info.firstMessage = '';
+      info.firstMessageEnglish = '';
+    } else {
+      info.currentScript = null;
+    }
+
     const extension = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
-        space: info.spaceId,
+        space: spaceId,
       },
       info,
       { new: true, upsert: true },
@@ -293,6 +311,59 @@ export class HelpDeskService {
     }
   }
 
+  async createOrEditScript(
+    spaceId: string,
+    userId: string,
+    payload: CreateOrEditScriptDto,
+  ) {
+    const { name, chatFlow, scriptId } = payload;
+    const space = await this.spaceModel.findOne({
+      _id: spaceId,
+      status: { $ne: StatusSpace.DELETED },
+    });
+
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+
+    if (!this.isAdminSpace(space.members, userId)) {
+      throw new ForbiddenException(
+        'You do not have permission to create or edit script',
+      );
+    }
+
+    if (!scriptId) {
+      const item: Partial<Script> = {
+        name: name,
+        chatFlow: chatFlow as ChatFlow,
+        lastEditedBy: userId,
+        createdBy: userId,
+        space: space,
+      };
+      await this.scriptModel.create(item);
+    } else {
+      const script = await this.scriptModel.findOne({
+        _id: scriptId,
+        isDeleted: { $ne: true },
+      });
+      if (!script) {
+        throw new BadRequestException('Script not found');
+      }
+
+      script.lastEditedBy = userId;
+
+      if (name) {
+        script.name = name;
+      }
+      if (chatFlow) {
+        script.chatFlow = chatFlow as ChatFlow;
+      }
+      await script.save();
+    }
+
+    return true;
+  }
+
   async getSpacesBy(
     userId: string,
     type: 'all_spaces' | 'my_spaces' | 'joined_spaces',
@@ -421,6 +492,7 @@ export class HelpDeskService {
         ],
       })
       .populate('owner', 'email')
+
       .select('-members.verifyToken')
       .lean();
     if (!space) {
@@ -487,8 +559,8 @@ export class HelpDeskService {
       .populate('space', '-members.verifyToken')
       .lean();
   }
-  async getBusinessById(id: string) {
-    return this.helpDeskBusinessModel
+  async getExtensionById(id: string) {
+    const business = await this.helpDeskBusinessModel
       .findOne({
         _id: id,
         status: { $ne: StatusBusiness.DELETED },
@@ -497,8 +569,17 @@ export class HelpDeskService {
         path: 'user',
         select: selectPopulateField<User>(['name', 'avatar', 'language']),
       })
+      .populate('currentScript')
       .populate('space', '-members.verifyToken')
       .lean();
+
+    const chatFLow = business?.currentScript?.chatFlow;
+
+    return {
+      ...business,
+      currentScript: business?.currentScript?._id,
+      chatFlow: chatFLow,
+    };
   }
   async deleteExtension(userId: string, extensionId: string) {
     const business = await this.helpDeskBusinessModel
@@ -580,10 +661,14 @@ export class HelpDeskService {
     await business.save();
     return true;
   }
-  async getClientsByUser(query: SearchQueryParamsDto, userId: string) {
+  async getClientsByUser(
+    spaceId: string,
+    query: SearchQueryParamsDto,
+    userId: string,
+  ) {
     const { q, limit, currentPage } = query;
     const business = await this.helpDeskBusinessModel.findOne({
-      space: query.spaceId,
+      space: spaceId,
     });
     if (!business) {
       throw new BadRequestException('space not found');
@@ -597,8 +682,12 @@ export class HelpDeskService {
     });
     return data;
   }
-  async editClientProfile(clientDto: EditClientDto, userId: string) {
-    const { name, phoneNumber, roomId, spaceId } = clientDto;
+  async editClientProfile(
+    spaceId: string,
+    clientDto: EditClientDto,
+    userId: string,
+  ) {
+    const { name, phoneNumber, roomId } = clientDto;
     const space = await this.spaceModel.findOne({
       _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
@@ -640,8 +729,7 @@ export class HelpDeskService {
     });
     return true;
   }
-  async analyst(params: AnalystQueryDto, userId: string) {
-    const spaceId = params.spaceId;
+  async analyst(spaceId: string, params: AnalystQueryDto, userId: string) {
     const business = await this.getBusinessByUser(userId, spaceId);
     if (!business) {
       throw new BadRequestException('You have not created an extension yet');
@@ -1098,101 +1186,170 @@ export class HelpDeskService {
     });
   }
 
-  addMissingDates(
-    data: AnalystResponseDto[],
-    fromDate: Date,
-    toDate: Date,
-  ): AnalystResponseDto[] {
-    // Convert existing dates to a Map for easy lookup
-    const existingDates = new Map<string, AnalystResponseDto>();
-    data.forEach((entry) => {
-      existingDates.set(entry.date, entry);
+  async getScriptsBy(
+    spaceId: string,
+    searchQuery: SearchQueryParamsDto,
+    userId: string,
+  ) {
+    const { q, limit = 10, currentPage = 1 } = searchQuery;
+    const extension = await this.helpDeskBusinessModel.findOne({
+      space: spaceId,
+      status: StatusSpace.ACTIVE,
     });
 
-    // Get the start and end dates from the existing data
-    const startDate = fromDate;
-    const endDate = toDate;
+    const allItemsPromise = this.scriptModel.aggregate([
+      {
+        $match: {
+          space: new Types.ObjectId(spaceId),
+          isDeleted: { $ne: true },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'createdBy',
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'lastEditedBy',
+          foreignField: '_id',
+          as: 'lastEditedBy',
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { 'createdBy.name': { $regex: q, $options: 'i' } },
+            { 'lastEditedBy.name': { $regex: q, $options: 'i' } },
+            { name: { $regex: q, $options: 'i' } },
+          ],
+        },
+      },
+    ]);
 
-    // Generate dates for the entire week
-    const currentDate = new Date(startDate);
-    const allDates: string[] = [];
-    while (currentDate <= endDate) {
-      const dateString = `${currentDate.getDate()}-${
-        currentDate.getMonth() + 1
-      }-${currentDate.getFullYear()}`;
-      allDates.push(dateString);
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
+    const query = [
+      {
+        $match: {
+          space: new Types.ObjectId(spaceId),
+          isDeleted: { $ne: true },
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'createdBy',
+          foreignField: '_id',
+          as: 'createdBy',
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'lastEditedBy',
+          foreignField: '_id',
+          as: 'lastEditedBy',
+        },
+      },
+      {
+        $addFields: {
+          lastEditedBy: { $arrayElemAt: ['$lastEditedBy', 0] },
+          createdBy: { $arrayElemAt: ['$createdBy', 0] },
+          isUsing: {
+            $cond: [{ $eq: ['$_id', extension?.currentScript] }, true, false],
+          },
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { 'createdBy.name': { $regex: q, $options: 'i' } },
+            { 'lastEditedBy.name': { $regex: q, $options: 'i' } },
+            { name: { $regex: q, $options: 'i' } },
+          ],
+        },
+      },
 
-    // Add missing dates with count 0
-    const newData: AnalystResponseDto[] = allDates.map((date) => {
-      if (existingDates.has(date)) {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        return existingDates.get(date)!;
-      } else {
-        const [day, month, year] = date.split('-').map(Number);
-        return {
-          date,
-          day,
-          month,
-          year,
-          count: 0,
-        };
-      }
-    });
+      {
+        $skip: (currentPage - 1) * limit,
+      },
+      {
+        $limit: limit,
+      },
 
-    return newData;
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          'createdBy.name': 1,
+          'createdBy.avatar': 1,
+          'lastEditedBy.name': 1,
+          'lastEditedBy.avatar': 1,
+          isUsing: 1,
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      },
+    ];
+    const dataPromise = this.scriptModel.aggregate(query) as any;
+    const [allItems, data] = await Promise.all([allItemsPromise, dataPromise]);
+
+    return {
+      totalPage: Math.ceil(allItems.length / limit),
+      items: data,
+    };
   }
-  addMissingMonths(data: AnalystResponseDto[]) {
-    // Get the current month and year
-    const currentDate: Date = new Date();
-    const currentMonth: number = currentDate.getMonth();
-    const currentYear: number = currentDate.getFullYear();
-
-    // Calculate the start month and year
-    let startMonth: number = (currentMonth + 1) % 12; // Last month of last year
-    const startYear: number = currentYear - 1;
-    if (startMonth === 0) {
-      startMonth = 12;
+  async getDetailScript(spaceId: string, id: string, userId: string) {
+    const script = await this.scriptModel
+      .findOne({ _id: id, space: spaceId, isDeleted: { $ne: true } })
+      .populate('space')
+      .select('name chatFlow space');
+    if (!script) {
+      throw new BadRequestException('Script not found');
     }
-
-    // Create a list of months from the start month and year to the current month and year
-    const months = [];
-    for (let year = startYear; year <= currentYear; year++) {
-      for (
-        let month = year === startYear ? startMonth : 1;
-        month <= (year === currentYear ? currentMonth + 1 : 12);
-        month++
-      ) {
-        months.push({ count: 0, month, year });
-      }
+    if (!script.space || script.space.status === StatusSpace.DELETED) {
+      throw new BadRequestException('Space not found');
     }
+    if (!this.isAdminSpace(script.space.members, userId)) {
+      throw new ForbiddenException('You do not permission do view this script');
+    }
+    script.space = script.space._id as any;
+    return script;
+  }
 
-    // Iterate through each month and add it to the data if it doesn't exist
-    months.forEach(({ month, year }) => {
-      const monthExists: boolean = data.some(
-        (item) => item.month === month && item.year === year,
+  async removeScript(spaceId: string, scriptId: string, userId: string) {
+    const script = await this.scriptModel
+      .findOne({
+        _id: scriptId,
+        space: spaceId,
+        isDeleted: { $ne: true },
+      })
+      .populate('space');
+    if (!script || script.isDeleted) {
+      throw new BadRequestException('Script not found');
+    }
+    const space = script?.space;
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+    if (!this.isOwnerSpace(space, userId)) {
+      throw new ForbiddenException(
+        'You do not have permission to create or edit script',
       );
-      if (!monthExists) {
-        data.push({
-          count: 0,
-          month,
-          year,
-          date: '',
-          day: 1,
-        });
-      }
+    }
+    const extension = await this.helpDeskBusinessModel.findOne({
+      space: space._id,
     });
+    if (extension?.currentScript.toString() === scriptId.toString()) {
+      throw new BadRequestException('You cannot delete scripts in use');
+    }
 
-    // Sort the data by year and month
-    data.sort((a, b) => {
-      if (a.year === b.year) {
-        return a.month - b.month;
-      }
-      return a.year - b.year;
-    });
-
-    return data;
+    script.isDeleted = true;
+    await script.save();
+    return null;
   }
 
   async getAverageRatingById(
@@ -1342,14 +1499,10 @@ export class HelpDeskService {
     return this.roomsService.getChartAverageResponseChat(payload);
   }
 
-  createVerifyUrl(token: string) {
-    return `${envConfig.app.url}/space-verify?token=${token}`;
-  }
-
-  async inviteMembers(userId: string, data: InviteMemberDto) {
+  async inviteMembers(spaceId: string, userId: string, data: InviteMemberDto) {
     const user = await this.userService.findById(userId);
     const spaceData = await this.spaceModel.findOne({
-      _id: data.spaceId,
+      _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
     });
 
@@ -1466,10 +1619,14 @@ export class HelpDeskService {
       };
     });
   }
-  async resendInvitation(userId: string, data: UpdateMemberDto) {
+  async resendInvitation(
+    spaceId: string,
+    userId: string,
+    data: UpdateMemberDto,
+  ) {
     const spaceData = await this.spaceModel.findOne({
       status: { $ne: StatusSpace.DELETED },
-      _id: data.spaceId,
+      _id: spaceId,
     });
 
     const user = await this.userService.findById(userId);
@@ -1539,9 +1696,9 @@ export class HelpDeskService {
     await spaceData.save();
     return true;
   }
-  async removeMember(userId: string, data: RemoveMemberDto) {
+  async removeMember(spaceId: string, userId: string, data: RemoveMemberDto) {
     const spaceData = await this.spaceModel.findOne({
-      _id: data.spaceId,
+      _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
     });
 
@@ -1574,10 +1731,10 @@ export class HelpDeskService {
 
     return true;
   }
-  async changeRole(userId: string, data: UpdateMemberDto) {
+  async changeRole(spaceId: string, userId: string, data: UpdateMemberDto) {
     const spaceData = await this.spaceModel.findOne({
       status: { $ne: StatusSpace.DELETED },
-      _id: data.spaceId,
+      _id: spaceId,
     });
 
     if (!spaceData) {
@@ -1601,8 +1758,12 @@ export class HelpDeskService {
     return true;
   }
 
-  async createOrEditTag(userId: string, tagDto: CreateOrEditTagDto) {
-    const { spaceId, name, color, tagId } = tagDto;
+  async createOrEditTag(
+    spaceId: string,
+    userId: string,
+    tagDto: CreateOrEditTagDto,
+  ) {
+    const { name, color, tagId } = tagDto;
     const space = await this.spaceModel
       .findOne({
         _id: spaceId,
@@ -1658,7 +1819,7 @@ export class HelpDeskService {
     return users;
   }
 
-  async deleteTag(tagId: string, spaceId: string, userId: string) {
+  async deleteTag(spaceId: string, tagId: string, userId: string) {
     const space = await this.spaceModel.findById(spaceId);
     if (!space) {
       throw new BadRequestException('Space not found');
@@ -1748,5 +1909,106 @@ export class HelpDeskService {
   }
   isOwnerSpace(space: Space, userId: string) {
     return space?.owner.toString() === userId.toString();
+  }
+
+  createVerifyUrl(token: string) {
+    return `${envConfig.app.url}/space-verify?token=${token}`;
+  }
+
+  addMissingDates(
+    data: AnalystResponseDto[],
+    fromDate: Date,
+    toDate: Date,
+  ): AnalystResponseDto[] {
+    // Convert existing dates to a Map for easy lookup
+    const existingDates = new Map<string, AnalystResponseDto>();
+    data.forEach((entry) => {
+      existingDates.set(entry.date, entry);
+    });
+
+    // Get the start and end dates from the existing data
+    const startDate = fromDate;
+    const endDate = toDate;
+
+    // Generate dates for the entire week
+    const currentDate = new Date(startDate);
+    const allDates: string[] = [];
+    while (currentDate <= endDate) {
+      const dateString = `${currentDate.getDate()}-${
+        currentDate.getMonth() + 1
+      }-${currentDate.getFullYear()}`;
+      allDates.push(dateString);
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    // Add missing dates with count 0
+    const newData: AnalystResponseDto[] = allDates.map((date) => {
+      if (existingDates.has(date)) {
+        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+        return existingDates.get(date)!;
+      } else {
+        const [day, month, year] = date.split('-').map(Number);
+        return {
+          date,
+          day,
+          month,
+          year,
+          count: 0,
+        };
+      }
+    });
+
+    return newData;
+  }
+  addMissingMonths(data: AnalystResponseDto[]) {
+    // Get the current month and year
+    const currentDate: Date = new Date();
+    const currentMonth: number = currentDate.getMonth();
+    const currentYear: number = currentDate.getFullYear();
+
+    // Calculate the start month and year
+    let startMonth: number = (currentMonth + 1) % 12; // Last month of last year
+    const startYear: number = currentYear - 1;
+    if (startMonth === 0) {
+      startMonth = 12;
+    }
+
+    // Create a list of months from the start month and year to the current month and year
+    const months = [];
+    for (let year = startYear; year <= currentYear; year++) {
+      for (
+        let month = year === startYear ? startMonth : 1;
+        month <= (year === currentYear ? currentMonth + 1 : 12);
+        month++
+      ) {
+        months.push({ count: 0, month, year });
+      }
+    }
+
+    // Iterate through each month and add it to the data if it doesn't exist
+    months.forEach(({ month, year }) => {
+      const monthExists: boolean = data.some(
+        (item) => item.month === month && item.year === year,
+      );
+      if (!monthExists) {
+        data.push({
+          count: 0,
+          month,
+          year,
+          date: '',
+          day: 1,
+        });
+      }
+    });
+
+    // Sort the data by year and month
+    data.sort((a, b) => {
+      if (a.year === b.year) {
+        return a.month - b.month;
+      }
+      return a.year - b.year;
+    });
+
+    return data;
   }
 }
