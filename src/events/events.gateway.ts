@@ -266,6 +266,12 @@ export class EventsGateway
   ) {
     if (this.meetings[callId]) {
       this.meetings[callId].participants.push({ id: client.id, user });
+      let startTime = this.meetings[callId].startTime;
+      if (!startTime) {
+        startTime = new Date();
+        this.meetings[callId].startTime = startTime;
+        this.callService.callStart({ callId, time: startTime });
+      }
     } else {
       this.meetings[callId] = {
         participants: [{ id: client.id, user }],

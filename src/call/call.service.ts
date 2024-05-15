@@ -102,7 +102,7 @@ export class CallService {
         endTime: null,
       });
       if (!call) {
-        return { status: STATUS.MEEING_NOT_FOUND };
+        return { status: STATUS.MEETING_NOT_FOUND };
       }
       return { status: STATUS.MEETING_STARTED, call: call };
     } catch (error) {
@@ -114,6 +114,18 @@ export class CallService {
       return { status: 'SERVER_ERROR' };
     }
   }
+  async callStart(payload: { callId: string; time: Date }) {
+    try {
+      const call = await this.callModel.findById(payload.callId);
+      if (!call) return;
+      call.startTime = payload.time;
+      const newCall = await call.save();
+      logger.info(`start call ${JSON.stringify(newCall)}`, CallService.name);
+    } catch (error) {
+      logger.error(`SERVER_ERROR : ${error['message']}`, '', CallService.name);
+    }
+  }
+
   async endCall(roomId: string) {
     try {
       if (!roomId) return;
@@ -131,7 +143,6 @@ export class CallService {
         '',
         CallService.name,
       );
-      return { status: 'SERVER_ERROR' };
     }
   }
   async checkIsHaveMeeting(roomId: string) {
@@ -141,7 +152,7 @@ export class CallService {
         endTime: null,
       });
       if (!call) {
-        return { status: STATUS.MEEING_NOT_FOUND };
+        return { status: STATUS.MEETING_NOT_FOUND };
       }
       return { status: STATUS.MEETING_STARTED };
     } catch (error) {
