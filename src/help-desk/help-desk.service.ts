@@ -1190,7 +1190,7 @@ export class HelpDeskService {
           from: 'users',
           localField: 'createdBy',
           foreignField: '_id',
-          as: 'createdByUser',
+          as: 'createdBy',
         },
       },
       {
@@ -1198,14 +1198,14 @@ export class HelpDeskService {
           from: 'users',
           localField: 'lastEditedBy',
           foreignField: '_id',
-          as: 'lastEditedByUser',
+          as: 'lastEditedBy',
         },
       },
       {
         $match: {
           $or: [
-            { 'createdByUser.name': { $regex: q, $options: 'i' } },
-            { 'lastEditedByUser.name': { $regex: q, $options: 'i' } },
+            { 'createdBy.name': { $regex: q, $options: 'i' } },
+            { 'lastEditedBy.name': { $regex: q, $options: 'i' } },
             { name: { $regex: q, $options: 'i' } },
           ],
         },
@@ -1247,8 +1247,8 @@ export class HelpDeskService {
       {
         $match: {
           $or: [
-            { 'createdByUser.name': { $regex: q, $options: 'i' } },
-            { 'lastEditedByUser.name': { $regex: q, $options: 'i' } },
+            { 'createdBy.name': { $regex: q, $options: 'i' } },
+            { 'lastEditedBy.name': { $regex: q, $options: 'i' } },
             { name: { $regex: q, $options: 'i' } },
           ],
         },
