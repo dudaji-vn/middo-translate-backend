@@ -320,6 +320,17 @@ export class HelpDeskController {
     };
   }
 
+  @Delete('scripts/:id')
+  async removeScript(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.removeScript(id, userId);
+    return {
+      data: result,
+    };
+  }
+
   // @Public()
   // @Get('add-missing-data')
   // async addMissingData() {

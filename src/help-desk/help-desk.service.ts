@@ -334,7 +334,10 @@ export class HelpDeskService {
       };
       await this.scriptModel.create(item);
     } else {
-      const script = await this.scriptModel.findById(scriptId);
+      const script = await this.scriptModel.findOne({
+        _id: scriptId,
+        isDeleted: { $ne: true },
+      });
       if (!script) {
         throw new BadRequestException('Script not found');
       }
@@ -1179,6 +1182,7 @@ export class HelpDeskService {
       {
         $match: {
           space: new Types.ObjectId(spaceId),
+          isDeleted: { $ne: true },
         },
       },
       {
@@ -1212,6 +1216,7 @@ export class HelpDeskService {
       {
         $match: {
           space: new Types.ObjectId(spaceId),
+          isDeleted: { $ne: true },
         },
       },
       {
@@ -1280,7 +1285,7 @@ export class HelpDeskService {
   }
   async getScriptById(id: string, userId: string) {
     const script = await this.scriptModel
-      .findById(id)
+      .findOne({ _id: id, isDeleted: { $ne: true } })
       .populate('space')
       .select('name chatFlow space');
     if (!script) {
@@ -1294,6 +1299,32 @@ export class HelpDeskService {
     }
     script.space = script.space._id as any;
     return script;
+  }
+
+  async removeScript(scriptId: string, userId: string) {
+    const script = await this.scriptModel.findById(scriptId).populate('space');
+    const space = script?.space;
+    if (!script || script.isDeleted) {
+      throw new BadRequestException('Script not found');
+    }
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+    if (!this.isOwnerSpace(space, userId)) {
+      throw new ForbiddenException(
+        'You do not have permission to create or edit script',
+      );
+    }
+    const extension = await this.helpDeskBusinessModel.findOne({
+      space: space._id,
+    });
+    if (extension?.currentScript.toString() === scriptId.toString()) {
+      throw new BadRequestException('You cannot delete scripts in use');
+    }
+
+    script.isDeleted = true;
+    await script.save();
+    return null;
   }
 
   addMissingDates(
