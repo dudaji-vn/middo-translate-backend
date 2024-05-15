@@ -71,6 +71,7 @@ export class HelpDeskService {
   ) {}
 
   async createClient(businessId: string, info: CreateClientDto) {
+    const slug = generateSlug();
     const business = await this.helpDeskBusinessModel
       .findById(businessId)
       .populate('space');
@@ -80,7 +81,8 @@ export class HelpDeskService {
     }
     const user = await this.userModel.create({
       status: UserStatus.ANONYMOUS,
-      email: `${generateSlug()}@gmail.com`,
+      email: `${slug}@gmail.com`,
+      username: slug,
       business: business,
       name: info.name,
       language: info.language,
@@ -220,10 +222,11 @@ export class HelpDeskService {
           verifyUrl: this.createVerifyUrl(token),
         };
       });
-
+      const slug = generateSlug();
       const bot = await this.userModel.create({
         status: UserStatus.BOT,
-        email: `${generateSlug()}@gmail.com`,
+        email: `${slug}@gmail.com`,
+        username: slug,
         name: space.name,
         language: user.language,
         avatar: space.avatar,
