@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ForbiddenException,
-  GoneException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -115,6 +114,45 @@ export class RoomsService {
     });
     return room;
   }
+  async archive(id: string, userId: string) {
+    const room = await this.findByIdAndUserId(id, userId);
+    if (!room) {
+      throw new Error('Room not found');
+    }
+    await this.roomModel.updateOne(
+      {
+        _id: room._id,
+      },
+      {
+        $addToSet: { archiveFor: userId },
+      },
+    );
+    this.eventEmitter.emit(socketConfig.events.room.delete, {
+      roomId: room._id,
+      participants: [userId],
+    });
+    return room;
+  }
+  async unarchive(id: string, userId: string) {
+    const room = await this.findByIdAndUserId(id, userId);
+    if (!room) {
+      throw new Error('Room not found');
+    }
+    await this.roomModel.updateOne(
+      {
+        _id: room._id,
+      },
+      {
+        $pull: { archiveFor: userId },
+      },
+    );
+    this.eventEmitter.emit(socketConfig.events.room.update, {
+      roomId: room._id,
+      participants: [userId],
+    });
+    return room;
+  }
+
   async leaveRoom(id: string, userId: string) {
     const room = await this.findGroupByIdAndUserId(id, userId);
     if (!room.isGroup) {
@@ -298,7 +336,13 @@ export class RoomsService {
 
   async findWithCursorPaginate(
     queryParams: ListQueryParamsCursor & {
-      type?: 'all' | 'group' | 'individual' | 'help-desk' | 'unread-help-desk';
+      type?:
+        | 'all'
+        | 'group'
+        | 'individual'
+        | 'help-desk'
+        | 'unread-help-desk'
+        | 'archived';
       spaceId?: string;
       status?: RoomStatus;
       domains?: string[];
@@ -327,47 +371,49 @@ export class RoomsService {
     }
 
     const query: FilterQuery<Room> = {
-      _id: {
-        $nin: user.pinRoomIds,
-      },
+      _id: { $nin: user.pinRoomIds },
       newMessageAt: {
-        $lt: cursor ? new Date(cursor).toISOString() : new Date().toISOString(),
+        $lt: cursor
+          ? new Date(cursor).toDateString()
+          : new Date().toISOString(),
       },
       participants: userId,
-      status: {
-        $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED],
-      },
-      ...(status ? { status: status } : {}),
-      ...(countries && countries.length > 0
-        ? {
-            $and: [
-              { participants: { $in: userIds } },
-              { participants: userId },
-            ],
-          }
-        : {}),
-      ...(tags && tags.length > 0 ? { tag: { $in: tags } } : {}),
-      ...(domains && domains.length > 0
-        ? { fromDomain: { $in: domains } }
-        : {}),
+      status: { $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED] },
       deleteFor: { $nin: [userId] },
+      archiveFor: { $nin: [userId] },
       isHelpDesk: { $ne: true },
-      ...(type === 'group' ? { isGroup: true } : {}),
-      ...(type === 'individual' ? { isGroup: false } : {}),
-      ...(type === 'help-desk'
-        ? {
-            isHelpDesk: true,
-            space: { $exists: true, $eq: spaceId },
-          }
-        : {}),
-      ...(type === 'unread-help-desk'
-        ? {
-            isHelpDesk: true,
-            readBy: { $nin: [user] },
-            space: { $exists: true, $eq: spaceId },
-          }
-        : {}),
+      ...(status && { status }),
+      ...(countries?.length && {
+        $and: [{ participants: { $in: userIds } }, { participants: userId }],
+      }),
+      ...(tags?.length && { tag: { $in: tags } }),
+      ...(domains?.length && { fromDomain: { $in: domains } }),
     };
+
+    switch (type) {
+      case 'group':
+        Object.assign(query, { isGroup: true });
+        break;
+      case 'individual':
+        Object.assign(query, { isGroup: false });
+        break;
+      case 'help-desk':
+        Object.assign(query, {
+          isHelpDesk: true,
+          space: { $exists: true, $eq: spaceId },
+        });
+        break;
+      case 'unread-help-desk':
+        Object.assign(query, {
+          isHelpDesk: true,
+          readBy: { $nin: [user] },
+          space: { $exists: true, $eq: spaceId },
+        });
+        break;
+      case 'archived':
+        Object.assign(query, { archiveFor: { $in: [userId] } });
+        break;
+    }
 
     const rooms = await this.roomModel
       .find(query)
@@ -447,6 +493,7 @@ export class RoomsService {
         ...room.toObject(),
         isPinned: user?.pinRoomIds?.includes(room._id.toString()) || false,
         lastMessage: convertMessageRemoved(room.lastMessage, userId),
+        ...(type === 'archived' && { status: RoomStatus.ARCHIVED }),
       })),
       pageInfo,
     };
@@ -841,6 +888,7 @@ export class RoomsService {
         status: RoomStatus.ACTIVE,
         participants: userId,
         deleteFor: { $nin: [userId] },
+        archiveFor: { $nin: [userId] },
         ...(spaceId
           ? { isHelpDesk: true, space: { $exists: true, $eq: spaceId } }
           : {}),
