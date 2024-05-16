@@ -1349,13 +1349,14 @@ export class HelpDeskService {
     }
     if (!this.isOwnerSpace(space, userId)) {
       throw new ForbiddenException(
-        'You do not have permission to create or edit script',
+        'You do not have permission to remove script',
       );
     }
     const extension = await this.helpDeskBusinessModel.findOne({
       space: space._id,
     });
-    if (extension?.currentScript.toString() === scriptId.toString()) {
+
+    if (extension?.currentScript?.toString() === scriptId.toString()) {
       throw new BadRequestException('You cannot delete scripts in use');
     }
 
