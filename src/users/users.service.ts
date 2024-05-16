@@ -161,7 +161,7 @@ export class UsersService {
 
   async isUsernameExist(username: string) {
     const res = await this.userModel.exists({
-      username: { $regex: username, $options: 'i' },
+      username: username,
     });
     return !!res;
   }
