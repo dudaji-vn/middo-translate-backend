@@ -379,7 +379,12 @@ export class HelpDeskService {
       {
         $match: {
           status: StatusSpace.ACTIVE,
-          'members.user': new Types.ObjectId(userId),
+          members: {
+            $elemMatch: {
+              user: new Types.ObjectId(userId),
+              status: MemberStatus.JOINED,
+            },
+          },
           ...(type === 'my_spaces' && { owner: new Types.ObjectId(userId) }),
           ...(type === 'joined_spaces' && {
             owner: { $ne: new Types.ObjectId(userId) },
@@ -501,6 +506,16 @@ export class HelpDeskService {
 
     if (!space) {
       throw new BadRequestException('Space not found');
+    }
+
+    const isAccess = space.members.find(
+      (item) =>
+        item.email === user.email && item.status === MemberStatus.JOINED,
+    );
+    if (!isAccess) {
+      throw new ForbiddenException(
+        'You do not have permission to access this space',
+      );
     }
 
     const extension = await this.helpDeskBusinessModel
