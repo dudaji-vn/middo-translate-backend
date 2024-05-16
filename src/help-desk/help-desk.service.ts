@@ -1295,6 +1295,7 @@ export class HelpDeskService {
         $project: {
           _id: 1,
           name: 1,
+          chatFlow: 1,
           'createdBy.name': 1,
           'createdBy.avatar': 1,
           'lastEditedBy.name': 1,
