@@ -26,6 +26,7 @@ export class UsersService {
           'language',
           'status',
           'pinRoomIds',
+          'username',
         ]),
       )
       .lean();
@@ -190,7 +191,7 @@ export class UsersService {
       if (isExist) {
         throw new HttpException(
           `Username ${info.username} is already taken`,
-          400,
+          403,
         );
       }
     }
@@ -225,6 +226,15 @@ export class UsersService {
 
   async updateUserInfo(id: string, info: UpdateUserDto): Promise<User> {
     try {
+      if (info.username) {
+        const isExist = await this.isUsernameExist(info.username);
+        if (isExist) {
+          throw new HttpException(
+            `Username ${info.username} is already taken`,
+            403,
+          );
+        }
+      }
       const user = await this.userModel.findByIdAndUpdate(
         id,
         {

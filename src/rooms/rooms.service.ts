@@ -342,7 +342,8 @@ export class RoomsService {
         | 'individual'
         | 'help-desk'
         | 'unread-help-desk'
-        | 'archived';
+        | 'archived'
+        | 'waiting';
       spaceId?: string;
       status?: RoomStatus;
       domains?: string[];
@@ -412,6 +413,9 @@ export class RoomsService {
         break;
       case 'archived':
         Object.assign(query, { archiveFor: { $in: [userId] } });
+        break;
+      case 'waiting':
+        Object.assign(query, { status: RoomStatus.WAITING });
         break;
     }
 
