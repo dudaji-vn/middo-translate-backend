@@ -15,6 +15,8 @@ export class UserResponseDto {
   avatar: string;
   @Expose()
   status: UserStatus;
+  @Expose()
+  username: string;
 
   @Exclude()
   password: string;
