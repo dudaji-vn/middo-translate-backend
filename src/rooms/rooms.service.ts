@@ -114,11 +114,16 @@ export class RoomsService {
     });
     return room;
   }
-  async archive(id: string, userId: string) {
-    const room = await this.findByIdAndUserId(id, userId);
-    if (!room) {
-      throw new Error('Room not found');
+  async archive(roomId: string, userId: string) {
+    const room = await this.findByIdAndUserId(roomId, userId);
+    const user = await this.usersService.findById(userId);
+    const isPinned = user?.pinRoomIds?.includes(roomId);
+    if (isPinned) {
+      user.pinRoomIds = user.pinRoomIds.filter((id) => id !== roomId);
     }
+    await this.usersService.update(user._id, {
+      pinRoomIds: user.pinRoomIds,
+    });
     await this.roomModel.updateOne(
       {
         _id: room._id,
