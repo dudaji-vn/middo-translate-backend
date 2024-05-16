@@ -10,10 +10,14 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import * as bcrypt from 'bcrypt';
 import { UserHelpDeskResponse } from './dto/user-help-desk-response.dto';
 import { logger } from 'src/common/utils/logger';
+import { Space, StatusSpace } from 'src/help-desk/schemas/space.schema';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Space.name) private spaceModel: Model<Space>,
+  ) {}
   async getProfile(id: string) {
     const user = await this.userModel
       .findById(id)
@@ -388,6 +392,7 @@ export class UsersService {
     if (!user) {
       throw new HttpException(`User ${id} not found`, 404);
     }
+    await this.deleteSpacesIfExistByOwner(id);
     return user;
   }
 
@@ -401,5 +406,16 @@ export class UsersService {
         });
       }
     }
+  }
+
+  async deleteSpacesIfExistByOwner(userId: string) {
+    await this.spaceModel.updateMany(
+      {
+        owner: userId,
+      },
+      {
+        status: StatusSpace.DELETED,
+      },
+    );
   }
 }
