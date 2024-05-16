@@ -168,7 +168,7 @@ export class HelpDeskController {
     };
   }
 
-  @Post('spaces/validate-invite')
+  @Post('validate-invite')
   async validateInvite(
     @Body() { token, status }: ValidateInviteDto,
     @JwtUserId() userId: string,
