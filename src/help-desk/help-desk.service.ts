@@ -1190,7 +1190,7 @@ export class HelpDeskService {
     const { q, limit = 10, currentPage = 1 } = searchQuery;
     const extension = await this.helpDeskBusinessModel.findOne({
       space: spaceId,
-      status: StatusSpace.ACTIVE,
+      status: StatusBusiness.ACTIVE,
     });
 
     const allItemsPromise = this.scriptModel.aggregate([
