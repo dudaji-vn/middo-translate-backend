@@ -184,7 +184,8 @@ export class RoomsService {
         select: userSelectFieldsString,
       },
     ]);
-    await this.upPinIfExist(room._id.toString(), userId);
+    await this.unPinIfExist(room._id.toString(), userId);
+    await this.unarchive(id, userId);
     this.eventEmitter.emit(socketConfig.events.room.leave, {
       roomId: room._id,
       userId,
@@ -737,6 +738,7 @@ export class RoomsService {
     room.participants = room.participants.filter(
       (p) => String(p._id) !== removeUserId,
     );
+    room.deleteFor = room.deleteFor.filter((p) => String(p) !== removeUserId);
     await room.save();
     await room.populate([
       {
@@ -755,6 +757,7 @@ export class RoomsService {
         participants: room.participants,
       },
     });
+    await this.unarchive(roomId, removeUserId);
     return room;
   }
 
@@ -872,15 +875,14 @@ export class RoomsService {
       pinRoomIds: user.pinRoomIds,
     });
   }
-  async upPinIfExist(roomId: string, userId: string) {
+  async unPinIfExist(roomId: string, userId: string) {
     const user = await this.usersService.findById(userId);
-    if (user.pinRoomIds.includes(roomId)) {
-      return;
+    if (user?.pinRoomIds?.includes(roomId)) {
+      user.pinRoomIds = user.pinRoomIds.filter((id) => id !== roomId);
+      await this.usersService.update(user._id, {
+        pinRoomIds: user.pinRoomIds,
+      });
     }
-    user.pinRoomIds = [roomId, ...user.pinRoomIds];
-    await this.usersService.update(user._id, {
-      pinRoomIds: user.pinRoomIds,
-    });
   }
   async getPinnedRooms(userId: string, spaceId: string) {
     const user = await this.usersService.findById(userId);

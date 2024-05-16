@@ -1823,7 +1823,7 @@ export class HelpDeskService {
     const users = await this.userModel
       .find({ business: { $exists: true } })
       .populate('business');
-    for (let user of users) {
+    for (const user of users) {
       if (user.business) {
         user.space = user.business.space;
         user.save();

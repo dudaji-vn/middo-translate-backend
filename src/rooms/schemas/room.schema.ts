@@ -51,7 +51,7 @@ export class Room {
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     default: [],
   })
-  deleteFor: ObjectId[] | string[];
+  deleteFor: string[];
   @Prop({
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     default: [],
