@@ -336,6 +336,7 @@ export class AuthService {
 
   async deleteAccount(userId: string) {
     await this.usersService.delete(userId);
+    await this.notificationService.deleteAllTokens(userId);
     return true;
   }
 }
