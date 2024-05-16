@@ -490,7 +490,7 @@ export class HelpDeskService {
         status: { $ne: StatusSpace.DELETED },
         $or: [
           {
-            'members.email': user.email,
+            'members.user': user._id,
           },
         ],
       })
@@ -498,18 +498,11 @@ export class HelpDeskService {
 
       .select('-members.verifyToken')
       .lean();
+
     if (!space) {
       throw new BadRequestException('Space not found');
     }
-    const isAccess = space.members.find(
-      (item) =>
-        item.email === user.email && item.status === MemberStatus.JOINED,
-    );
-    if (!isAccess) {
-      throw new ForbiddenException(
-        'You do not have permission to access this space',
-      );
-    }
+
     const extension = await this.helpDeskBusinessModel
       .findOne({
         space: new Types.ObjectId(spaceId),
@@ -1197,7 +1190,7 @@ export class HelpDeskService {
     const { q, limit = 10, currentPage = 1 } = searchQuery;
     const extension = await this.helpDeskBusinessModel.findOne({
       space: spaceId,
-      status: StatusSpace.ACTIVE,
+      status: StatusBusiness.ACTIVE,
     });
 
     const allItemsPromise = this.scriptModel.aggregate([
