@@ -165,7 +165,6 @@ export class MessagesService {
       room = await this.roomsService.findByIdAndUserId(
         createMessageDto.roomId,
         user._id.toString(),
-        true,
       );
     }
     const createdMessage = new this.messageModel();

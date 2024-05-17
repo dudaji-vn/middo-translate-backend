@@ -111,7 +111,7 @@ export class RoomsController {
     @ParamObjectId('id') id: string,
     @Query('userId') userId: string,
   ) {
-    const room = await this.roomsService.findByIdAndUserId(id, userId);
+    const room = await this.roomsService.findByIdAndUserId(id, userId, true);
     return { data: room, message: 'Room found' };
   }
 

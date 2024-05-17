@@ -239,7 +239,7 @@ export class RoomsService {
     return room;
   }
 
-  async findByIdAndUserId(id: string, userId: string, ignoreExpiredAt = false) {
+  async findByIdAndUserId(id: string, userId: string, checkExpiredAt = false) {
     const user = await this.usersService.findById(userId);
     let room = await this.roomModel.findOne({
       _id: id,
@@ -307,7 +307,7 @@ export class RoomsService {
 
     if (data.isHelpDesk) {
       if (
-        !ignoreExpiredAt &&
+        checkExpiredAt &&
         user.status === UserStatus.ANONYMOUS &&
         room.expiredAt &&
         moment().isAfter(room.expiredAt)
