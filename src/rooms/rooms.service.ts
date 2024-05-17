@@ -173,6 +173,8 @@ export class RoomsService {
     if (isAdmin && room.participants.length > 0) {
       room.admin = room.participants[0];
     }
+    await this.unPinIfExist(room._id.toString(), userId);
+    await this.unarchive(id, userId);
     await room.save();
     await room.populate([
       {
@@ -184,8 +186,7 @@ export class RoomsService {
         select: userSelectFieldsString,
       },
     ]);
-    await this.unPinIfExist(room._id.toString(), userId);
-    await this.unarchive(id, userId);
+
     this.eventEmitter.emit(socketConfig.events.room.leave, {
       roomId: room._id,
       userId,
@@ -739,6 +740,8 @@ export class RoomsService {
       (p) => String(p._id) !== removeUserId,
     );
     room.deleteFor = room.deleteFor.filter((p) => String(p) !== removeUserId);
+    await this.unPinIfExist(roomId, removeUserId);
+    await this.unarchive(roomId, removeUserId);
     await room.save();
     await room.populate([
       {
@@ -757,7 +760,6 @@ export class RoomsService {
         participants: room.participants,
       },
     });
-    await this.unarchive(roomId, removeUserId);
     return room;
   }
 
