@@ -28,6 +28,7 @@ import {
 } from './dto/create-or-edit-space-dto';
 import { ValidateInviteDto } from './dto/validate-invite-dto';
 import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
+import { DeleteScriptsDto } from './dto/delete-scripts-dto';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -359,6 +360,22 @@ export class HelpDeskController {
       id,
       scriptId,
       userId,
+    );
+    return {
+      data: result,
+    };
+  }
+
+  @Delete('spaces/:id/scripts')
+  async removeScripts(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+    @Body() { scriptIds }: DeleteScriptsDto,
+  ) {
+    const result = await this.helpDeskService.removeScripts(
+      id,
+      userId,
+      scriptIds,
     );
     return {
       data: result,

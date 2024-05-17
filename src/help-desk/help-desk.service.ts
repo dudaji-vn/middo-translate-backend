@@ -1357,12 +1357,43 @@ export class HelpDeskService {
     });
 
     if (extension?.currentScript?.toString() === scriptId.toString()) {
-      throw new BadRequestException('You cannot delete scripts in use');
+      throw new BadRequestException('You cannot delete script in use');
     }
 
     script.isDeleted = true;
     await script.save();
     return null;
+  }
+  async removeScripts(spaceId: string, userId: string, scriptIds: string[]) {
+    const space = await this.spaceModel.findById(spaceId);
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+    if (!this.isOwnerSpace(space, userId)) {
+      throw new ForbiddenException(
+        'You do not have permission to remove scripts',
+      );
+    }
+    const extension = await this.helpDeskBusinessModel.findOne({
+      space: space._id,
+    });
+
+    if (
+      extension &&
+      extension.currentScript &&
+      scriptIds.includes(extension.currentScript.toString())
+    ) {
+      throw new BadRequestException('You cannot delete script in use');
+    }
+    await this.scriptModel.updateMany(
+      {
+        _id: { $in: scriptIds },
+      },
+      {
+        isDeleted: true,
+      },
+    );
+    return true;
   }
 
   async getAverageRatingById(
