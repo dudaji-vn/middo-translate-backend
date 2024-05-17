@@ -1298,6 +1298,7 @@ export class RoomsService {
     }
     return tag;
   }
+
   isAccessRoomBySpace(space: Space, userId: string) {
     return (
       space &&
@@ -1307,6 +1308,18 @@ export class RoomsService {
           member.user?.toString() === userId.toString() &&
           member.status === MemberStatus.JOINED,
       )
+    );
+  }
+
+  async removeTagsBySpaceIdAndTagId(spaceId: string, tagId: string) {
+    return await this.roomModel.updateMany(
+      {
+        space: spaceId,
+        tag: tagId,
+      },
+      {
+        tag: null,
+      },
     );
   }
 }

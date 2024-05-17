@@ -1855,8 +1855,8 @@ export class HelpDeskService {
       throw new BadRequestException('This tag is read only');
     }
     space.tags[indexTag].isDeleted = true;
-
     await space.save();
+    await this.roomsService.removeTagsBySpaceIdAndTagId(spaceId, tagId);
     return true;
   }
   async getNotifications(userId: string) {
