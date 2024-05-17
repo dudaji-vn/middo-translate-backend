@@ -312,6 +312,7 @@ export class RoomsService {
       };
     });
 
+    let chatFlow = null;
     if (data.isHelpDesk) {
       if (
         checkExpiredAt &&
@@ -328,11 +329,13 @@ export class RoomsService {
       ) {
         throw new ForbiddenException('You do not have permission in this room');
       }
+      chatFlow = await this.getChatFlowBySpace(space._id);
       delete (data.space as any).members;
     }
 
     return {
       ...data,
+      chatFlow: chatFlow,
       isPinned: user?.pinRoomIds?.includes(id) || false,
     };
   }
@@ -1321,5 +1324,15 @@ export class RoomsService {
         tag: null,
       },
     );
+  }
+  async getChatFlowBySpace(spaceId: ObjectId) {
+    const business = await this.helpDeskBusinessModel
+      .findOne({ space: spaceId })
+      .populate('currentScript')
+      .lean();
+    if (!business || !business.currentScript) {
+      return null;
+    }
+    return business?.currentScript?.chatFlow;
   }
 }
