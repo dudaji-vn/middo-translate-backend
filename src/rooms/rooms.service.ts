@@ -978,14 +978,6 @@ export class RoomsService {
       throw new BadRequestException('Participants must be 2 users');
     }
 
-    const oldRoom = await this.findByParticipantIds(
-      participants.map((p) => p._id),
-      true,
-    );
-    if (oldRoom) {
-      return oldRoom;
-    }
-
     const newRoom = new this.roomModel(createRoomDto);
     newRoom.isHelpDesk = true;
     newRoom.participants = participants;
@@ -998,18 +990,8 @@ export class RoomsService {
       .toDate();
 
     const room = await this.roomModel.create(newRoom);
-    const responseRoom = await room.populate([
-      {
-        path: 'participants',
-        select: userSelectFieldsString,
-      },
-      {
-        path: 'admin',
-        select: userSelectFieldsString,
-      },
-    ]);
 
-    return responseRoom;
+    return room;
   }
   async updateReadByLastMessageInRoom(roomId: ObjectId, userId: string) {
     return await this.roomModel.findByIdAndUpdate(
