@@ -1,4 +1,4 @@
-import { HttpException, Injectable, Logger } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId, Types } from 'mongoose';
 import { FindParams } from 'src/common/types';
@@ -10,10 +10,14 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import * as bcrypt from 'bcrypt';
 import { UserHelpDeskResponse } from './dto/user-help-desk-response.dto';
 import { logger } from 'src/common/utils/logger';
+import { Space, StatusSpace } from 'src/help-desk/schemas/space.schema';
 
 @Injectable()
 export class UsersService {
-  constructor(@InjectModel(User.name) private userModel: Model<User>) {}
+  constructor(
+    @InjectModel(User.name) private userModel: Model<User>,
+    @InjectModel(Space.name) private spaceModel: Model<Space>,
+  ) {}
   async getProfile(id: string) {
     const user = await this.userModel
       .findById(id)
@@ -26,6 +30,7 @@ export class UsersService {
           'language',
           'status',
           'pinRoomIds',
+          'username',
         ]),
       )
       .lean();
@@ -39,7 +44,9 @@ export class UsersService {
       .find({
         $or: [
           { name: { $regex: q, $options: 'i' } },
-          { username: { $regex: q, $options: 'i' } },
+          {
+            username: { $regex: q, $options: 'i' },
+          },
           {
             ...(type === 'help-desk'
               ? { tempEmail: { $regex: q, $options: 'i' } }
@@ -152,7 +159,46 @@ export class UsersService {
     return !!res;
   }
 
+  async isUsernameExist(username: string) {
+    const res = await this.userModel.exists({
+      username: username,
+    });
+    return !!res;
+  }
+
+  async generateUsernameByEmail(email: string) {
+    const emailPrefix = email.split('@')[0];
+    let username = emailPrefix.replace(/[^a-zA-Z0-9_]/g, '').toLowerCase();
+    const maxLength = 15;
+    if (username.length > maxLength) {
+      username = username.slice(0, maxLength);
+    }
+    let isExist = await this.isUsernameExist(username);
+    if (isExist) {
+      let i = 1;
+      const baseLength = username.length;
+      while (isExist) {
+        const suffixLength = String(i).length + 1; // Adding 1 for the extra character between username and i
+        const remainingLength = maxLength - baseLength - suffixLength;
+        const truncatedUsername = username.slice(0, remainingLength);
+        username = `${truncatedUsername}${i}`;
+        isExist = await this.isUsernameExist(username);
+        i++;
+      }
+    }
+    return username;
+  }
+
   async update(id: ObjectId | string, info: Partial<User>) {
+    if (info.username) {
+      const isExist = await this.isUsernameExist(info.username);
+      if (isExist) {
+        throw new HttpException(
+          `Username ${info.username} is already taken`,
+          403,
+        );
+      }
+    }
     const user = await this.userModel.findByIdAndUpdate(id, info, {
       new: true,
     });
@@ -184,6 +230,15 @@ export class UsersService {
 
   async updateUserInfo(id: string, info: UpdateUserDto): Promise<User> {
     try {
+      if (info.username) {
+        const isExist = await this.isUsernameExist(info.username);
+        if (isExist) {
+          throw new HttpException(
+            `Username ${info.username} is already taken`,
+            403,
+          );
+        }
+      }
       const user = await this.userModel.findByIdAndUpdate(
         id,
         {
@@ -319,5 +374,58 @@ export class UsersService {
       totalPage: Math.ceil(totalItems / limit),
       items: data,
     };
+  }
+  async findBySpaceAndCountries(spaceId: string, countries: string[]) {
+    return await this.userModel
+      .find({
+        space: spaceId,
+        language: { $in: countries },
+      })
+      .lean();
+  }
+  async delete(id: string) {
+    const deletedEmail = `deleted${id}@mail.com`;
+    const user = await this.userModel.updateOne(
+      { _id: id },
+      {
+        status: UserStatus.DELETED,
+        avatar: '',
+        name: 'User',
+        email: deletedEmail,
+        bio: '',
+        blacklist: [],
+        pinRoomIds: [],
+        verifyToken: '',
+        provider: Provider.LOCAL,
+      },
+    );
+    if (!user) {
+      throw new HttpException(`User ${id} not found`, 404);
+    }
+    await this.deleteSpacesIfExistByOwner(id);
+    return user;
+  }
+
+  async updateAllUsername() {
+    const users = await this.userModel.find();
+    for (const user of users) {
+      if (!user.username) {
+        const username = await this.generateUsernameByEmail(user.email);
+        await this.userModel.findByIdAndUpdate(user._id, {
+          username: username,
+        });
+      }
+    }
+  }
+
+  async deleteSpacesIfExistByOwner(userId: string) {
+    await this.spaceModel.updateMany(
+      {
+        owner: userId,
+      },
+      {
+        status: StatusSpace.DELETED,
+      },
+    );
   }
 }

@@ -152,7 +152,7 @@ export class NotificationService {
   }
 
   async deleteAllTokens(userId: string) {
-    await this.notificationModel.deleteOne({ userId });
+    await this.notificationModel.deleteMany({ userId });
   }
 
   async toggleNotification(roomId: string, userId: string) {

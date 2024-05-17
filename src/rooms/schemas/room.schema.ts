@@ -12,6 +12,7 @@ export enum RoomStatus {
   DELETED = 'deleted',
   CANNOT_MESSAGE = 'cannot_message',
   ARCHIVED = 'archived',
+  WAITING = 'waiting',
 }
 
 @Schema({
@@ -50,7 +51,12 @@ export class Room {
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     default: [],
   })
-  deleteFor: ObjectId[] | string[];
+  deleteFor: string[];
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    default: [],
+  })
+  archiveFor: string[];
 
   @Prop({ type: Date })
   deletedAt: Date;
@@ -84,6 +90,9 @@ export class Room {
 
   @Prop({ type: String })
   fromDomain: string;
+
+  @Prop({ type: Date })
+  expiredAt: Date;
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);

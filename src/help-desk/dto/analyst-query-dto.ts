@@ -11,9 +11,6 @@ export class AnalystQueryDto {
   @IsEnum(AnalystType)
   type: AnalystType;
 
-  @IsMongoId()
-  spaceId: string;
-
   fromDate?: Date;
   toDate?: Date;
 }

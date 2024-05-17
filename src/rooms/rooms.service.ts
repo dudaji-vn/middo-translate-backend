@@ -18,7 +18,7 @@ import { socketConfig } from 'src/configs/socket.config';
 import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
 import { AnalystType } from 'src/help-desk/dto/analyst-query-dto';
 import { ChartQueryDto } from 'src/help-desk/dto/chart-query-dto';
-import { Message } from 'src/messages/schemas/messages.schema';
+import { Message, SenderType } from 'src/messages/schemas/messages.schema';
 import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
 import { RecommendQueryDto } from 'src/recommendation/dto/recommend-query-dto';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
@@ -34,6 +34,8 @@ import {
   StatusSpace,
   Tag,
 } from 'src/help-desk/schemas/space.schema';
+import * as moment from 'moment';
+import { envConfig } from 'src/configs/env.config';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -112,6 +114,50 @@ export class RoomsService {
     });
     return room;
   }
+  async archive(roomId: string, userId: string) {
+    const room = await this.findByIdAndUserId(roomId, userId);
+    const user = await this.usersService.findById(userId);
+    const isPinned = user?.pinRoomIds?.includes(roomId);
+    if (isPinned) {
+      user.pinRoomIds = user.pinRoomIds.filter((id) => id !== roomId);
+    }
+    await this.usersService.update(user._id, {
+      pinRoomIds: user.pinRoomIds,
+    });
+    await this.roomModel.updateOne(
+      {
+        _id: room._id,
+      },
+      {
+        $addToSet: { archiveFor: userId },
+      },
+    );
+    this.eventEmitter.emit(socketConfig.events.room.delete, {
+      roomId: room._id,
+      participants: [userId],
+    });
+    return room;
+  }
+  async unarchive(id: string, userId: string) {
+    const room = await this.findByIdAndUserId(id, userId);
+    if (!room) {
+      throw new Error('Room not found');
+    }
+    await this.roomModel.updateOne(
+      {
+        _id: room._id,
+      },
+      {
+        $pull: { archiveFor: userId },
+      },
+    );
+    this.eventEmitter.emit(socketConfig.events.room.update, {
+      roomId: room._id,
+      participants: [userId],
+    });
+    return room;
+  }
+
   async leaveRoom(id: string, userId: string) {
     const room = await this.findGroupByIdAndUserId(id, userId);
     if (!room.isGroup) {
@@ -127,6 +173,8 @@ export class RoomsService {
     if (isAdmin && room.participants.length > 0) {
       room.admin = room.participants[0];
     }
+    await this.unPinIfExist(room._id.toString(), userId);
+    await this.unarchive(id, userId);
     await room.save();
     await room.populate([
       {
@@ -138,7 +186,7 @@ export class RoomsService {
         select: userSelectFieldsString,
       },
     ]);
-    await this.upPinIfExist(room._id.toString(), userId);
+
     this.eventEmitter.emit(socketConfig.events.room.leave, {
       roomId: room._id,
       userId,
@@ -198,18 +246,15 @@ export class RoomsService {
     return room;
   }
 
-  async findByIdAndUserId(id: string, userId: string, inCludeDeleted = false) {
+  async findByIdAndUserId(id: string, userId: string, checkExpiredAt = false) {
     const user = await this.usersService.findById(userId);
     let room = await this.roomModel.findOne({
       _id: id,
       participants: userId,
-      ...(inCludeDeleted
-        ? {}
-        : {
-            status: {
-              $in: [RoomStatus.ACTIVE, RoomStatus.ARCHIVED],
-            },
-          }),
+
+      status: {
+        $in: [RoomStatus.ACTIVE, RoomStatus.ARCHIVED],
+      },
     });
 
     if (!room) {
@@ -219,7 +264,7 @@ export class RoomsService {
           $all: participantIds,
           $size: participantIds.length,
         },
-        ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
+        status: RoomStatus.ACTIVE,
       });
     }
     if (!room) {
@@ -266,8 +311,17 @@ export class RoomsService {
           user.status === UserStatus.ANONYMOUS ? user.tempEmail : user.email,
       };
     });
+
     let chatFlow = null;
     if (data.isHelpDesk) {
+      if (
+        checkExpiredAt &&
+        user.status === UserStatus.ANONYMOUS &&
+        room.expiredAt &&
+        moment().isAfter(room.expiredAt)
+      ) {
+        throw new NotFoundException('Room not found');
+      }
       const space = data.space as Space;
       if (
         user.status !== UserStatus.ANONYMOUS &&
@@ -275,9 +329,7 @@ export class RoomsService {
       ) {
         throw new ForbiddenException('You do not have permission in this room');
       }
-
       chatFlow = await this.getChatFlowBySpace(space._id);
-
       delete (data.space as any).members;
     }
 
@@ -290,46 +342,88 @@ export class RoomsService {
 
   async findWithCursorPaginate(
     queryParams: ListQueryParamsCursor & {
-      type?: 'all' | 'group' | 'individual' | 'help-desk' | 'unread-help-desk';
+      type?:
+        | 'all'
+        | 'group'
+        | 'individual'
+        | 'help-desk'
+        | 'unread-help-desk'
+        | 'archived'
+        | 'waiting';
       spaceId?: string;
       status?: RoomStatus;
+      domains?: string[];
+      tags?: string[];
+      countries: string[];
     },
     userId: string,
   ): Promise<Pagination<Room, CursorPaginationInfo>> {
-    const { limit = 10, cursor, type, status, spaceId } = queryParams;
+    const {
+      limit = 10,
+      cursor,
+      type,
+      status,
+      spaceId,
+      domains,
+      tags,
+      countries = [],
+    } = queryParams;
 
     const user = await this.usersService.findById(userId);
+    let userIds: ObjectId[] = [];
+    if (spaceId && countries && countries.length > 0) {
+      userIds = (
+        await this.usersService.findBySpaceAndCountries(spaceId, countries)
+      ).map((item) => item._id);
+    }
 
     const query: FilterQuery<Room> = {
-      _id: {
-        $nin: user.pinRoomIds,
-      },
+      _id: { $nin: user.pinRoomIds },
       newMessageAt: {
-        $lt: cursor ? new Date(cursor).toISOString() : new Date().toISOString(),
+        $lt: cursor
+          ? new Date(cursor).toDateString()
+          : new Date().toISOString(),
       },
       participants: userId,
-      status: {
-        $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED],
-      },
-      ...(status ? { status: status } : {}),
+      status: { $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED] },
       deleteFor: { $nin: [userId] },
+      archiveFor: { $nin: [userId] },
       isHelpDesk: { $ne: true },
-      ...(type === 'group' ? { isGroup: true } : {}),
-      ...(type === 'individual' ? { isGroup: false } : {}),
-      ...(type === 'help-desk'
-        ? {
-            isHelpDesk: true,
-            space: { $exists: true, $eq: spaceId },
-          }
-        : {}),
-      ...(type === 'unread-help-desk'
-        ? {
-            isHelpDesk: true,
-            readBy: { $nin: [user] },
-            space: { $exists: true, $eq: spaceId },
-          }
-        : {}),
+      ...(status && { status }),
+      ...(countries?.length && {
+        $and: [{ participants: { $in: userIds } }, { participants: userId }],
+      }),
+      ...(tags?.length && { tag: { $in: tags } }),
+      ...(domains?.length && { fromDomain: { $in: domains } }),
     };
+
+    switch (type) {
+      case 'group':
+        Object.assign(query, { isGroup: true });
+        break;
+      case 'individual':
+        Object.assign(query, { isGroup: false });
+        break;
+      case 'help-desk':
+        Object.assign(query, {
+          isHelpDesk: true,
+          space: { $exists: true, $eq: spaceId },
+        });
+        break;
+      case 'unread-help-desk':
+        Object.assign(query, {
+          isHelpDesk: true,
+          readBy: { $nin: [user] },
+          space: { $exists: true, $eq: spaceId },
+        });
+        break;
+      case 'archived':
+        Object.assign(query, { archiveFor: { $in: [userId] } });
+        break;
+      case 'waiting':
+        Object.assign(query, { status: RoomStatus.WAITING });
+        break;
+    }
 
     const rooms = await this.roomModel
       .find(query)
@@ -383,7 +477,7 @@ export class RoomsService {
     };
     if (type === 'help-desk' || type === 'unread-help-desk') {
       const space = rooms[0]?.space as Space;
-      if (!this.isAccessRoomBySpace(space, userId)) {
+      if (rooms.length > 0 && !this.isAccessRoomBySpace(space, userId)) {
         throw new ForbiddenException(
           'You do not have permission to view rooms in this space',
         );
@@ -409,6 +503,7 @@ export class RoomsService {
         ...room.toObject(),
         isPinned: user?.pinRoomIds?.includes(room._id.toString()) || false,
         lastMessage: convertMessageRemoved(room.lastMessage, userId),
+        ...(type === 'archived' && { status: RoomStatus.ARCHIVED }),
       })),
       pageInfo,
     };
@@ -647,6 +742,9 @@ export class RoomsService {
     room.participants = room.participants.filter(
       (p) => String(p._id) !== removeUserId,
     );
+    room.deleteFor = room.deleteFor.filter((p) => String(p) !== removeUserId);
+    await this.unPinIfExist(roomId, removeUserId);
+    await this.unarchive(roomId, removeUserId);
     await room.save();
     await room.populate([
       {
@@ -782,15 +880,14 @@ export class RoomsService {
       pinRoomIds: user.pinRoomIds,
     });
   }
-  async upPinIfExist(roomId: string, userId: string) {
+  async unPinIfExist(roomId: string, userId: string) {
     const user = await this.usersService.findById(userId);
-    if (user.pinRoomIds.includes(roomId)) {
-      return;
+    if (user?.pinRoomIds?.includes(roomId)) {
+      user.pinRoomIds = user.pinRoomIds.filter((id) => id !== roomId);
+      await this.usersService.update(user._id, {
+        pinRoomIds: user.pinRoomIds,
+      });
     }
-    user.pinRoomIds = [roomId, ...user.pinRoomIds];
-    await this.usersService.update(user._id, {
-      pinRoomIds: user.pinRoomIds,
-    });
   }
   async getPinnedRooms(userId: string, spaceId: string) {
     const user = await this.usersService.findById(userId);
@@ -803,6 +900,7 @@ export class RoomsService {
         status: RoomStatus.ACTIVE,
         participants: userId,
         deleteFor: { $nin: [userId] },
+        archiveFor: { $nin: [userId] },
         ...(spaceId
           ? { isHelpDesk: true, space: { $exists: true, $eq: spaceId } }
           : {}),
@@ -896,14 +994,6 @@ export class RoomsService {
       throw new BadRequestException('Participants must be 2 users');
     }
 
-    const oldRoom = await this.findByParticipantIds(
-      participants.map((p) => p._id),
-      true,
-    );
-    if (oldRoom) {
-      return oldRoom;
-    }
-
     const newRoom = new this.roomModel(createRoomDto);
     newRoom.isHelpDesk = true;
     newRoom.participants = participants;
@@ -911,20 +1001,13 @@ export class RoomsService {
     newRoom.admin = creatorId as any;
     newRoom.readBy = createRoomDto.participants;
     newRoom.fromDomain = createRoomDto.fromDomain;
+    newRoom.expiredAt = moment()
+      .add(envConfig.helpDesk.room.expireIn, 'seconds')
+      .toDate();
 
     const room = await this.roomModel.create(newRoom);
-    const responseRoom = await room.populate([
-      {
-        path: 'participants',
-        select: userSelectFieldsString,
-      },
-      {
-        path: 'admin',
-        select: userSelectFieldsString,
-      },
-    ]);
 
-    return responseRoom;
+    return room;
   }
   async updateReadByLastMessageInRoom(roomId: ObjectId, userId: string) {
     return await this.roomModel.findByIdAndUpdate(
@@ -935,18 +1018,27 @@ export class RoomsService {
       { new: true },
     );
   }
-  async updateReadByWhenSendNewMessage(roomId: ObjectId, userId: string) {
+  async updateRoomHelpDesk(
+    roomId: ObjectId,
+    userId: string,
+    senderType?: SenderType,
+  ) {
     return await this.roomModel.findByIdAndUpdate(
       roomId,
       {
         readBy: [userId],
+        ...(senderType === SenderType.ANONYMOUS && {
+          expiredAt: moment()
+            .add(envConfig.helpDesk.room.expireIn, 'seconds')
+            .toDate(),
+        }),
       },
       { new: true },
     );
   }
 
   async changeRoomStatus(id: string, userId: string, status: RoomStatus) {
-    const room = await this.findByIdAndUserId(id, userId, true);
+    const room = await this.findByIdAndUserId(id, userId);
     if (!room) {
       throw new Error('Room not found');
     }
@@ -963,7 +1055,7 @@ export class RoomsService {
   }
 
   async changeTagRoom(id: string, userId: string, tagId: string) {
-    const room = await this.findByIdAndUserId(id, userId, true);
+    const room = await this.findByIdAndUserId(id, userId);
     if (!room) {
       throw new Error('Room not found');
     }
@@ -1198,26 +1290,18 @@ export class RoomsService {
     ];
     return await this.roomModel.aggregate(query);
   }
-  async getChatFlowBySpace(spaceId: ObjectId) {
-    const business = await this.helpDeskBusinessModel
-      .findOne({ space: spaceId })
-      .lean();
-    if (!business) {
-      throw new BadRequestException('Business not found');
-    }
-    return business.chatFlow;
-  }
 
   getTagByRoom(room: Room) {
     let tag;
     const space = room.space as Space;
     if (space && space.tags && room.tag) {
       tag = space.tags.find(
-        (tag) => tag._id.toString() === room.tag.toString(),
+        (tag) => tag._id.toString() === room.tag?.toString(),
       );
     }
     return tag;
   }
+
   isAccessRoomBySpace(space: Space, userId: string) {
     return (
       space &&
@@ -1228,5 +1312,27 @@ export class RoomsService {
           member.status === MemberStatus.JOINED,
       )
     );
+  }
+
+  async removeTagsBySpaceIdAndTagId(spaceId: string, tagId: string) {
+    return await this.roomModel.updateMany(
+      {
+        space: spaceId,
+        tag: tagId,
+      },
+      {
+        tag: null,
+      },
+    );
+  }
+  async getChatFlowBySpace(spaceId: ObjectId) {
+    const business = await this.helpDeskBusinessModel
+      .findOne({ space: spaceId })
+      .populate('currentScript')
+      .lean();
+    if (!business || !business.currentScript) {
+      return null;
+    }
+    return business?.currentScript?.chatFlow;
   }
 }

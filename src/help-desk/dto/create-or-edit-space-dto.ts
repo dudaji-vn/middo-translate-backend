@@ -43,10 +43,6 @@ export class CreateOrEditSpaceDto {
 }
 
 export class InviteMemberDto {
-  @ApiProperty()
-  @IsMongoId()
-  spaceId: string;
-
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => MemberDto)
@@ -57,17 +53,9 @@ export class RemoveMemberDto {
   @ApiProperty()
   @IsEmail()
   email: string;
-
-  @ApiProperty()
-  @IsMongoId()
-  spaceId: string;
 }
 
 export class CreateOrEditTagDto {
-  @ApiProperty()
-  @IsMongoId()
-  spaceId: string;
-
   @ApiProperty()
   @IsString()
   name: string;
@@ -83,10 +71,6 @@ export class CreateOrEditTagDto {
 }
 
 export class UpdateMemberDto {
-  @ApiProperty()
-  @IsMongoId()
-  spaceId: string;
-
   @IsEnum(ROLE)
   role: ROLE;
   @IsEmail()

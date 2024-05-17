@@ -54,4 +54,9 @@ export const envConfig = {
       projectId: process.env.FIREBASE_PROJECT_ID as string,
     },
   },
+  helpDesk: {
+    room: {
+      expireIn: process.env.HELP_DESK_ROOM_EXPIRES_IN || 60 * 60 * 24,
+    },
+  },
 };

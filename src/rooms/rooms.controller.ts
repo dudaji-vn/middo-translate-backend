@@ -6,7 +6,6 @@ import {
   Patch,
   Post,
   Query,
-  Req,
 } from '@nestjs/common';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
 import { ListQueryParamsCursorDto } from 'src/common/dto';
@@ -27,7 +26,6 @@ import {
 } from './dto/update-room.dto';
 import { HelpDeskService } from 'src/help-desk/help-desk.service';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
-import { Request } from 'express';
 
 @Controller('rooms')
 export class RoomsController {
@@ -60,7 +58,7 @@ export class RoomsController {
       createRoomDto.senderId,
     );
     if (createRoomDto.businessId) {
-      const business = await this.helpDeskService.getBusinessById(
+      const business = await this.helpDeskService.getExtensionById(
         createRoomDto.businessId,
       );
       if (business) {
@@ -113,7 +111,7 @@ export class RoomsController {
     @ParamObjectId('id') id: string,
     @Query('userId') userId: string,
   ) {
-    const room = await this.roomsService.findByIdAndUserId(id, userId);
+    const room = await this.roomsService.findByIdAndUserId(id, userId, true);
     return { data: room, message: 'Room found' };
   }
 
@@ -314,6 +312,24 @@ export class RoomsController {
     return { message: 'Room pinned', data: null };
   }
 
+  @Patch(':id/archive')
+  async archive(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ): Promise<Response<null>> {
+    await this.roomsService.archive(id, userId);
+    return { message: 'Room archived', data: null };
+  }
+
+  @Patch(':id/unarchive')
+  async unarchive(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ): Promise<Response<null>> {
+    await this.roomsService.unarchive(id, userId);
+    return { message: 'Room unarchive', data: null };
+  }
+
   @Patch(':id/change-status-room')
   async changeRoomStatus(
     @ParamObjectId('id') id: string,
@@ -332,12 +348,5 @@ export class RoomsController {
   ): Promise<Response<boolean>> {
     const result = await this.roomsService.changeTagRoom(id, userId, tagId);
     return { message: 'Changed room tag', data: result };
-  }
-
-  @Public()
-  @Get('try-get-ip/test')
-  async tryGetIpAddress(@Req() req: Request) {
-    const ip = req.connection.remoteAddress;
-    return ip?.toString();
   }
 }

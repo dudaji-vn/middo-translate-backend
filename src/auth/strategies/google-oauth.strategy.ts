@@ -47,6 +47,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         status: UserStatus.ACTIVE,
         language: language,
         provider: Provider.GOOGLE,
+        username: await this.usersService.generateUsernameByEmail(email),
       });
       done(null, newUser);
       return;

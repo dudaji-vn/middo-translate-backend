@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { HydratedDocument } from 'mongoose';
 import { HelpDeskBusiness } from 'src/help-desk/schemas/help-desk-business.schema';
+import { Space } from 'src/help-desk/schemas/space.schema';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -12,6 +13,7 @@ export enum UserStatus {
   INACTIVE = 'inactive',
   ANONYMOUS = 'anonymous',
   BOT = 'bot',
+  DELETED = 'deleted',
 }
 
 export enum Provider {
@@ -31,8 +33,17 @@ export class User {
   @Prop({ type: String })
   bio: string;
 
-  @Prop({ type: String })
+  @Prop({ type: String, unique: true, index: true })
   email: string;
+
+  @Prop({
+    type: String,
+    maxlength: 15,
+    minlength: 4,
+    unique: true,
+    index: true,
+  })
+  username: string;
 
   @Prop({ type: String })
   password: string;
@@ -72,9 +83,15 @@ export class User {
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
-    ref: HelpDeskBusiness.name,
+    ref: 'HelpDeskBusiness',
   })
   business: HelpDeskBusiness;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: Space.name,
+  })
+  space: Space;
 
   @Prop({ type: String, default: false })
   tempEmail: string;
@@ -85,7 +102,6 @@ export class User {
 
 export const UserSchema = SchemaFactory.createForClass(User);
 
-UserSchema.index({ email: 1 }, { unique: true });
 // auto delete user if not verify in 24h
 UserSchema.index(
   { createdAt: 1 },

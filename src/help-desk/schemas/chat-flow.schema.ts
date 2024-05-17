@@ -1,14 +1,6 @@
 import { Prop, SchemaFactory, Schema } from '@nestjs/mongoose';
-import mongoose, { Document } from 'mongoose';
+import { Document } from 'mongoose';
 import { Media } from 'src/messages/schemas/messages.schema';
-
-// export type FlowItemType =
-//   | 'button'
-//   | 'message'
-//   | 'root'
-//   | 'container'
-//   | 'option'
-//   | 'link';
 
 export enum FlowItemType {
   BUTTON = 'button',
