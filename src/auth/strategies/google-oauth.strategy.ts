@@ -40,6 +40,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
 
     if (!user?._id) {
       const language = getLanguage(profile?.language);
+      const username = await this.usersService.generateUsernameByEmail(email);
       const newUser = await this.usersService.create({
         name: profile.displayName,
         email,
@@ -47,7 +48,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
         status: UserStatus.ACTIVE,
         language: language,
         provider: Provider.GOOGLE,
-        username: await this.usersService.generateUsernameByEmail(email),
+        username: username,
       });
       done(null, newUser);
       return;

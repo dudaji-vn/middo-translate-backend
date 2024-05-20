@@ -143,14 +143,15 @@ export class AuthService {
       id: signUpDto.email,
     });
     const hashPassword = await bcrypt.hash(signUpDto.password, 10);
+    const username = await this.usersService.generateUsernameByEmail(
+      signUpDto.email,
+    );
     await this.usersService.create({
       email: signUpDto.email,
       password: hashPassword,
       status: UserStatus.PENDING,
       verifyToken,
-      username: await this.usersService.generateUsernameByEmail(
-        signUpDto.email,
-      ),
+      username,
     });
     const verifyUrl = this.createVerifyUrl(verifyToken);
     await this.mailService.sendMail(
@@ -256,13 +257,14 @@ export class AuthService {
       ignoreNotFound: true,
     });
     if (!user?._id) {
+      const username = await this.usersService.generateUsernameByEmail(
+        profile.email,
+      );
       user = await this.usersService.create({
         ...profile,
         language,
         status: UserStatus.ACTIVE,
-        username: await this.usersService.generateUsernameByEmail(
-          profile.email,
-        ),
+        username: username,
       });
     }
     const accessToken = await this.createAccessToken({

@@ -230,7 +230,8 @@ export class UsersService {
 
   async updateUserInfo(id: string, info: UpdateUserDto): Promise<User> {
     try {
-      if (info.username) {
+      const userUpdate = await this.findById(id);
+      if (info.username && info.username !== userUpdate.username) {
         const isExist = await this.isUsernameExist(info.username);
         if (isExist) {
           throw new HttpException(
@@ -385,6 +386,7 @@ export class UsersService {
   }
   async delete(id: string) {
     const deletedEmail = `deleted${id}@mail.com`;
+    const username = await this.generateUsernameByEmail(deletedEmail);
     const user = await this.userModel.updateOne(
       { _id: id },
       {
@@ -397,6 +399,7 @@ export class UsersService {
         pinRoomIds: [],
         verifyToken: '',
         provider: Provider.LOCAL,
+        username: username,
       },
     );
     if (!user) {
