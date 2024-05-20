@@ -16,7 +16,10 @@ import { selectPopulateField } from 'src/common/utils';
 import { queryReportByType } from 'src/common/utils/query-report';
 import { socketConfig } from 'src/configs/socket.config';
 import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
-import { AnalystType } from 'src/help-desk/dto/analyst-query-dto';
+import {
+  AnalystFilter,
+  AnalystType,
+} from 'src/help-desk/dto/analyst-query-dto';
 import { ChartQueryDto } from 'src/help-desk/dto/chart-query-dto';
 import { Message, SenderType } from 'src/messages/schemas/messages.schema';
 import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
@@ -1334,5 +1337,26 @@ export class RoomsService {
       return null;
     }
     return business?.currentScript?.chatFlow;
+  }
+
+  async getCountOpenedConversation(filter: AnalystFilter) {
+    const { spaceId, fromDate, toDate, fromDomain } = filter;
+    return await this.roomModel.countDocuments({
+      space: spaceId,
+      ...(fromDomain && {
+        fromDomain: fromDomain,
+      }),
+      ...(fromDate &&
+        toDate && {
+          createdAt: {
+            $gte: fromDate,
+            $lte: toDate,
+          },
+        }),
+    });
+  }
+
+  async getDropRate(filter: AnalystFilter) {
+    return 1000;
   }
 }

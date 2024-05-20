@@ -14,3 +14,10 @@ export class AnalystQueryDto {
   fromDate?: Date;
   toDate?: Date;
 }
+
+export type AnalystFilter = {
+  spaceId: string;
+  fromDate?: Date;
+  toDate?: Date;
+  fromDomain?: string;
+};
