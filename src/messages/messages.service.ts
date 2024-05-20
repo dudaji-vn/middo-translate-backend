@@ -475,6 +475,7 @@ export class MessagesService {
           'email',
           'avatar',
           'language',
+          'username',
         ]),
       )
       .populate([
@@ -788,6 +789,7 @@ export class MessagesService {
           'email',
           'avatar',
           'language',
+          'username',
         ]),
       )
       .populate([
@@ -1097,6 +1099,7 @@ export class MessagesService {
           'email',
           'avatar',
           'language',
+          'username',
         ]),
       )
       .populate('room', selectPopulateField<Room>(['_id', 'isHelpDesk']))
