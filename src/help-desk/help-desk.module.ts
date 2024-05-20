@@ -23,6 +23,8 @@ import {
   SpaceNotificationSchema,
 } from './schemas/space-notifications.schema';
 
+import { Visitor, VisitorSchema } from './schemas/visitor.schema';
+
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -31,6 +33,7 @@ import {
       { name: Space.name, schema: SpaceSchema },
       { name: SpaceNotification.name, schema: SpaceNotificationSchema },
       { name: Script.name, schema: ScriptSchema },
+      { name: Visitor.name, schema: VisitorSchema },
     ]),
     UsersModule,
     MailModule,

@@ -17,7 +17,11 @@ import { RoomStatus } from 'src/rooms/schemas/room.schema';
 import { SearchQueryParamsDto } from 'src/search/dtos';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import { AnalystQueryDto, AnalystType } from './dto/analyst-query-dto';
+import {
+  AnalystFilter,
+  AnalystQueryDto,
+  AnalystType,
+} from './dto/analyst-query-dto';
 import { AnalystResponseDto } from './dto/analyst-response-dto';
 import { ChartQueryDto, RatingQueryDto } from './dto/chart-query-dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
@@ -49,6 +53,8 @@ import { Member, Script, Space, StatusSpace } from './schemas/space.schema';
 import { CreateClientDto } from './dto/create-client-dto';
 import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 import { ChatFlow } from './schemas/chat-flow.schema';
+import { VisitorDto } from './dto/visitor-dto';
+import { Visitor } from './schemas/visitor.schema';
 
 @Injectable()
 export class HelpDeskService {
@@ -63,6 +69,8 @@ export class HelpDeskService {
     private spaceNotificationModel: Model<SpaceNotification>,
     @InjectModel(Script.name)
     private scriptModel: Model<Script>,
+    @InjectModel(Visitor.name)
+    private visitorModel: Model<Visitor>,
     private userService: UsersService,
     private roomsService: RoomsService,
     private messagesService: MessagesService,
@@ -759,16 +767,16 @@ export class HelpDeskService {
       [AnalystType.LAST_YEAR]: today,
       [AnalystType.CUSTOM]: moment(toDate).toDate(),
     };
+    const analystFilter: AnalystFilter = {
+      spaceId: spaceId,
+      fromDate: fromDateBy[type],
+      toDate: toDateBy[type],
+    };
 
-    const totalClientsWithTimePromise = this.userModel.countDocuments({
-      business: business._id,
-      createdAt: {
-        $gte: fromDateBy[type],
-        $lte: toDateBy[type],
-      },
-    });
-    const totalClientsPromise = this.userModel.countDocuments({
-      business: business._id,
+    const totalClientsWithTimePromise =
+      this.roomsService.getCountOpenedConversation(analystFilter);
+    const totalClientsPromise = this.roomsService.getCountOpenedConversation({
+      spaceId: spaceId,
     });
 
     const totalCompletedConversationWithTimePromise =
@@ -799,6 +807,9 @@ export class HelpDeskService {
 
     const averageResponseChatPromise =
       this.roomsService.getAverageResponseChat(spaceId);
+
+    const dropRateWithTimePromise =
+      this.roomsService.getDropRate(analystFilter);
     const newClientsChartPromise = await this.getChartClient(
       business._id,
       type,
@@ -834,6 +845,7 @@ export class HelpDeskService {
       averageRating,
       averageResponseChatWithTime,
       averageResponseChat,
+      dropRateWithTime,
     ] = await Promise.all([
       totalClientsWithTimePromise,
       totalClientsPromise,
@@ -842,6 +854,7 @@ export class HelpDeskService {
       averageRatingPromise,
       averageResponseChatPromiseWithTimePromise,
       averageResponseChatPromise,
+      dropRateWithTimePromise,
     ]);
 
     let [
@@ -1030,6 +1043,10 @@ export class HelpDeskService {
       averageRating: {
         count: averageRating.count,
         rate: averageRating.rate,
+      },
+      dropRate: {
+        count: dropRateWithTime,
+        rate: 0,
       },
       responseChat: {
         averageTime: averageChatDurationWithTime,
@@ -1536,9 +1553,7 @@ export class HelpDeskService {
     const queryDate = queryReportByType(type, queryByBusiness);
     return await this.userModel.aggregate(queryDate);
   }
-  async getResponseChat() {
-    return [];
-  }
+
   async getChartAverageResponseChat(payload: ChartQueryDto) {
     return this.roomsService.getChartAverageResponseChat(payload);
   }
@@ -1941,6 +1956,25 @@ export class HelpDeskService {
     notification.isDeleted = true;
     await notification.save();
     return null;
+  }
+
+  async addVisitor(spaceId: string, visitor: VisitorDto) {
+    const { fromDomain } = visitor;
+    const extension = await this.helpDeskBusinessModel.findOne({
+      space: spaceId,
+      status: { $ne: StatusBusiness.DELETED },
+    });
+    if (!extension) {
+      throw new BadRequestException('Extension not found');
+    }
+    if (!extension.domains.includes(fromDomain)) {
+      throw new BadRequestException('Domain not exist on this space');
+    }
+
+    return await this.visitorModel.create({
+      space: spaceId,
+      fromDomain: fromDomain,
+    });
   }
 
   isAdminSpace(members: Member[], userId: string) {
