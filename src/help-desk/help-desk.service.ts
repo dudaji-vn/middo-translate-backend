@@ -10,7 +10,11 @@ import * as moment from 'moment';
 import mongoose, { Model, ObjectId, Types } from 'mongoose';
 import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
-import { queryReportByType } from 'src/common/utils/query-report';
+import {
+  queryGroupByLanguage,
+  queryOpenedConversation,
+  queryReportByType,
+} from 'src/common/utils/query-report';
 import { MessageType } from 'src/messages/schemas/messages.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { RoomStatus } from 'src/rooms/schemas/room.schema';
@@ -18,7 +22,7 @@ import { SearchQueryParamsDto } from 'src/search/dtos';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import {
-  AnalystFilter,
+  AnalystFilterDto,
   AnalystQueryDto,
   AnalystType,
 } from './dto/analyst-query-dto';
@@ -39,7 +43,10 @@ import { envConfig } from 'src/configs/env.config';
 import { socketConfig } from 'src/configs/socket.config';
 import { MailService } from 'src/mail/mail.service';
 import { MessagesService } from 'src/messages/messages.service';
+import { calculateRate } from '../common/utils/calculate-rate';
+import { CreateClientDto } from './dto/create-client-dto';
 import { CreateOrEditBusinessDto as CreateOrEditExtensionDto } from './dto/create-or-edit-business-dto';
+import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 import {
   CreateOrEditSpaceDto,
   CreateOrEditTagDto,
@@ -48,13 +55,12 @@ import {
   UpdateMemberDto,
 } from './dto/create-or-edit-space-dto';
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
+import { VisitorDto } from './dto/visitor-dto';
+import { ChatFlow } from './schemas/chat-flow.schema';
 import { SpaceNotification } from './schemas/space-notifications.schema';
 import { Member, Script, Space, StatusSpace } from './schemas/space.schema';
-import { CreateClientDto } from './dto/create-client-dto';
-import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
-import { ChatFlow } from './schemas/chat-flow.schema';
-import { VisitorDto } from './dto/visitor-dto';
 import { Visitor } from './schemas/visitor.schema';
+import { pivotChartByType } from 'src/common/utils/date-report';
 
 @Injectable()
 export class HelpDeskService {
@@ -753,7 +759,7 @@ export class HelpDeskService {
     if (!business) {
       throw new BadRequestException('You have not created an extension yet');
     }
-    const { type, fromDate, toDate } = params;
+    const { type, fromDate, toDate, domain, memberId } = params;
     const today = moment().toDate();
     const fromDateBy: Record<AnalystType, Date> = {
       [AnalystType.LAST_WEEK]: moment().subtract('7', 'd').toDate(),
@@ -767,130 +773,107 @@ export class HelpDeskService {
       [AnalystType.LAST_YEAR]: today,
       [AnalystType.CUSTOM]: moment(toDate).toDate(),
     };
-    const analystFilter: AnalystFilter = {
+    const analystFilter: AnalystFilterDto = {
       spaceId: spaceId,
       fromDate: fromDateBy[type],
       toDate: toDateBy[type],
+      fromDomain: domain,
+      type: type,
+      memberId: memberId,
     };
 
-    const totalClientsWithTimePromise =
-      this.roomsService.getCountOpenedConversation(analystFilter);
-    const totalClientsPromise = this.roomsService.getCountOpenedConversation({
+    const totalVisitorPromise = this.countAnalyticsVisitor({
+      spaceId,
+      fromDomain: domain,
+    });
+    const totalClientsPromise = this.roomsService.countOpenedConversation({
       spaceId: spaceId,
+      fromDomain: domain,
+    });
+    const totalDropRatePromise = this.roomsService.countDropRate({
+      spaceId: spaceId,
+      fromDomain: domain,
     });
 
-    const totalCompletedConversationWithTimePromise =
-      this.roomsService.getTotalClientCompletedConversation(
+    const averageResponseChatPromise = this.roomsService.getAverageResponseChat(
+      {
         spaceId,
-        business.space.tags,
-        fromDateBy[type],
-        toDateBy[type],
-      );
-    const totalCompletedConversationPromise =
-      this.roomsService.getTotalClientCompletedConversation(
-        spaceId,
-        business.space.tags,
-      );
-
-    const averageRatingPromise = this.getAverageRatingById(
-      business._id,
-      fromDateBy[type],
-      toDateBy[type],
+        fromDomain: domain,
+        memberId: memberId,
+      },
     );
+
+    const averageRatingPromise = this.getAverageRating(analystFilter);
+
+    const totalVisitorWithTimePromise =
+      this.countAnalyticsVisitor(analystFilter);
+    const totalClientsWithTimePromise =
+      this.roomsService.countOpenedConversation(analystFilter);
 
     const averageResponseChatPromiseWithTimePromise =
-      this.roomsService.getAverageResponseChat(
-        spaceId,
-        fromDateBy[type],
-        toDateBy[type],
-      );
-
-    const averageResponseChatPromise =
-      this.roomsService.getAverageResponseChat(spaceId);
+      this.roomsService.getAverageResponseChat(analystFilter);
 
     const dropRateWithTimePromise =
-      this.roomsService.getDropRate(analystFilter);
-    const newClientsChartPromise = await this.getChartClient(
-      business._id,
-      type,
-      fromDateBy[type],
-      toDateBy[type],
-    );
-    const completedConversationsChartPromise =
-      await this.roomsService.getChartCompletedConversation({
-        type: type,
-        spaceId: business.space._id.toString(),
-        tags: business.space.tags,
-        fromDate: fromDateBy[type],
-        toDate: toDateBy[type],
-      });
-    const ratingsChartPromise = await this.getChartRating({
+      this.roomsService.countDropRate(analystFilter);
+    const newClientsChartPromise =
+      this.roomsService.getChartOpenedConversation(analystFilter);
+
+    const dropRatesChartPromise =
+      this.roomsService.getChartDropRate(analystFilter);
+
+    const ratingsChartPromise = this.getChartRating({
       businessId: business._id,
       type: type,
       fromDate: fromDateBy[type],
       toDate: toDateBy[type],
     });
-    const responseChartPromise = await this.getChartAverageResponseChat({
+    const responseChartPromise = this.getChartAverageResponseChat({
       type: type,
       spaceId: business.space?._id.toString(),
       fromDate: fromDateBy[type],
       toDate: toDateBy[type],
     });
 
+    const visitorChartPromise = this.getChartVisitor(analystFilter);
+
     const [
-      totalClientsWithTime,
+      totalVisitor,
       totalClients,
-      totalCompletedConversationWithTime,
-      totalCompletedConversation,
+      totalDropRate,
       averageRating,
-      averageResponseChatWithTime,
       averageResponseChat,
-      dropRateWithTime,
+      totalVisitorWithTime,
+      totalClientsWithTime,
+      averageResponseChatWithTime,
+      totalDropRateWithTime,
     ] = await Promise.all([
-      totalClientsWithTimePromise,
+      totalVisitorPromise,
       totalClientsPromise,
-      totalCompletedConversationWithTimePromise,
-      totalCompletedConversationPromise,
+      totalDropRatePromise,
       averageRatingPromise,
-      averageResponseChatPromiseWithTimePromise,
       averageResponseChatPromise,
+      totalVisitorWithTimePromise,
+      totalClientsWithTimePromise,
+      averageResponseChatPromiseWithTimePromise,
       dropRateWithTimePromise,
     ]);
 
     let [
       newClientsChart,
-      completedConversationsChart,
       ratingsChart,
       responseChart,
+      dropRatesChart,
+      visitorChart,
     ] = await Promise.all([
       newClientsChartPromise,
-      completedConversationsChartPromise,
       ratingsChartPromise,
       responseChartPromise,
+      dropRatesChartPromise,
+      visitorChartPromise,
     ]);
 
     switch (type) {
       case AnalystType.LAST_WEEK:
-        newClientsChart = this.addMissingDates(
-          newClientsChart,
-          fromDateBy[type],
-          toDateBy[type],
-        ).map((item) => {
-          return {
-            label: moment(item.date, 'DD/MM/YYYY').format('dddd'),
-            value: item.count,
-          };
-        });
-        completedConversationsChart = this.addMissingDates(
-          completedConversationsChart,
-          fromDateBy[type],
-          toDateBy[type],
-        ).map((item) => {
-          return {
-            label: moment(item.date, 'DD/MM/YYYY').format('dddd'),
-            value: item.count,
-          };
-        });
         ratingsChart = this.addMissingDates(
           ratingsChart,
           fromDateBy[type],
@@ -914,26 +897,6 @@ export class HelpDeskService {
         break;
 
       case AnalystType.LAST_MONTH:
-        newClientsChart = this.addMissingDates(
-          newClientsChart,
-          fromDateBy[type],
-          toDateBy[type],
-        ).map((item) => {
-          return {
-            label: item.date,
-            value: item.count,
-          };
-        });
-        completedConversationsChart = this.addMissingDates(
-          completedConversationsChart,
-          fromDateBy[type],
-          toDateBy[type],
-        ).map((item) => {
-          return {
-            label: item.date,
-            value: item.count,
-          };
-        });
         ratingsChart = this.addMissingDates(
           ratingsChart,
           fromDateBy[type],
@@ -956,20 +919,6 @@ export class HelpDeskService {
         });
         break;
       case AnalystType.LAST_YEAR:
-        newClientsChart = this.addMissingMonths(newClientsChart).map((item) => {
-          return {
-            label: `01-${item.month}-${item.year}`,
-            value: item.count,
-          };
-        });
-        completedConversationsChart = this.addMissingMonths(
-          completedConversationsChart,
-        ).map((item) => {
-          return {
-            label: `01-${item.month}-${item.year}`,
-            value: item.count,
-          };
-        });
         ratingsChart = this.addMissingMonths(ratingsChart).map((item) => {
           return {
             label: `01-${item.month}-${item.year}`,
@@ -989,20 +938,6 @@ export class HelpDeskService {
           throw new BadRequestException('fromDate and toDate are required');
         }
 
-        newClientsChart = newClientsChart.map((item) => {
-          return {
-            label: item.date,
-            value: item.count,
-          };
-        });
-        completedConversationsChart = completedConversationsChart.map(
-          (item) => {
-            return {
-              label: item.date,
-              value: item.count,
-            };
-          },
-        );
         ratingsChart = ratingsChart.map((item) => {
           return {
             label: item.date,
@@ -1023,48 +958,94 @@ export class HelpDeskService {
       averageResponseChatWithTime[0]?.averageDifference || 0;
     const averageChatDuration = averageResponseChat[0]?.averageDifference;
     return {
-      client: {
-        count: totalClientsWithTime,
-        rate:
-          totalClients === 0
-            ? 0
-            : Math.round((totalClientsWithTime * 100) / totalClients),
-      },
-      completedConversation: {
-        count: totalCompletedConversationWithTime,
-        rate:
-          totalCompletedConversation === 0
-            ? 0
-            : Math.round(
-                (totalCompletedConversationWithTime * 100) /
-                  totalCompletedConversation,
-              ),
-      },
-      averageRating: {
-        count: averageRating.count,
-        rate: averageRating.rate,
-      },
-      dropRate: {
-        count: dropRateWithTime,
-        rate: 0,
-      },
-      responseChat: {
-        averageTime: averageChatDurationWithTime,
-        rate:
-          averageChatDuration === 0
-            ? 0
-            : Math.round(
-                ((averageChatDuration - averageChatDurationWithTime) * 100) /
-                  averageChatDuration,
-              ),
-      },
-      chart: {
-        client: newClientsChart,
-        completedConversation: completedConversationsChart,
-        averageRating: ratingsChart,
-        responseChat: responseChart,
+      analysis: {
+        newVisitor: {
+          value: totalVisitorWithTime,
+          growth: calculateRate(totalVisitorWithTime, totalVisitor),
+          total: totalVisitor,
+        },
+        openedConversation: {
+          value: totalClientsWithTime,
+          growth: calculateRate(totalClientsWithTime, totalClients),
+          total: totalClients,
+        },
+
+        dropRate: {
+          value: totalDropRateWithTime,
+          growth: calculateRate(totalDropRateWithTime, totalDropRate),
+          total: totalDropRate,
+        },
+
+        averageRating: {
+          value: averageRating.value,
+          total: averageRating.total,
+        },
+
+        responseChat: {
+          value: averageChatDurationWithTime,
+          growth: calculateRate(
+            averageChatDurationWithTime,
+            averageChatDuration,
+          ),
+          total: averageChatDuration,
+        },
+        chart: {
+          newVisitor: visitorChart,
+          openedConversation: newClientsChart,
+          dropRate: dropRatesChart,
+          averageRating: ratingsChart,
+          responseChat: responseChart,
+        },
       },
     };
+  }
+  async analystByLanguage(
+    spaceId: string,
+    params: AnalystQueryDto,
+    userId: string,
+  ) {
+    const { type, fromDate, toDate, domain, limit } = params;
+    const today = moment().toDate();
+    const fromDateBy: Record<AnalystType, Date> = {
+      [AnalystType.LAST_WEEK]: moment().subtract('7', 'd').toDate(),
+      [AnalystType.LAST_MONTH]: moment().subtract('1', 'months').toDate(),
+      [AnalystType.LAST_YEAR]: moment().subtract('1', 'years').toDate(),
+      [AnalystType.CUSTOM]: moment(fromDate).toDate(),
+    };
+    const toDateBy: Record<AnalystType, Date> = {
+      [AnalystType.LAST_WEEK]: today,
+      [AnalystType.LAST_MONTH]: today,
+      [AnalystType.LAST_YEAR]: today,
+      [AnalystType.CUSTOM]: moment(toDate).toDate(),
+    };
+    const analystFilter: AnalystFilterDto = {
+      spaceId: spaceId,
+      fromDate: fromDateBy[type],
+      toDate: toDateBy[type],
+      fromDomain: domain,
+      type: type,
+    };
+    const dataWithTime = await this.userModel.aggregate(
+      queryGroupByLanguage(analystFilter),
+    );
+    const data = await this.userModel.aggregate(
+      queryGroupByLanguage({
+        spaceId: spaceId,
+        fromDomain: domain,
+      }),
+    );
+    if (!data.length) {
+      return [];
+    }
+    return data.map((item) => {
+      return {
+        ...item,
+        count:
+          dataWithTime.find((subItem) => subItem?.language === item?.language)
+            ?.count || 0,
+        total: item?.count,
+      };
+    });
   }
 
   async validateInvite(
@@ -1413,18 +1394,15 @@ export class HelpDeskService {
     return true;
   }
 
-  async getAverageRatingById(
-    businessId: ObjectId,
-    fromDate: Date,
-    toDate: Date,
-  ): Promise<{
-    count: number;
-    rate: string;
+  async getAverageRating(filter: AnalystFilterDto): Promise<{
+    value: number;
+    total: number;
   }> {
+    const { spaceId, fromDate, toDate, fromDomain, memberId } = filter;
     const result = await this.helpDeskBusinessModel.aggregate([
       {
         $match: {
-          _id: businessId,
+          space: new Types.ObjectId(spaceId),
         },
       },
       {
@@ -1433,6 +1411,37 @@ export class HelpDeskService {
       {
         $match: {
           'ratings.createdAt': { $gte: fromDate, $lte: toDate },
+        },
+      },
+      {
+        $lookup: {
+          from: 'rooms',
+          localField: 'ratings.user',
+          foreignField: 'participants',
+          as: 'room',
+        },
+      },
+      {
+        $addFields: {
+          room: { $arrayElemAt: ['$room', 0] },
+        },
+      },
+      {
+        $match: {
+          ...(fromDomain && { fromDomain: fromDomain }),
+        },
+      },
+      {
+        $lookup: {
+          from: 'messages',
+          localField: 'room._id',
+          foreignField: 'room',
+          as: 'messages',
+        },
+      },
+      {
+        $match: {
+          ...(memberId && { 'messages.sender': new Types.ObjectId(memberId) }),
         },
       },
       {
@@ -1446,19 +1455,14 @@ export class HelpDeskService {
 
     return result.length > 0 && result[0]
       ? {
-          count: result[0].averageRating
-            ? result[0].averageRating.toFixed(1)
+          value: result[0]?.averageRating
+            ? parseFloat(result[0]?.averageRating?.toFixed(1))
             : 0,
-          rate:
-            result[0].numberPeopleRating && result[0].averageRating
-              ? `${result[0].averageRating.toFixed(1)}/${
-                  result[0].numberPeopleRating
-                }`
-              : '0/0',
+          total: result[0]?.numberPeopleRating,
         }
       : {
-          count: 0,
-          rate: '0/0',
+          value: 0,
+          total: 0,
         };
   }
 
@@ -2088,5 +2092,28 @@ export class HelpDeskService {
     });
 
     return data;
+  }
+
+  async countAnalyticsVisitor(filter: AnalystFilterDto) {
+    const { spaceId, fromDate, toDate, fromDomain } = filter;
+    return await this.visitorModel.countDocuments({
+      space: spaceId,
+      ...(fromDomain && {
+        fromDomain: fromDomain,
+      }),
+      ...(fromDate &&
+        toDate && {
+          createdAt: {
+            $gte: fromDate,
+            $lte: toDate,
+          },
+        }),
+    });
+  }
+  async getChartVisitor(filter: AnalystFilterDto) {
+    const query = queryOpenedConversation(filter);
+    const queryReport = queryReportByType(filter.type, query);
+    const data = await this.visitorModel.aggregate(queryReport);
+    return pivotChartByType(data, filter);
   }
 }
