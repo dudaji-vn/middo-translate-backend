@@ -976,12 +976,7 @@ export class HelpDeskService {
           total: totalDropRate,
         },
 
-        averageRating: {
-          value: averageRating.value,
-          total: averageRating.total,
-        },
-
-        responseChat: {
+        responseTime: {
           value: averageChatDurationWithTime,
           growth: calculateRate(
             averageChatDurationWithTime,
@@ -989,13 +984,17 @@ export class HelpDeskService {
           ),
           total: averageChatDuration,
         },
-        chart: {
-          newVisitor: visitorChart,
-          openedConversation: newClientsChart,
-          dropRate: dropRatesChart,
-          averageRating: ratingsChart,
-          responseChat: responseChart,
+        customerRating: {
+          value: averageRating.value,
+          total: averageRating.total,
         },
+      },
+      chart: {
+        newVisitor: visitorChart,
+        openedConversation: newClientsChart,
+        dropRate: dropRatesChart,
+        responseTime: responseChart,
+        customerRating: ratingsChart,
       },
     };
   }
