@@ -18,7 +18,7 @@ import {
   ReplyMessagePayload,
 } from 'src/events/types/message-payload.type';
 import { RoomsService } from 'src/rooms/rooms.service';
-import { User } from 'src/users/schemas/user.schema';
+import { User, UserRelationType } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { CreateMessageDto } from './dto';
 import {
@@ -167,6 +167,27 @@ export class MessagesService {
         user._id.toString(),
       );
     }
+
+    if (!room?.isGroup && room?.participants.length === 2) {
+      const otherUser = room.participants.find(
+        (p: any) => p._id.toString() !== user._id.toString(),
+      );
+      if (otherUser) {
+        const relation = await this.usersService.checkRelationship(
+          user._id.toString(),
+          otherUser._id.toString(),
+        );
+        switch (relation) {
+          case UserRelationType.BLOCKED:
+            throw new BadRequestException('You are blocked by this user');
+          case UserRelationType.BLOCKING:
+            throw new BadRequestException('You are blocking this user');
+          default:
+            break;
+        }
+      }
+    }
+
     const createdMessage = new this.messageModel();
     createdMessage.sender = user;
     createdMessage.content = createMessageDto.content || '';

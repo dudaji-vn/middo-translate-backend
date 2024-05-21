@@ -3,7 +3,12 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId, Types } from 'mongoose';
 import { FindParams } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
-import { Provider, User, UserStatus } from './schemas/user.schema';
+import {
+  Provider,
+  User,
+  UserRelationType,
+  UserStatus,
+} from './schemas/user.schema';
 import { generateAvatar, selectPopulateField } from 'src/common/utils';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -430,5 +435,40 @@ export class UsersService {
         status: StatusSpace.DELETED,
       },
     );
+  }
+
+  async blockUser(userId: string, blockUserId: string) {
+    const user = await this.findById(userId);
+    const blockUser = await this.findById(blockUserId);
+    if (!blockUser) {
+      throw new HttpException(`User ${blockUserId} not found`, 404);
+    }
+    if (user.blacklist.includes(blockUserId)) {
+      throw new HttpException(`User ${blockUserId} already blocked`, 400);
+    }
+    user.blacklist.push(blockUserId);
+  }
+  async unblockUser(userId: string, blockUserId: string) {
+    const user = await this.findById(userId);
+    const blockUser = await this.findById(blockUserId);
+    if (!blockUser) {
+      throw new HttpException(`User ${blockUserId} not found`, 404);
+    }
+    if (!user.blacklist.includes(blockUserId)) {
+      throw new HttpException(`User ${blockUserId} not blocked`, 400);
+    }
+    user.blacklist = user.blacklist.filter((id) => id !== blockUserId);
+  }
+
+  async checkRelationship(userId: string, targetId: string) {
+    const user = await this.findById(userId);
+    const target = await this.findById(targetId);
+    if (user.blacklist.includes(targetId)) {
+      return UserRelationType.BLOCKING;
+    }
+    if (target.blacklist.includes(userId)) {
+      return UserRelationType.BLOCKED;
+    }
+    return UserRelationType.NONE;
   }
 }
