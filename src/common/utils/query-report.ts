@@ -5,7 +5,6 @@ import {
 } from 'src/help-desk/dto/analyst-query-dto';
 import { RoomStatus } from 'src/rooms/schemas/room.schema';
 import { UserStatus } from 'src/users/schemas/user.schema';
-import { addMissingDates, addMissingMonths } from './date-report';
 
 export function queryReportByType(
   type: AnalystType = AnalystType.LAST_WEEK,

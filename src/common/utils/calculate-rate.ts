@@ -3,8 +3,8 @@ export const calculateRate = (currentValue: number, total: number) => {
     return 0;
   }
   if (total - currentValue === 0) {
-    return 100;
+    return 1;
   }
 
-  return Math.round((currentValue * 100) / (total - currentValue));
+  return parseFloat((currentValue / (total - currentValue)).toFixed(2));
 };

@@ -15,7 +15,7 @@ export class AnalystQueryDto {
   @IsOptional()
   memberId: string;
 
-  fromDomain?: string;
+  domain?: string;
   fromDate?: Date;
   toDate?: Date;
 
@@ -30,4 +30,5 @@ export type AnalystFilterDto = {
   fromDate?: Date;
   toDate?: Date;
   fromDomain?: string;
+  memberId?: string;
 };

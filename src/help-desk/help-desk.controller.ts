@@ -47,7 +47,7 @@ export class HelpDeskController {
   }
 
   @Public()
-  @Post('clients/rating')
+  @Post('rating')
   async rating(@Body() createRatingDto: CreateRatingDto) {
     const rating = await this.helpDeskService.rating(createRatingDto);
     return { message: 'Rating success', data: rating };
@@ -148,6 +148,22 @@ export class HelpDeskController {
     @JwtUserId() userId: string,
   ) {
     const result = await this.helpDeskService.analyst(id, query, userId);
+    return {
+      data: result,
+    };
+  }
+
+  @Get('spaces/:id/analytics/languages')
+  async analyticsByLanguages(
+    @Query() query: AnalystQueryDto,
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.analystByLanguage(
+      id,
+      query,
+      userId,
+    );
     return {
       data: result,
     };
