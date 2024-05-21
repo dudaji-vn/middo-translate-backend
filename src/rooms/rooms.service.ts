@@ -6,17 +6,24 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
-import mongoose, { FilterQuery, Model, ObjectId } from 'mongoose';
+import mongoose, { FilterQuery, Model, ObjectId, Types } from 'mongoose';
 import {
   CursorPaginationInfo,
   ListQueryParamsCursor,
   Pagination,
 } from 'src/common/types';
 import { selectPopulateField } from 'src/common/utils';
-import { queryReportByType } from 'src/common/utils/query-report';
+import {
+  queryDropRate,
+  queryOpenedConversation,
+  queryReportByType,
+} from 'src/common/utils/query-report';
 import { socketConfig } from 'src/configs/socket.config';
 import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
-import { AnalystType } from 'src/help-desk/dto/analyst-query-dto';
+import {
+  AnalystFilterDto,
+  AnalystType,
+} from 'src/help-desk/dto/analyst-query-dto';
 import { ChartQueryDto } from 'src/help-desk/dto/chart-query-dto';
 import { Message, SenderType } from 'src/messages/schemas/messages.schema';
 import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
@@ -36,6 +43,7 @@ import {
 } from 'src/help-desk/schemas/space.schema';
 import * as moment from 'moment';
 import { envConfig } from 'src/configs/env.config';
+import { pivotChartByType } from 'src/common/utils/date-report';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -1143,17 +1151,17 @@ export class RoomsService {
     );
     return this.roomModel.aggregate(query);
   }
-  async getAverageResponseChat(
-    spaceId: string,
-    fromDate?: Date,
-    toDate?: Date,
-  ) {
+  async getAverageResponseChat(filter: AnalystFilterDto) {
+    const { spaceId, fromDate, toDate, fromDomain, memberId } = filter;
     const query = [
       {
         $match: {
           space: new mongoose.Types.ObjectId(spaceId),
           isHelpDesk: true,
           status: RoomStatus.ACTIVE,
+          ...(fromDomain && {
+            fromDomain: fromDomain,
+          }),
           ...(fromDate &&
             toDate && {
               createdAt: {
@@ -1170,15 +1178,33 @@ export class RoomsService {
       {
         $lookup: {
           from: 'messages',
-          localField: '_id',
-          foreignField: 'room',
+          let: { roomId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$room', '$$roomId'] },
+                    { $eq: ['$senderType', SenderType.USER] },
+                    ...(memberId
+                      ? [{ $eq: ['$sender', new Types.ObjectId(memberId)] }]
+                      : []),
+                  ],
+                },
+              },
+            },
+          ],
           as: 'messages',
         },
       },
-
+      {
+        $match: {
+          'messages.0': { $exists: true },
+        },
+      },
       {
         $addFields: {
-          secondMessage: { $arrayElemAt: ['$messages', 1] },
+          secondMessage: { $arrayElemAt: ['$messages', 0] },
         },
       },
       {
@@ -1334,5 +1360,45 @@ export class RoomsService {
       return null;
     }
     return business?.currentScript?.chatFlow;
+  }
+
+  async countOpenedConversation(filter: AnalystFilterDto) {
+    const { spaceId, fromDate, toDate, fromDomain } = filter;
+    return await this.roomModel.countDocuments({
+      space: spaceId,
+      ...(fromDomain && {
+        fromDomain: fromDomain,
+      }),
+      ...(fromDate &&
+        toDate && {
+          createdAt: {
+            $gte: fromDate,
+            $lte: toDate,
+          },
+        }),
+    });
+  }
+
+  async countDropRate(filter: AnalystFilterDto) {
+    const query = queryDropRate(filter, [{ $count: 'count' }]);
+    const dropRatePromise = await this.roomModel.aggregate(query);
+
+    if (!dropRatePromise.length) {
+      return 0;
+    }
+    return dropRatePromise[0]?.count;
+  }
+
+  async getChartDropRate(filter: AnalystFilterDto) {
+    const query = queryDropRate(filter);
+    const queryReport = queryReportByType(filter.type, query, '$expiredAt');
+    const data = await this.roomModel.aggregate(queryReport);
+    return pivotChartByType(data, filter);
+  }
+  async getChartOpenedConversation(filter: AnalystFilterDto) {
+    const query = queryOpenedConversation(filter);
+    const queryReport = queryReportByType(filter.type, query);
+    const data = await this.roomModel.aggregate(queryReport);
+    return pivotChartByType(data, filter);
   }
 }
