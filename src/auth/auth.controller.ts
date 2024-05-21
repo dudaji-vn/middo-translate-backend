@@ -183,6 +183,26 @@ export class AuthController {
     };
   }
 
+  // Check token and reset password
+  @Public()
+  @UseGuards(VerifyTokenGuard)
+  @Get('check-token-reset-password')
+  async checkToken(
+    @GetVerifyJwt() { token, email }: { token: string; email: string },
+  ): Promise<
+    Response<{
+      isValid: boolean;
+    }>
+  > {
+    const isValid = await this.authService.checkToken(token, email);
+    return {
+      message: 'ok',
+      data: {
+        isValid,
+      },
+    };
+  }
+
   @Public()
   @UseGuards(VerifyTokenGuard)
   @Put('reset-password')

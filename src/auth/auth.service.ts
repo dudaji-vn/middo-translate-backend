@@ -200,6 +200,14 @@ export class AuthService {
     );
   }
 
+  async checkToken(token: string, email: string): Promise<boolean> {
+    const user = await this.usersService.findByEmail(email);
+    if (user?.verifyToken !== token) {
+      return false;
+    }
+    return true;
+  }
+
   // PASSWORD
   async resetPassword(
     token: string,
