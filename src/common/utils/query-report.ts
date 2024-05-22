@@ -1,3 +1,4 @@
+import { count } from 'console';
 import { PipelineStage, Types } from 'mongoose';
 import {
   AnalystFilterDto,
@@ -140,7 +141,9 @@ export function queryOpenedConversation(filter: AnalystFilterDto) {
   ];
 }
 export function queryGroupByLanguage(filter: AnalystFilterDto) {
-  const { spaceId, fromDate, toDate, fromDomain } = filter;
+  const { spaceId, fromDate, toDate, fromDomain, limit } = filter;
+  console.log(limit);
+
   return [
     {
       $match: {
@@ -196,6 +199,12 @@ export function queryGroupByLanguage(filter: AnalystFilterDto) {
         language: '$_id',
         count: 1,
       },
+    },
+    {
+      $sort: { count: -1 } as any,
+    },
+    {
+      $limit: (limit || 100) as any,
     },
   ];
 }
