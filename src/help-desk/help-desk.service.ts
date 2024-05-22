@@ -1967,7 +1967,7 @@ export class HelpDeskService {
   }
 
   async addVisitor(spaceId: string, visitor: VisitorDto) {
-    const { fromDomain } = visitor;
+    const { domain } = visitor;
     const extension = await this.helpDeskBusinessModel.findOne({
       space: spaceId,
       status: { $ne: StatusBusiness.DELETED },
@@ -1975,13 +1975,13 @@ export class HelpDeskService {
     if (!extension) {
       throw new BadRequestException('Extension not found');
     }
-    if (!extension.domains.includes(fromDomain)) {
+    if (!extension.domains.includes(domain)) {
       throw new BadRequestException('Domain not exist on this space');
     }
 
     return await this.visitorModel.create({
       space: spaceId,
-      fromDomain: fromDomain,
+      fromDomain: domain,
     });
   }
 
