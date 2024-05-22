@@ -955,8 +955,12 @@ export class HelpDeskService {
     }
 
     const averageChatDurationWithTime =
-      averageResponseChatWithTime[0]?.averageDifference || 0;
-    const averageChatDuration = averageResponseChat[0]?.averageDifference;
+      parseFloat(
+        averageResponseChatWithTime[0]?.averageDifference?.toFixed(2),
+      ) || 0;
+    const averageChatDuration = parseFloat(
+      averageResponseChat[0]?.averageDifference?.toFixed(2),
+    );
     return {
       analysis: {
         newVisitor: {
@@ -1003,7 +1007,7 @@ export class HelpDeskService {
     params: AnalystQueryDto,
     userId: string,
   ) {
-    const { type, fromDate, toDate, domain, limit } = params;
+    const { type, fromDate, toDate, domain, limit = 10 } = params;
     const today = moment().toDate();
     const fromDateBy: Record<AnalystType, Date> = {
       [AnalystType.LAST_WEEK]: moment().subtract('7', 'd').toDate(),
@@ -1031,6 +1035,7 @@ export class HelpDeskService {
       queryGroupByLanguage({
         spaceId: spaceId,
         fromDomain: domain,
+        limit: limit,
       }),
     );
     if (!data.length) {
@@ -1962,7 +1967,7 @@ export class HelpDeskService {
   }
 
   async addVisitor(spaceId: string, visitor: VisitorDto) {
-    const { fromDomain } = visitor;
+    const { domain } = visitor;
     const extension = await this.helpDeskBusinessModel.findOne({
       space: spaceId,
       status: { $ne: StatusBusiness.DELETED },
@@ -1970,13 +1975,13 @@ export class HelpDeskService {
     if (!extension) {
       throw new BadRequestException('Extension not found');
     }
-    if (!extension.domains.includes(fromDomain)) {
+    if (!extension.domains.includes(domain)) {
       throw new BadRequestException('Domain not exist on this space');
     }
 
     return await this.visitorModel.create({
       space: spaceId,
-      fromDomain: fromDomain,
+      fromDomain: domain,
     });
   }
 

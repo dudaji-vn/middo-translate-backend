@@ -400,7 +400,7 @@ export class HelpDeskController {
   }
 
   @Public()
-  @Post('spaces/:id/clients/visitor')
+  @Post('spaces/:id/visitor')
   async addVisitor(
     @ParamObjectId('id') id: string,
     @Body() visitor: VisitorDto,
