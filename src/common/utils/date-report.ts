@@ -138,6 +138,18 @@ export function pivotChartByType(data: any, filter: AnalystFilterDto) {
       break;
 
     case AnalystType.CUSTOM:
+      if (!data.length) {
+        return [
+          {
+            label: moment(fromDate).format('YYYY-MM-DD'),
+            value: 0,
+          },
+          {
+            label: moment(toDate).format('YYYY-MM-DD'),
+            value: 0,
+          },
+        ];
+      }
       data = data.map((item: any) => {
         return {
           label: item.date,
