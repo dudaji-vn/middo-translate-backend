@@ -102,14 +102,14 @@ export function addMissingMonths(data: AnalystResponseDto[]) {
   return data;
 }
 
-export function pivotChartByType(chart: any, filter: AnalystFilterDto) {
+export function pivotChartByType(data: any, filter: AnalystFilterDto) {
   const { fromDate, toDate, type } = filter;
   if (!fromDate || !toDate) {
     return [];
   }
   switch (type) {
     case AnalystType.LAST_WEEK:
-      chart = addMissingDates(chart, fromDate, toDate).map((item) => {
+      data = addMissingDates(data, fromDate, toDate).map((item) => {
         return {
           label: moment(item.date, 'DD/MM/YYYY').format('dddd'),
           value: item.count,
@@ -119,7 +119,7 @@ export function pivotChartByType(chart: any, filter: AnalystFilterDto) {
       break;
 
     case AnalystType.LAST_MONTH:
-      chart = addMissingDates(chart, fromDate, toDate).map((item) => {
+      data = addMissingDates(data, fromDate, toDate).map((item) => {
         return {
           label: item.date,
           value: item.count,
@@ -128,7 +128,7 @@ export function pivotChartByType(chart: any, filter: AnalystFilterDto) {
 
       break;
     case AnalystType.LAST_YEAR:
-      chart = addMissingMonths(chart).map((item) => {
+      data = addMissingMonths(data).map((item) => {
         return {
           label: `01-${item.month}-${item.year}`,
           value: item.count,
@@ -138,7 +138,19 @@ export function pivotChartByType(chart: any, filter: AnalystFilterDto) {
       break;
 
     case AnalystType.CUSTOM:
-      chart = chart.map((item: any) => {
+      if (!data.length) {
+        return [
+          {
+            label: moment(fromDate).format('YYYY-MM-DD'),
+            value: 0,
+          },
+          {
+            label: moment(toDate).format('YYYY-MM-DD'),
+            value: 0,
+          },
+        ];
+      }
+      data = data.map((item: any) => {
         return {
           label: item.date,
           value: item.count,
@@ -147,5 +159,5 @@ export function pivotChartByType(chart: any, filter: AnalystFilterDto) {
 
       break;
   }
-  return chart;
+  return data;
 }
