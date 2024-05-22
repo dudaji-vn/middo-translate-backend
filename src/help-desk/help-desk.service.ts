@@ -548,9 +548,16 @@ export class HelpDeskService {
       .select('language')
       .lean();
 
-    space.members = space.members?.filter(
-      (user) => user.status !== MemberStatus.DELETED,
-    );
+    space.members = space.members
+      ?.filter((user) => user.status === MemberStatus.JOINED)
+      .map((item) => {
+        let userId = item.user;
+        delete item.user;
+        return {
+          ...item,
+          _id: userId,
+        };
+      });
     space.tags = space.tags?.filter((tag) => !tag.isDeleted);
     return {
       ...space,
