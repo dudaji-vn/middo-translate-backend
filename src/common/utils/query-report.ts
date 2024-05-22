@@ -140,9 +140,80 @@ export function queryOpenedConversation(filter: AnalystFilterDto) {
     },
   ];
 }
+
+// export function queryResponseTime(filter:AnalystFilterDto){
+//  return [
+//     {
+//       $match: {
+//         space: new mongoose.Types.ObjectId(spaceId),
+//         isHelpDesk: true,
+//         status: RoomStatus.ACTIVE,
+//         ...(fromDomain && {
+//           fromDomain: fromDomain,
+//         }),
+//         ...(fromDate &&
+//           toDate && {
+//             createdAt: {
+//               $gte: fromDate,
+//               $lte: toDate,
+//             },
+//             newMessageAt: {
+//               $gte: fromDate,
+//               $lte: toDate,
+//             },
+//           }),
+//       },
+//     },
+//     {
+//       $lookup: {
+//         from: 'messages',
+//         let: { roomId: '$_id' },
+//         pipeline: [
+//           {
+//             $match: {
+//               $expr: {
+//                 $and: [
+//                   { $eq: ['$room', '$$roomId'] },
+//                   { $eq: ['$senderType', SenderType.USER] },
+//                   ...(memberId
+//                     ? [{ $eq: ['$sender', new Types.ObjectId(memberId)] }]
+//                     : []),
+//                 ],
+//               },
+//             },
+//           },
+//         ],
+//         as: 'messages',
+//       },
+//     },
+//     {
+//       $match: {
+//         'messages.0': { $exists: true },
+//       },
+//     },
+//     {
+//       $addFields: {
+//         secondMessage: { $arrayElemAt: ['$messages', 0] },
+//       },
+//     },
+//     {
+//       $project: {
+//         timeDifference: {
+//           $subtract: ['$secondMessage.createdAt', '$createdAt'],
+//         },
+//       },
+//     },
+//     {
+//       $group: {
+//         _id: null,
+//         averageDifference: { $avg: '$timeDifference' },
+//       },
+//     },
+//   ];
+
+// }
 export function queryGroupByLanguage(filter: AnalystFilterDto) {
-  const { spaceId, fromDate, toDate, fromDomain, limit } = filter;
-  console.log(limit);
+  const { spaceId, fromDate, toDate, fromDomain } = filter;
 
   return [
     {
@@ -199,12 +270,6 @@ export function queryGroupByLanguage(filter: AnalystFilterDto) {
         language: '$_id',
         count: 1,
       },
-    },
-    {
-      $sort: { count: -1 } as any,
-    },
-    {
-      $limit: (limit || 100) as any,
     },
   ];
 }

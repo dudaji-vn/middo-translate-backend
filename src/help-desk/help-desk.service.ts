@@ -815,6 +815,9 @@ export class HelpDeskService {
 
     const dropRateWithTimePromise =
       this.roomsService.countDropRate(analystFilter);
+
+    const conversationLanguagePromise = this.analystByLanguage(analystFilter);
+
     const newClientsChartPromise =
       this.roomsService.getChartOpenedConversation(analystFilter);
 
@@ -846,6 +849,7 @@ export class HelpDeskService {
       totalClientsWithTime,
       averageResponseChatWithTime,
       totalDropRateWithTime,
+      conversationLanguage,
     ] = await Promise.all([
       totalVisitorPromise,
       totalClientsPromise,
@@ -856,6 +860,7 @@ export class HelpDeskService {
       totalClientsWithTimePromise,
       averageResponseChatPromiseWithTimePromise,
       dropRateWithTimePromise,
+      conversationLanguagePromise,
     ]);
 
     let [
@@ -992,6 +997,11 @@ export class HelpDeskService {
           value: averageRating.value,
           total: averageRating.total,
         },
+        respondedMessages: {
+          value: 0,
+          growth: 0,
+          total: 0,
+        },
       },
       chart: {
         newVisitor: visitorChart,
@@ -999,57 +1009,38 @@ export class HelpDeskService {
         dropRate: dropRatesChart,
         responseTime: responseChart,
         customerRating: ratingsChart,
+        respondedMessages: responseChart,
       },
+      conversationLanguage: conversationLanguage,
+      trafficTrack: [],
     };
   }
-  async analystByLanguage(
-    spaceId: string,
-    params: AnalystQueryDto,
-    userId: string,
-  ) {
-    const { type, fromDate, toDate, domain, limit = 10 } = params;
-    const today = moment().toDate();
-    const fromDateBy: Record<AnalystType, Date> = {
-      [AnalystType.LAST_WEEK]: moment().subtract('7', 'd').toDate(),
-      [AnalystType.LAST_MONTH]: moment().subtract('1', 'months').toDate(),
-      [AnalystType.LAST_YEAR]: moment().subtract('1', 'years').toDate(),
-      [AnalystType.CUSTOM]: moment(fromDate).toDate(),
-    };
-    const toDateBy: Record<AnalystType, Date> = {
-      [AnalystType.LAST_WEEK]: today,
-      [AnalystType.LAST_MONTH]: today,
-      [AnalystType.LAST_YEAR]: today,
-      [AnalystType.CUSTOM]: moment(toDate).toDate(),
-    };
-    const analystFilter: AnalystFilterDto = {
-      spaceId: spaceId,
-      fromDate: fromDateBy[type],
-      toDate: toDateBy[type],
-      fromDomain: domain,
-      type: type,
-    };
+  async analystByLanguage(filter: AnalystFilterDto) {
+    const { spaceId, fromDomain } = filter;
+
     const dataWithTime = await this.userModel.aggregate(
-      queryGroupByLanguage(analystFilter),
+      queryGroupByLanguage(filter),
     );
     const data = await this.userModel.aggregate(
       queryGroupByLanguage({
         spaceId: spaceId,
-        fromDomain: domain,
-        limit: limit,
+        fromDomain: fromDomain,
       }),
     );
     if (!data.length) {
       return [];
     }
-    return data.map((item) => {
-      return {
-        ...item,
-        count:
-          dataWithTime.find((subItem) => subItem?.language === item?.language)
-            ?.count || 0,
-        total: item?.count,
-      };
-    });
+    return data
+      .map((item) => {
+        return {
+          ...item,
+          count:
+            dataWithTime.find((subItem) => subItem?.language === item?.language)
+              ?.count || 0,
+          total: item?.count,
+        };
+      })
+      .sort((a, b) => b.count - a.count);
   }
 
   async validateInvite(

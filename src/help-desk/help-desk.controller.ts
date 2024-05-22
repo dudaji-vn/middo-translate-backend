@@ -153,22 +153,6 @@ export class HelpDeskController {
     };
   }
 
-  @Get('spaces/:id/analytics/languages')
-  async analyticsByLanguages(
-    @Query() query: AnalystQueryDto,
-    @ParamObjectId('id') id: string,
-    @JwtUserId() userId: string,
-  ) {
-    const result = await this.helpDeskService.analystByLanguage(
-      id,
-      query,
-      userId,
-    );
-    return {
-      data: result,
-    };
-  }
-
   @Patch('spaces/:id/edit-client-profile')
   async editClientProfile(
     @ParamObjectId('id') id: string,

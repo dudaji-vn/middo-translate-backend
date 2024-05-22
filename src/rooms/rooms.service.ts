@@ -1223,8 +1223,8 @@ export class RoomsService {
     ];
     return await this.roomModel.aggregate(query);
   }
-  async getChartAverageResponseChat(payload: ChartQueryDto) {
-    const { spaceId, fromDate, toDate, type } = payload;
+  async getChartAverageResponseChat(filter: AnalystFilterDto) {
+    const { spaceId, fromDate, toDate, type, fromDomain, memberId } = filter;
     const query = [
       {
         $match: {

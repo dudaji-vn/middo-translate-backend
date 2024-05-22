@@ -25,11 +25,6 @@ export class AnalystQueryDto {
   domain?: string;
   fromDate?: Date;
   toDate?: Date;
-
-  @IsOptional()
-  @IsInt()
-  @Transform(({ value }) => parseInt(value))
-  limit: number;
 }
 
 export type AnalystFilterDto = {
@@ -39,5 +34,4 @@ export type AnalystFilterDto = {
   toDate?: Date;
   fromDomain?: string;
   memberId?: string;
-  limit?: number;
 };
