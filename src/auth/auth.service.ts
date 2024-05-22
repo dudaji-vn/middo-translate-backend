@@ -24,6 +24,7 @@ import { getLanguage } from './strategies/google-oauth.strategy';
 import { VerifyTokenAppleDto } from './dto/verify-token-apple.dto';
 import { generateAvatar } from 'src/common/utils';
 import verifyAppleToken from 'verify-apple-id-token';
+import { MESSAGE_RESPONSE } from 'src/common/constants';
 
 @Injectable()
 export class AuthService {
@@ -114,7 +115,7 @@ export class AuthService {
   async resendVerifyEmail(email: string): Promise<void> {
     const user = await this.usersService.findByEmail(email);
     if (user.status !== UserStatus.PENDING) {
-      throw new HttpException('Account already activated', 409);
+      throw new HttpException(MESSAGE_RESPONSE.ACCOUNT_ALREADY_ACTIVE, 409);
     }
     const verifyToken = await this.createVerifyToken({
       id: user.email,
@@ -137,7 +138,7 @@ export class AuthService {
   async signUp(signUpDto: SignUpDto): Promise<void> {
     const isExist = await this.usersService.isEmailExist(signUpDto.email);
     if (isExist) {
-      throw new HttpException('Email already exist', 400);
+      throw new HttpException(MESSAGE_RESPONSE.EMAIL_EXIST, 400);
     }
     const verifyToken = await this.createVerifyToken({
       id: signUpDto.email,
@@ -168,7 +169,7 @@ export class AuthService {
   async activateAccount(token: string, email: string): Promise<void> {
     const user = await this.usersService.findByEmail(email);
     if (user.status !== UserStatus.PENDING) {
-      throw new HttpException('Account already activated', 409);
+      throw new HttpException(MESSAGE_RESPONSE.ACCOUNT_ALREADY_ACTIVE, 409);
     }
     if (user.verifyToken !== token) {
       throw new HttpException('Invalid token', 401);
@@ -182,7 +183,7 @@ export class AuthService {
 
   async forgotPassword(email: string): Promise<void> {
     const user = await this.usersService.findByEmail(email, {
-      notFoundMessage: 'Email not signed up',
+      notFoundMessage: MESSAGE_RESPONSE.EMAIL_NOT_SIGNUP,
       notFoundCode: 404,
     });
     const verifyToken = await this.createVerifyToken({
@@ -241,11 +242,14 @@ export class AuthService {
     const { password, newPassword } = changePasswordDto;
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      throw new HttpException('Invalid password', 401);
+      throw new HttpException(MESSAGE_RESPONSE.INVALID_PASSWORD, 401);
     }
     const isChange = await bcrypt.compare(newPassword, user.password);
     if (isChange) {
-      throw new HttpException('New password must be different', 400);
+      throw new HttpException(
+        MESSAGE_RESPONSE.NEW_PASSWORD_SAME_OLD_PASSWORD,
+        400,
+      );
     }
     const hashPassword = await bcrypt.hash(newPassword, 10);
     await this.usersService.update(userId, {
