@@ -1320,6 +1320,57 @@ export class RoomsService {
     return pivotChartByType(data, filter);
   }
 
+  async getTrafficChart(filter: AnalystFilterDto) {
+    const { spaceId, fromDate, toDate, fromDomain } = filter;
+    return await this.roomModel.aggregate([
+      {
+        $match: {
+          space: new Types.ObjectId(spaceId),
+          isHelpDesk: true,
+          ...(fromDomain && {
+            fromDomain: fromDomain,
+          }),
+          ...(fromDate &&
+            toDate && {
+              createdAt: {
+                $gte: fromDate,
+                $lte: toDate,
+              },
+            }),
+        },
+      },
+      {
+        $project: {
+          hour: { $hour: '$createdAt' },
+          dayOfWeek: { $dayOfWeek: '$createdAt' },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            hour: '$hour',
+            dayOfWeek: '$dayOfWeek',
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          x: '$_id.hour',
+          y: '$_id.dayOfWeek',
+          density: '$count',
+        },
+      },
+      {
+        $sort: {
+          y: 1,
+          x: 1,
+        },
+      },
+    ]);
+  }
+
   getTagByRoom(room: Room) {
     let tag;
     const space = room.space as Space;

@@ -768,9 +768,9 @@ export class HelpDeskService {
       throw new BadRequestException('You have not created an extension yet');
     }
     const { type, fromDate, toDate, domain, memberId } = params;
-    const today = moment().subtract('1', 'd').endOf('date').toDate();
+    const today = moment().toDate();
     const fromDateBy: Record<AnalystType, Date> = {
-      [AnalystType.LAST_WEEK]: moment().subtract('7', 'd').toDate(),
+      [AnalystType.LAST_WEEK]: moment().subtract('6', 'd').toDate(),
       [AnalystType.LAST_MONTH]: moment().subtract('1', 'months').toDate(),
       [AnalystType.LAST_YEAR]: moment().subtract('1', 'years').toDate(),
       [AnalystType.CUSTOM]: moment(fromDate).toDate(),
@@ -844,6 +844,8 @@ export class HelpDeskService {
     const visitorChartPromise = this.getChartVisitor(analystFilter);
     const respondedMessagesChartPromise =
       this.roomsService.getChartRespondedMessages(analystFilter);
+    const trafficTrackPromise =
+      this.roomsService.getTrafficChart(analystFilter);
 
     const [
       totalVisitor,
@@ -858,6 +860,7 @@ export class HelpDeskService {
       totalDropRateWithTime,
       totalRespondedMessagesWithTime,
       conversationLanguage,
+      trafficTrack,
     ] = await Promise.all([
       totalVisitorPromise,
       totalClientsPromise,
@@ -871,6 +874,7 @@ export class HelpDeskService {
       dropRateWithTimePromise,
       totalRespondedMessagesWithTimePromise,
       conversationLanguagePromise,
+      trafficTrackPromise,
     ]);
 
     let [
@@ -935,7 +939,7 @@ export class HelpDeskService {
         respondedMessages: respondedMessagesChart,
       },
       conversationLanguage: conversationLanguage,
-      trafficTrack: [],
+      trafficTrack: trafficTrack,
     };
   }
   async analystByLanguage(filter: AnalystFilterDto) {
