@@ -846,6 +846,8 @@ export class HelpDeskService {
       this.roomsService.getChartRespondedMessages(analystFilter);
     const trafficTrackPromise =
       this.roomsService.getTrafficChart(analystFilter);
+    const chartConversationLanguagePromise =
+      this.getChartConversationLanguage(analystFilter);
 
     const [
       totalVisitor,
@@ -861,6 +863,7 @@ export class HelpDeskService {
       totalRespondedMessagesWithTime,
       conversationLanguage,
       trafficTrack,
+      chartConversationLanguage,
     ] = await Promise.all([
       totalVisitorPromise,
       totalClientsPromise,
@@ -875,6 +878,7 @@ export class HelpDeskService {
       totalRespondedMessagesWithTimePromise,
       conversationLanguagePromise,
       trafficTrackPromise,
+      chartConversationLanguagePromise,
     ]);
 
     let [
@@ -937,6 +941,7 @@ export class HelpDeskService {
         responseTime: responseChart,
         customerRating: ratingsChart,
         respondedMessages: respondedMessagesChart,
+        conversationLanguage: chartConversationLanguage,
       },
       conversationLanguage: conversationLanguage,
       trafficTrack: trafficTrack,
@@ -968,6 +973,17 @@ export class HelpDeskService {
         };
       })
       .sort((a, b) => b.count - a.count);
+  }
+
+  async getChartConversationLanguage(filter: AnalystFilterDto) {
+    const data = await this.userModel.aggregate(queryGroupByLanguage(filter));
+    const total = data.reduce((sum, item) => sum + item?.count, 0);
+    return data.map((item) => {
+      return {
+        label: item?.language,
+        value: parseFloat((item?.count / total).toFixed(2)),
+      };
+    });
   }
 
   async validateInvite(
