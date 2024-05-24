@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Put } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { JwtUserId, Public } from 'src/common/decorators';
 import { Response } from 'src/common/types';
@@ -33,6 +33,16 @@ export class UsersController {
     return {
       message: 'Setup info successfully',
       data: userResponse,
+    };
+  }
+  @Post('check-username-exist')
+  async checkUsernameExist(
+    @Body('username') username: string,
+  ): Promise<Response<boolean>> {
+    await this.usersService.checkUsernameIsExist(username);
+    return {
+      message: 'Check username exist successfully',
+      data: true,
     };
   }
   @Patch('update')

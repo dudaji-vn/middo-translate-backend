@@ -209,10 +209,19 @@ export class UsersService {
     return user;
   }
 
+  async checkUsernameIsExist(username: string) {
+    const isExist = await this.isUsernameExist(username);
+    if (isExist) {
+      throw new HttpException(MESSAGE_RESPONSE.USERNAME_EXIST, 403);
+    }
+    return true;
+  }
+
   async setUpInfo(id: string, info: SetupInfoDto): Promise<User> {
     if (!info.avatar) {
       info.avatar = generateAvatar(info.name);
     }
+    await this.checkUsernameIsExist(info.username);
     const user = await this.userModel.findByIdAndUpdate(
       id,
       {
