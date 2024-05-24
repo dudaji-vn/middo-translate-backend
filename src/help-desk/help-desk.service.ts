@@ -978,12 +978,14 @@ export class HelpDeskService {
   async getChartConversationLanguage(filter: AnalystFilterDto) {
     const data = await this.userModel.aggregate(queryGroupByLanguage(filter));
     const total = data.reduce((sum, item) => sum + item?.count, 0);
-    return data.map((item) => {
-      return {
-        label: item?.language,
-        value: item?.count / total,
-      };
-    });
+    return data
+      .map((item) => {
+        return {
+          label: item?.language,
+          value: item?.count / total,
+        };
+      })
+      .sort((a, b) => b.value - a.value);
   }
 
   async validateInvite(
