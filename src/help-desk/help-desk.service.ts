@@ -978,12 +978,14 @@ export class HelpDeskService {
   async getChartConversationLanguage(filter: AnalystFilterDto) {
     const data = await this.userModel.aggregate(queryGroupByLanguage(filter));
     const total = data.reduce((sum, item) => sum + item?.count, 0);
-    return data.map((item) => {
-      return {
-        label: item?.language,
-        value: parseFloat((item?.count / total).toFixed(2)),
-      };
-    });
+    return data
+      .map((item) => {
+        return {
+          label: item?.language,
+          value: item?.count / total,
+        };
+      })
+      .sort((a, b) => b.value - a.value);
   }
 
   async validateInvite(
@@ -1841,10 +1843,10 @@ export class HelpDeskService {
     return null;
   }
 
-  async addVisitor(spaceId: string, visitor: VisitorDto) {
+  async addVisitor(extensionId: string, visitor: VisitorDto) {
     const { domain } = visitor;
     const extension = await this.helpDeskBusinessModel.findOne({
-      space: spaceId,
+      _id: extensionId,
       status: { $ne: StatusBusiness.DELETED },
     });
     if (!extension) {
@@ -1853,9 +1855,12 @@ export class HelpDeskService {
     if (!extension.domains.includes(domain)) {
       throw new BadRequestException('Domain not exist on this space');
     }
+    if (!extension.space || extension?.space?.status === StatusSpace.DELETED) {
+      throw new BadRequestException('Space not found');
+    }
 
     return await this.visitorModel.create({
-      space: spaceId,
+      space: extension.space,
       fromDomain: domain,
     });
   }
