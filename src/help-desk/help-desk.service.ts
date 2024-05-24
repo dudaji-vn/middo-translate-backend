@@ -981,7 +981,7 @@ export class HelpDeskService {
     return data.map((item) => {
       return {
         label: item?.language,
-        value: parseFloat((item?.count / total).toFixed(2)),
+        value: item?.count / total,
       };
     });
   }
