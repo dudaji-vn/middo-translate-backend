@@ -925,7 +925,7 @@ export class HelpDeskService {
           value: averageRating.value,
           total: averageRating.total,
         },
-        respondedMessages: {
+        responsedMessage: {
           value: totalRespondedMessagesWithTime,
           growth: calculateRate(
             totalRespondedMessagesWithTime,
@@ -940,7 +940,7 @@ export class HelpDeskService {
         dropRate: dropRatesChart,
         responseTime: responseChart,
         customerRating: ratingsChart,
-        respondedMessages: respondedMessagesChart,
+        responsedMessage: respondedMessagesChart,
         conversationLanguage: chartConversationLanguage,
       },
       conversationLanguage: conversationLanguage,
