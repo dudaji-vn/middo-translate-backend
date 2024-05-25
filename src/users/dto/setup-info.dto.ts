@@ -13,4 +13,7 @@ export class SetupInfoDto {
   @ApiProperty()
   @IsString()
   readonly language: string;
+  @ApiProperty()
+  @IsString()
+  readonly username: string;
 }

@@ -42,9 +42,8 @@ export const envConfig = {
   },
 
   password: {
-    RegExp: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/,
-    errorMessage:
-      'At least 8 characters, contain one capital, not allowed special character',
+    RegExp: /^(?=.*[A-Z]).{1,}$/,
+    errorMessage: 'Password must contain at least one uppercase letter',
   },
 
   firebase: {
