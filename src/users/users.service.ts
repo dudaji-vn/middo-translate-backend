@@ -3,7 +3,12 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model, ObjectId, Types } from 'mongoose';
 import { FindParams } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
-import { Provider, User, UserStatus } from './schemas/user.schema';
+import {
+  Provider,
+  User,
+  UserRelationType,
+  UserStatus,
+} from './schemas/user.schema';
 import { generateAvatar, selectPopulateField } from 'src/common/utils';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -11,6 +16,7 @@ import * as bcrypt from 'bcrypt';
 import { UserHelpDeskResponse } from './dto/user-help-desk-response.dto';
 import { logger } from 'src/common/utils/logger';
 import { Space, StatusSpace } from 'src/help-desk/schemas/space.schema';
+import { MESSAGE_RESPONSE } from 'src/common/constants';
 
 @Injectable()
 export class UsersService {
@@ -208,10 +214,19 @@ export class UsersService {
     return user;
   }
 
+  async checkUsernameIsExist(username: string) {
+    const isExist = await this.isUsernameExist(username);
+    if (isExist) {
+      throw new HttpException(MESSAGE_RESPONSE.USERNAME_EXIST, 403);
+    }
+    return true;
+  }
+
   async setUpInfo(id: string, info: SetupInfoDto): Promise<User> {
     if (!info.avatar) {
       info.avatar = generateAvatar(info.name);
     }
+    await this.checkUsernameIsExist(info.username);
     const user = await this.userModel.findByIdAndUpdate(
       id,
       {
@@ -234,10 +249,7 @@ export class UsersService {
       if (info.username && info.username !== userUpdate.username) {
         const isExist = await this.isUsernameExist(info.username);
         if (isExist) {
-          throw new HttpException(
-            `Username ${info.username} is already taken`,
-            403,
-          );
+          throw new HttpException(MESSAGE_RESPONSE.USERNAME_EXIST, 403);
         }
       }
       const user = await this.userModel.findByIdAndUpdate(
@@ -271,7 +283,7 @@ export class UsersService {
       }
       const isMatch = await bcrypt.compare(info.currentPassword, user.password);
       if (!isMatch) {
-        throw new HttpException(`Your current password is incorrect`, 400);
+        throw new HttpException(MESSAGE_RESPONSE.INVALID_PASSWORD, 400);
       }
       const newPassword = await bcrypt.hash(info.newPassword, 10);
       await this.userModel.findByIdAndUpdate(id, {
@@ -430,5 +442,40 @@ export class UsersService {
         status: StatusSpace.DELETED,
       },
     );
+  }
+
+  async blockUser(userId: string, blockUserId: string) {
+    const user = await this.findById(userId);
+    const blockUser = await this.findById(blockUserId);
+    if (!blockUser) {
+      throw new HttpException(`User ${blockUserId} not found`, 404);
+    }
+    if (user.blacklist.includes(blockUserId)) {
+      throw new HttpException(`User ${blockUserId} already blocked`, 400);
+    }
+    user.blacklist.push(blockUserId);
+  }
+  async unblockUser(userId: string, blockUserId: string) {
+    const user = await this.findById(userId);
+    const blockUser = await this.findById(blockUserId);
+    if (!blockUser) {
+      throw new HttpException(`User ${blockUserId} not found`, 404);
+    }
+    if (!user.blacklist.includes(blockUserId)) {
+      throw new HttpException(`User ${blockUserId} not blocked`, 400);
+    }
+    user.blacklist = user.blacklist.filter((id) => id !== blockUserId);
+  }
+
+  async checkRelationship(userId: string, targetId: string) {
+    const user = await this.findById(userId);
+    const target = await this.findById(targetId);
+    if (user.blacklist.includes(targetId)) {
+      return UserRelationType.BLOCKING;
+    }
+    if (target.blacklist.includes(userId)) {
+      return UserRelationType.BLOCKED;
+    }
+    return UserRelationType.NONE;
   }
 }

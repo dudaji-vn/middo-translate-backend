@@ -5,6 +5,12 @@ import { Space } from 'src/help-desk/schemas/space.schema';
 
 export type UserDocument = HydratedDocument<User>;
 
+export enum UserRelationType {
+  BLOCKED = 'blocked',
+  BLOCKING = 'blocking',
+  NONE = 'none',
+}
+
 export enum UserStatus {
   PENDING = 'pending',
   ACTIVE = 'active',
@@ -51,10 +57,10 @@ export class User {
   avatar: string;
 
   @Prop({
-    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    type: [{ type: String }],
     default: [],
   })
-  blacklist: User[];
+  blacklist: string[];
 
   @Prop({
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],

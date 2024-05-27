@@ -6,17 +6,26 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
-import mongoose, { FilterQuery, Model, ObjectId } from 'mongoose';
+import mongoose, { FilterQuery, Model, ObjectId, Types } from 'mongoose';
 import {
   CursorPaginationInfo,
   ListQueryParamsCursor,
   Pagination,
 } from 'src/common/types';
 import { selectPopulateField } from 'src/common/utils';
-import { queryReportByType } from 'src/common/utils/query-report';
+import {
+  queryDropRate,
+  queryOpenedConversation,
+  queryReportByType,
+  queryResponseMessage,
+  queryResponseTime,
+} from 'src/common/utils/query-report';
 import { socketConfig } from 'src/configs/socket.config';
 import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
-import { AnalystType } from 'src/help-desk/dto/analyst-query-dto';
+import {
+  AnalystFilterDto,
+  AnalystType,
+} from 'src/help-desk/dto/analyst-query-dto';
 import { ChartQueryDto } from 'src/help-desk/dto/chart-query-dto';
 import { Message, SenderType } from 'src/messages/schemas/messages.schema';
 import { convertMessageRemoved } from 'src/messages/utils/convert-message-removed';
@@ -36,6 +45,7 @@ import {
 } from 'src/help-desk/schemas/space.schema';
 import * as moment from 'moment';
 import { envConfig } from 'src/configs/env.config';
+import { pivotChartByType } from 'src/common/utils/date-report';
 
 const userSelectFieldsString = '_id name avatar email username language';
 @Injectable()
@@ -332,7 +342,6 @@ export class RoomsService {
       chatFlow = await this.getChatFlowBySpace(space._id);
       delete (data.space as any).members;
     }
-
     return {
       ...data,
       chatFlow: chatFlow,
@@ -1143,44 +1152,9 @@ export class RoomsService {
     );
     return this.roomModel.aggregate(query);
   }
-  async getAverageResponseChat(
-    spaceId: string,
-    fromDate?: Date,
-    toDate?: Date,
-  ) {
+  async getAverageResponseChat(filter: AnalystFilterDto) {
     const query = [
-      {
-        $match: {
-          space: new mongoose.Types.ObjectId(spaceId),
-          isHelpDesk: true,
-          status: RoomStatus.ACTIVE,
-          ...(fromDate &&
-            toDate && {
-              createdAt: {
-                $gte: fromDate,
-                $lte: toDate,
-              },
-              newMessageAt: {
-                $gte: fromDate,
-                $lte: toDate,
-              },
-            }),
-        },
-      },
-      {
-        $lookup: {
-          from: 'messages',
-          localField: '_id',
-          foreignField: 'room',
-          as: 'messages',
-        },
-      },
-
-      {
-        $addFields: {
-          secondMessage: { $arrayElemAt: ['$messages', 1] },
-        },
-      },
+      ...queryResponseTime(filter),
       {
         $project: {
           timeDifference: {
@@ -1195,43 +1169,17 @@ export class RoomsService {
         },
       },
     ];
-    return await this.roomModel.aggregate(query);
+    const data = await this.roomModel.aggregate(query);
+    if (!data.length) {
+      return 0;
+    }
+    return parseFloat(data[0]?.averageDifference?.toFixed(2)) || 0;
   }
-  async getChartAverageResponseChat(payload: ChartQueryDto) {
-    const { spaceId, fromDate, toDate, type } = payload;
-    const query = [
-      {
-        $match: {
-          space: new mongoose.Types.ObjectId(spaceId),
-          status: RoomStatus.ACTIVE,
-          isHelpDesk: true,
-          ...(fromDate &&
-            toDate && {
-              createdAt: {
-                $gte: fromDate,
-                $lte: toDate,
-              },
-              newMessageAt: {
-                $gte: fromDate,
-                $lte: toDate,
-              },
-            }),
-        },
-      },
-      {
-        $lookup: {
-          from: 'messages',
-          localField: '_id',
-          foreignField: 'room',
-          as: 'messages',
-        },
-      },
+  async getChartResponseTime(filter: AnalystFilterDto) {
+    const { type } = filter;
 
-      {
-        $addFields: {
-          secondMessage: { $arrayElemAt: ['$messages', 1] },
-        },
-      },
+    const query = [
+      ...queryResponseTime(filter),
       {
         $project: {
           day: {
@@ -1288,7 +1236,138 @@ export class RoomsService {
         } as any,
       },
     ];
-    return await this.roomModel.aggregate(query);
+    const data = await this.roomModel.aggregate(query);
+    return pivotChartByType(data, filter);
+  }
+
+  async getTotalRespondedMessage(filter: AnalystFilterDto) {
+    const query = [
+      ...queryResponseMessage(filter),
+      {
+        $group: {
+          _id: null,
+          totalMessages: { $sum: '$total' },
+        },
+      },
+    ];
+    const data = await this.roomModel.aggregate(query);
+    if (!data.length) {
+      return 0;
+    }
+    return data[0]?.totalMessages;
+  }
+  async getChartRespondedMessages(filter: AnalystFilterDto) {
+    const { type } = filter;
+
+    const query = [
+      ...queryResponseMessage(filter),
+      {
+        $project: {
+          day: {
+            $dayOfMonth: '$createdAt',
+          },
+          month: {
+            $month: '$createdAt',
+          },
+          year: {
+            $year: '$createdAt',
+          },
+          total: 1,
+        },
+      },
+      {
+        $group: {
+          _id: {
+            ...(type !== AnalystType.LAST_YEAR && { day: '$day' }),
+            year: '$year',
+            month: '$month',
+          },
+          totalMessages: { $sum: '$total' },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          date: {
+            $concat: [
+              { $toString: '$_id.day' },
+              '-',
+              { $toString: '$_id.month' },
+              '-',
+              { $toString: '$_id.year' },
+            ],
+          },
+          day: '$_id.day',
+          month: '$_id.month',
+          year: '$_id.year',
+          count: {
+            $cond: {
+              if: { $eq: ['$totalMessages', null] },
+              then: 0,
+              else: '$totalMessages',
+            },
+          },
+        },
+      },
+      {
+        $sort: {
+          day: 1,
+        } as any,
+      },
+    ];
+    const data = await this.roomModel.aggregate(query);
+    return pivotChartByType(data, filter);
+  }
+
+  async getTrafficChart(filter: AnalystFilterDto) {
+    const { spaceId, fromDate, toDate, fromDomain } = filter;
+    return await this.roomModel.aggregate([
+      {
+        $match: {
+          space: new Types.ObjectId(spaceId),
+          isHelpDesk: true,
+          ...(fromDomain && {
+            fromDomain: fromDomain,
+          }),
+          ...(fromDate &&
+            toDate && {
+              createdAt: {
+                $gte: fromDate,
+                $lte: toDate,
+              },
+            }),
+        },
+      },
+      {
+        $project: {
+          hour: { $hour: '$createdAt' },
+          dayOfWeek: { $dayOfWeek: '$createdAt' },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            hour: '$hour',
+            dayOfWeek: '$dayOfWeek',
+          },
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $project: {
+          _id: 0,
+          x: '$_id.hour',
+          y: '$_id.dayOfWeek',
+          density: '$count',
+        },
+      },
+      {
+        $sort: {
+          y: 1,
+          x: 1,
+        },
+      },
+    ]);
   }
 
   getTagByRoom(room: Room) {
@@ -1334,5 +1413,45 @@ export class RoomsService {
       return null;
     }
     return business?.currentScript?.chatFlow;
+  }
+
+  async countOpenedConversation(filter: AnalystFilterDto) {
+    const { spaceId, fromDate, toDate, fromDomain } = filter;
+    return await this.roomModel.countDocuments({
+      space: spaceId,
+      ...(fromDomain && {
+        fromDomain: fromDomain,
+      }),
+      ...(fromDate &&
+        toDate && {
+          createdAt: {
+            $gte: fromDate,
+            $lte: toDate,
+          },
+        }),
+    });
+  }
+
+  async countDropRate(filter: AnalystFilterDto) {
+    const query = queryDropRate(filter, [{ $count: 'count' }]);
+    const dropRatePromise = await this.roomModel.aggregate(query);
+
+    if (!dropRatePromise.length) {
+      return 0;
+    }
+    return dropRatePromise[0]?.count;
+  }
+
+  async getChartDropRate(filter: AnalystFilterDto) {
+    const query = queryDropRate(filter);
+    const queryReport = queryReportByType(filter.type, query, '$expiredAt');
+    const data = await this.roomModel.aggregate(queryReport);
+    return pivotChartByType(data, filter);
+  }
+  async getChartOpenedConversation(filter: AnalystFilterDto) {
+    const query = queryOpenedConversation(filter);
+    const queryReport = queryReportByType(filter.type, query);
+    const data = await this.roomModel.aggregate(queryReport);
+    return pivotChartByType(data, filter);
   }
 }

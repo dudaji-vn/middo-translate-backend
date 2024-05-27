@@ -29,6 +29,7 @@ import {
 import { ValidateInviteDto } from './dto/validate-invite-dto';
 import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 import { DeleteScriptsDto } from './dto/delete-scripts-dto';
+import { VisitorDto } from './dto/visitor-dto';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -46,7 +47,7 @@ export class HelpDeskController {
   }
 
   @Public()
-  @Post('clients/rating')
+  @Post('rating')
   async rating(@Body() createRatingDto: CreateRatingDto) {
     const rating = await this.helpDeskService.rating(createRatingDto);
     return { message: 'Rating success', data: rating };
@@ -377,6 +378,18 @@ export class HelpDeskController {
       userId,
       scriptIds,
     );
+    return {
+      data: result,
+    };
+  }
+
+  @Public()
+  @Post('spaces/:id/visitor')
+  async addVisitor(
+    @ParamObjectId('id') id: string,
+    @Body() visitor: VisitorDto,
+  ) {
+    const result = await this.helpDeskService.addVisitor(id, visitor);
     return {
       data: result,
     };
