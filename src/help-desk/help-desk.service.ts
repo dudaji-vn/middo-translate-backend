@@ -6,7 +6,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import * as moment from 'moment';
+import moment from 'moment';
 import mongoose, { Model, ObjectId, Types } from 'mongoose';
 import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
@@ -28,7 +28,6 @@ import {
   AnalystType,
 } from './dto/analyst-query-dto';
 import { AnalystResponseDto } from './dto/analyst-response-dto';
-import { ChartQueryDto, RatingQueryDto } from './dto/chart-query-dto';
 import { CreateRatingDto } from './dto/create-rating.dto';
 import { EditClientDto } from './dto/edit-client-dto';
 import {
@@ -551,7 +550,7 @@ export class HelpDeskService {
     space.members = space.members
       ?.filter((user) => user.status === MemberStatus.JOINED)
       .map((item) => {
-        let userId = item.user;
+        const userId = item.user;
         delete item.user;
         return {
           ...item,
@@ -881,7 +880,7 @@ export class HelpDeskService {
       chartConversationLanguagePromise,
     ]);
 
-    let [
+    const [
       newClientsChart,
       ratingsChart,
       responseChart,
