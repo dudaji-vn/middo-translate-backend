@@ -831,7 +831,7 @@ export class HelpDeskService {
     const conversationLanguagePromise = this.analystByLanguage(analystFilter);
 
     const newClientsChartPromise =
-      this.roomsService.getChartOpenedConversation(analystFilter);
+      this.getChartOpenedConversation(analystFilter);
 
     const dropRatesChartPromise =
       this.roomsService.getChartDropRate(analystFilter);
@@ -843,8 +843,7 @@ export class HelpDeskService {
     const visitorChartPromise = this.getChartVisitor(analystFilter);
     const respondedMessagesChartPromise =
       this.roomsService.getChartRespondedMessages(analystFilter);
-    const trafficTrackPromise =
-      this.roomsService.getTrafficChart(analystFilter);
+    const trafficTrackPromise = this.getTrafficChart(analystFilter);
     const chartConversationLanguagePromise =
       this.getChartConversationLanguage(analystFilter);
 
@@ -977,7 +976,8 @@ export class HelpDeskService {
   async getChartConversationLanguage(filter: AnalystFilterDto) {
     const data = await this.userModel.aggregate(queryGroupByLanguage(filter));
     const total = data.reduce((sum, item) => sum + item?.count, 0);
-    return data
+
+    const dataCalculate = data
       .map((item) => {
         return {
           label: item?.language,
@@ -985,6 +985,22 @@ export class HelpDeskService {
         };
       })
       .sort((a, b) => b.value - a.value);
+    if (dataCalculate.length <= 3) {
+      return dataCalculate;
+    }
+    return [
+      dataCalculate[0],
+      dataCalculate[1],
+      dataCalculate[2],
+      {
+        label: 'others',
+        value:
+          1 -
+          (dataCalculate[0]?.value +
+            dataCalculate[1]?.value +
+            dataCalculate[2]?.value),
+      },
+    ];
   }
 
   async validateInvite(
@@ -1993,10 +2009,58 @@ export class HelpDeskService {
         }),
     });
   }
+
+  async getChartOpenedConversation(filter: AnalystFilterDto) {
+    const data = await this.roomsService.getChartOpenedConversation(filter);
+
+    const pivotData = pivotChartByType(data, filter, true);
+
+    const mappedData = await Promise.all(
+      pivotData.map(async (item: any) => {
+        const pipeline = queryGroupByLanguage({
+          spaceId: filter.spaceId,
+          fromDomain: filter.fromDomain,
+          fromDate: moment(item.date, 'DD/MM/YYYY').startOf('date').toDate(),
+          toDate: moment(item.date, 'DD/MM/YYYY')
+            .endOf(filter.type === AnalystType.LAST_YEAR ? 'month' : 'date')
+            .toDate(),
+        });
+        const aggregatedData = await this.userModel.aggregate(pipeline);
+        delete item.date;
+        return {
+          ...item,
+          openedConversation: aggregatedData,
+        };
+      }),
+    );
+
+    return mappedData;
+  }
+
   async getChartVisitor(filter: AnalystFilterDto) {
     const query = queryOpenedConversation(filter);
     const queryReport = queryReportByType(filter.type, query);
     const data = await this.visitorModel.aggregate(queryReport);
     return pivotChartByType(data, filter);
+  }
+  async getTrafficChart(filter: AnalystFilterDto) {
+    const pivotData = await this.roomsService.getTrafficChart(filter);
+    const mappedData = await Promise.all(
+      pivotData.map(async (item: any) => {
+        const pipeline = queryGroupByLanguage({
+          spaceId: filter.spaceId,
+          fromDomain: filter.fromDomain,
+          hour: item.x,
+          dayOfWeek: item.y,
+        });
+        const aggregatedData = await this.userModel.aggregate(pipeline);
+        delete item.date;
+        return {
+          ...item,
+          openedConversation: aggregatedData,
+        };
+      }),
+    );
+    return mappedData;
   }
 }

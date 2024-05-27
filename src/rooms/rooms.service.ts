@@ -1452,6 +1452,6 @@ export class RoomsService {
     const query = queryOpenedConversation(filter);
     const queryReport = queryReportByType(filter.type, query);
     const data = await this.roomModel.aggregate(queryReport);
-    return pivotChartByType(data, filter);
+    return data;
   }
 }
