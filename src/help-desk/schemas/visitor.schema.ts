@@ -12,5 +12,11 @@ export class Visitor extends Document {
     type: String,
   })
   fromDomain: string;
+
+  @Prop({
+    type: Number,
+    default: 0,
+  })
+  count: number;
 }
 export const VisitorSchema = SchemaFactory.createForClass(Visitor);
