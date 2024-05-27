@@ -43,11 +43,20 @@ import {
   StatusSpace,
   Tag,
 } from 'src/help-desk/schemas/space.schema';
-import * as moment from 'moment';
+import moment from 'moment';
 import { envConfig } from 'src/configs/env.config';
 import { pivotChartByType } from 'src/common/utils/date-report';
 
-const userSelectFieldsString = '_id name avatar email username language';
+const userSelectFieldsString = selectPopulateField<User>([
+  '_id',
+  'name',
+  'avatar',
+  'email',
+  'language',
+  'username',
+  'status',
+]);
+
 @Injectable()
 export class RoomsService {
   constructor(
@@ -57,7 +66,7 @@ export class RoomsService {
     @InjectModel(HelpDeskBusiness.name)
     private readonly helpDeskBusinessModel: Model<HelpDeskBusiness>,
   ) {}
-  async createRoom(createRoomDto: CreateRoomDto, creatorId: string) {
+  async create(createRoomDto: CreateRoomDto, creatorId: string) {
     const participants = await Promise.all(
       [...new Set([creatorId, ...createRoomDto.participants])].map((id) =>
         this.usersService.findById(id),
@@ -82,7 +91,17 @@ export class RoomsService {
     }
 
     const newRoom = new this.roomModel(createRoomDto);
-    newRoom.participants = isGroup ? [...new Set(participants)] : participants;
+
+    // add to waiting list first
+    if (!createRoomDto?.isHelpDesk) {
+      newRoom.waitingUsers = isGroup
+        ? [...new Set(participants)]
+        : participants;
+    } else {
+      newRoom.participants = isGroup
+        ? [...new Set(participants)]
+        : participants;
+    }
     newRoom.name = createRoomDto.name || '';
     if (newRoom.name) {
       newRoom.isSetName = true;
@@ -106,7 +125,58 @@ export class RoomsService {
     return responseRoom;
   }
 
-  async deleteRoom(id: string, userId: string) {
+  async accept(roomId: string, userId: string) {
+    // remove from waiting list
+    const room = await this.roomModel.findOne({
+      _id: roomId,
+      waitingUsers: userId,
+    });
+    const user = await this.usersService.findById(userId);
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+    room.waitingUsers = room.waitingUsers.filter(
+      (p) => String(p._id) !== userId,
+    );
+    room.participants = [...room.participants, user];
+    await room.save();
+    await room.populate([
+      {
+        path: 'participants',
+        select: userSelectFieldsString,
+      },
+      {
+        path: 'admin',
+        select: userSelectFieldsString,
+      },
+    ]);
+  }
+
+  async reject(roomId: string, userId: string) {
+    const room = await this.roomModel.findOne({
+      _id: roomId,
+      waitingUsers: userId,
+    });
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+    room.waitingUsers = room.waitingUsers.filter(
+      (p) => String(p._id) !== userId,
+    );
+    await room.save();
+    await room.populate([
+      {
+        path: 'participants',
+        select: userSelectFieldsString,
+      },
+      {
+        path: 'admin',
+        select: userSelectFieldsString,
+      },
+    ]);
+  }
+
+  async delete(id: string, userId: string) {
     const room = await this.findByIdAndUserId(id, userId);
     if (!room) {
       throw new Error('Room not found');
@@ -232,26 +302,8 @@ export class RoomsService {
           select: userSelectFieldsString,
         },
       })
-      .populate(
-        selectPopulateField<Room>(['participants']),
-        selectPopulateField<User>([
-          '_id',
-          'name',
-          'avatar',
-          'email',
-          'language',
-        ]),
-      )
-      .populate(
-        selectPopulateField<Room>(['admin']),
-        selectPopulateField<User>([
-          '_id',
-          'name',
-          'avatar',
-          'email',
-          'language',
-        ]),
-      );
+      .populate('participants', userSelectFieldsString)
+      .populate('admin', userSelectFieldsString);
 
     return room;
   }
@@ -260,7 +312,7 @@ export class RoomsService {
     const user = await this.usersService.findById(userId);
     let room = await this.roomModel.findOne({
       _id: id,
-      participants: userId,
+      $or: [{ waitingUsers: userId }, { participants: userId }],
 
       status: {
         $in: [RoomStatus.ACTIVE, RoomStatus.ARCHIVED],
@@ -295,6 +347,10 @@ export class RoomsService {
       {
         path: 'participants',
         select: `${userSelectFieldsString} + tempEmail status phoneNumber`,
+      },
+      {
+        path: 'waitingUsers',
+        select: userSelectFieldsString,
       },
       {
         path: 'lastMessage',
@@ -430,7 +486,8 @@ export class RoomsService {
         Object.assign(query, { archiveFor: { $in: [userId] } });
         break;
       case 'waiting':
-        Object.assign(query, { status: RoomStatus.WAITING });
+        Object.assign(query, { waitingUsers: { $in: [userId] } });
+        Object.assign(query, { participants: { $nin: [userId] } });
         break;
     }
 
@@ -454,27 +511,9 @@ export class RoomsService {
           },
         ],
       })
-      .populate(
-        selectPopulateField<Room>(['participants']),
-        selectPopulateField<User>([
-          '_id',
-          'name',
-          'avatar',
-          'email',
-          'language',
-          'status',
-        ]),
-      )
-      .populate(
-        selectPopulateField<Room>(['admin']),
-        selectPopulateField<User>([
-          '_id',
-          'name',
-          'avatar',
-          'email',
-          'language',
-        ]),
-      )
+      .populate('participants', userSelectFieldsString)
+      .populate('waitingUsers', userSelectFieldsString)
+      .populate('admin', userSelectFieldsString)
       .populate(
         selectPopulateField<Room>(['space']),
         selectPopulateField<Space>(['tags', 'members', 'status']),
@@ -529,15 +568,11 @@ export class RoomsService {
       .limit(limit)
       .populate(
         selectPopulateField<Room>(['participants']),
-        selectPopulateField<User>([
-          '_id',
-          'name',
-          'avatar',
-          'email',
-          'language',
-          'tempEmail',
-          'status',
-        ]),
+        userSelectFieldsString,
+      )
+      .populate(
+        selectPopulateField<Room>(['waitingUsers']),
+        userSelectFieldsString,
       )
       .populate({
         path: 'lastMessage',
@@ -552,16 +587,7 @@ export class RoomsService {
           },
         ],
       })
-      .populate(
-        selectPopulateField<Room>(['admin']),
-        selectPopulateField<User>([
-          '_id',
-          'name',
-          'avatar',
-          'email',
-          'language',
-        ]),
-      )
+      .populate(selectPopulateField<Room>(['admin']), userSelectFieldsString)
       .lean();
     return rooms;
   }
@@ -571,24 +597,13 @@ export class RoomsService {
       .findById(id)
       .populate(
         selectPopulateField<Room>(['participants']),
-        selectPopulateField<User>([
-          '_id',
-          'name',
-          'avatar',
-          'email',
-          'language',
-        ]),
+        userSelectFieldsString,
       )
       .populate(
-        selectPopulateField<Room>(['admin']),
-        selectPopulateField<User>([
-          '_id',
-          'name',
-          'avatar',
-          'email',
-          'language',
-        ]),
+        selectPopulateField<Room>(['waitingUsers']),
+        userSelectFieldsString,
       )
+      .populate(selectPopulateField<Room>(['admin']), userSelectFieldsString)
       .populate(
         selectPopulateField<Room>(['lastMessage']),
         selectPopulateField<Message>([
@@ -615,12 +630,13 @@ export class RoomsService {
       )
       .populate(
         selectPopulateField<Room>(['participants']),
-        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
+        userSelectFieldsString,
       )
       .populate(
-        selectPopulateField<Room>(['admin']),
-        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
-      );
+        selectPopulateField<Room>(['waitingUsers']),
+        userSelectFieldsString,
+      )
+      .populate(selectPopulateField<Room>(['admin']), userSelectFieldsString);
     if (!updatedRoom) {
       throw new Error('Room not found');
     }
@@ -642,10 +658,7 @@ export class RoomsService {
         participants: userId,
         isGroup: true,
       })
-      .populate(
-        selectPopulateField<Room>(['admin']),
-        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
-      );
+      .populate(selectPopulateField<Room>(['admin']), userSelectFieldsString);
 
     if (!room) {
       throw new NotFoundException('Room not found');
@@ -661,10 +674,7 @@ export class RoomsService {
         isGroup: true,
         admin: userId,
       })
-      .populate(
-        selectPopulateField<Room>(['admin']),
-        selectPopulateField<User>(['_id', 'name', 'avatar', 'language']),
-      );
+      .populate(selectPopulateField<Room>(['admin']), userSelectFieldsString);
 
     return room;
   }
@@ -714,10 +724,9 @@ export class RoomsService {
     await room.updateOne({
       participants: [...new Set(participantIds)],
     });
-
     await room.populate(
       selectPopulateField<Room>(['participants']),
-      selectPopulateField<User>(['_id', 'name', 'avatar', 'email', 'language']),
+      userSelectFieldsString,
     );
 
     this.eventEmitter.emit(socketConfig.events.room.update, {
@@ -730,6 +739,10 @@ export class RoomsService {
     return await room.populate([
       {
         path: 'participants',
+        select: userSelectFieldsString,
+      },
+      {
+        path: selectPopulateField<Room>(['waitingUsers']),
         select: userSelectFieldsString,
       },
       {
@@ -758,6 +771,10 @@ export class RoomsService {
     await room.populate([
       {
         path: 'participants',
+        select: userSelectFieldsString,
+      },
+      {
+        path: 'waitingUsers',
         select: userSelectFieldsString,
       },
       {
@@ -792,7 +809,9 @@ export class RoomsService {
       })
       .sort({ newMessageAt: -1 })
       .limit(10)
-      .populate('participants')
+      .populate('participants', userSelectFieldsString)
+      .populate('admin', userSelectFieldsString)
+      .populate('waitingUsers', userSelectFieldsString)
       .lean();
     if (query?.type === 'help-desk') {
       return rooms.map((item) => {
@@ -840,7 +859,7 @@ export class RoomsService {
         const participants = await Promise.all(
           participantIds.map((id) => this.usersService.findById(id)),
         );
-        room = await this.createRoom(
+        room = await this.create(
           {
             isGroup: false,
             participants: participants.map((p) => p._id),
@@ -858,15 +877,19 @@ export class RoomsService {
         select: userSelectFieldsString,
       },
       {
+        path: 'waitingUsers',
+        select: userSelectFieldsString,
+      },
+      {
+        path: 'admin',
+        select: userSelectFieldsString,
+      },
+      {
         path: 'lastMessage',
         populate: {
           path: 'sender',
           select: userSelectFieldsString,
         },
-      },
-      {
-        path: 'admin',
-        select: userSelectFieldsString,
       },
     ]);
   }
@@ -932,24 +955,13 @@ export class RoomsService {
       })
       .populate(
         selectPopulateField<Room>(['participants']),
-        selectPopulateField<User>([
-          '_id',
-          'name',
-          'avatar',
-          'email',
-          'language',
-        ]),
+        userSelectFieldsString,
       )
       .populate(
-        selectPopulateField<Room>(['admin']),
-        selectPopulateField<User>([
-          '_id',
-          'name',
-          'avatar',
-          'email',
-          'language',
-        ]),
+        selectPopulateField<Room>(['waitingUsers']),
+        userSelectFieldsString,
       )
+      .populate(selectPopulateField<Room>(['admin']), userSelectFieldsString)
       .populate(
         selectPopulateField<Room>(['space']),
         selectPopulateField<Space>(['tags', 'members', 'status']),

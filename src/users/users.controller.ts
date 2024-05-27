@@ -96,7 +96,7 @@ export class UsersController {
   @Patch(':id/unblock')
   async unblockUser(
     @JwtUserId() userId: string,
-    @Body('id') targetId: string,
+    @ParamObjectId('id') targetId: string,
   ): Promise<Response<null>> {
     await this.usersService.unblockUser(userId, targetId);
     return {
