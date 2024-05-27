@@ -1152,7 +1152,7 @@ export class RoomsService {
     );
     return this.roomModel.aggregate(query);
   }
-  async getAverageResponseChat(filter: AnalystFilterDto) {
+  async getTotalResponseTime(filter: AnalystFilterDto) {
     const query = [
       ...queryResponseTime(filter),
       {
@@ -1169,6 +1169,7 @@ export class RoomsService {
         },
       },
     ];
+
     const data = await this.roomModel.aggregate(query);
     if (!data.length) {
       return 0;
