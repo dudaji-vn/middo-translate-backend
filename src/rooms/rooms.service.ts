@@ -342,7 +342,6 @@ export class RoomsService {
       chatFlow = await this.getChatFlowBySpace(space._id);
       delete (data.space as any).members;
     }
-
     return {
       ...data,
       chatFlow: chatFlow,

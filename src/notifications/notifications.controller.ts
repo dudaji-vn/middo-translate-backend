@@ -4,7 +4,7 @@ import { JwtUserId, ParamObjectId } from 'src/common/decorators';
 import { SubscribeDto } from './dto/subscribe.dto';
 import { CheckSubscribedDto } from './dto/check-subscribed.dto';
 import { Response } from 'src/common/types';
-import { ToggleRoomNotificationDto } from './dto/toogle-room-notification';
+import { ToggleRoomNotificationDto } from './dto/toggle-room-notification';
 
 @Controller('notifications')
 export class NotificationController {
@@ -20,6 +20,19 @@ export class NotificationController {
       return {
         data: null,
         message: 'Subscribe successfully',
+      };
+    }
+  }
+  @Post('/unsubscribe')
+  async unsubscribe(
+    @JwtUserId() userId: string,
+    @Body() subscribeDTo: SubscribeDto,
+  ) {
+    {
+      await this.notificationService.deleteToken(userId, subscribeDTo.token);
+      return {
+        data: null,
+        message: 'Unsubscribe successfully',
       };
     }
   }
