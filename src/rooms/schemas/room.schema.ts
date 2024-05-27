@@ -7,6 +7,7 @@ import { Space, Tag } from 'src/help-desk/schemas/space.schema';
 
 export type RoomDocument = HydratedDocument<Room>;
 export enum RoomStatus {
+  REACTIVE = 're_active',
   ACTIVE = 'active',
   TEMPORARY = 'temporary',
   DELETED = 'deleted',
@@ -20,6 +21,12 @@ export enum RoomStatus {
 })
 export class Room {
   _id: mongoose.Schema.Types.ObjectId;
+
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: User.name }],
+    default: [],
+  })
+  waitingUsers: User[];
   @Prop({
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: User.name }],
     default: [],

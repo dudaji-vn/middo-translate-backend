@@ -17,12 +17,15 @@ import { UserHelpDeskResponse } from './dto/user-help-desk-response.dto';
 import { logger } from 'src/common/utils/logger';
 import { Space, StatusSpace } from 'src/help-desk/schemas/space.schema';
 import { MESSAGE_RESPONSE } from 'src/common/constants';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { socketConfig } from 'src/configs/socket.config';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Space.name) private spaceModel: Model<Space>,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
   async getProfile(id: string) {
     const user = await this.userModel
@@ -89,6 +92,7 @@ export class UsersService {
         email: true,
         pinRoomIds: true,
         status: true,
+        blacklist: true,
       })
       .lean();
     if (!user) {
@@ -454,6 +458,11 @@ export class UsersService {
       throw new HttpException(`User ${blockUserId} already blocked`, 400);
     }
     user?.blacklist?.push(blockUserId);
+    await this.update(userId, { blacklist: user?.blacklist });
+    this.eventEmitter.emit(socketConfig.events.user.relationship.update, {
+      userIds: [userId, blockUserId],
+    });
+    return user;
   }
   async unblockUser(userId: string, blockUserId: string) {
     const user = await this.findById(userId);
@@ -465,10 +474,19 @@ export class UsersService {
       throw new HttpException(`User ${blockUserId} not blocked`, 400);
     }
     user.blacklist = user?.blacklist?.filter((id) => id !== blockUserId) || [];
+    await this.update(userId, { blacklist: user.blacklist });
+    this.eventEmitter.emit(socketConfig.events.user.relationship.update, {
+      userIds: [userId, blockUserId],
+    });
+    return user;
   }
 
   async checkRelationship(userId: string, targetId: string) {
+    if (userId === targetId) {
+      return UserRelationType.NONE;
+    }
     const user = await this.findById(userId);
+    console.log(user);
     const target = await this.findById(targetId);
     if (user?.blacklist?.includes(targetId)) {
       return UserRelationType.BLOCKING;

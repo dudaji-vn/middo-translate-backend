@@ -39,7 +39,7 @@ export class RoomsController {
     @Body() createRoomDto: CreateRoomDto,
     @JwtUserId() userId: string,
   ): Promise<Response<Room>> {
-    const room = await this.roomsService.createRoom(createRoomDto, userId);
+    const room = await this.roomsService.create(createRoomDto, userId);
     if (room.isGroup) {
       this.messagesService.createAction({
         roomId: room._id.toString(),
@@ -48,6 +48,22 @@ export class RoomsController {
       });
     }
     return { data: room, message: 'Room created' };
+  }
+
+  async acceptRoomInvite(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    await this.roomsService.accept(id, userId);
+    return { message: 'Room accepted' };
+  }
+
+  async declineRoomInvite(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    await this.roomsService.reject(id, userId);
+    return { message: 'Room declined' };
   }
 
   @Public()
@@ -274,7 +290,7 @@ export class RoomsController {
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
   ): Promise<Response<null>> {
-    await this.roomsService.deleteRoom(id, userId);
+    await this.roomsService.delete(id, userId);
     return { message: 'Room deleted', data: null };
   }
 
@@ -299,7 +315,7 @@ export class RoomsController {
     @JwtUserId() userId: string,
   ): Promise<Response<null>> {
     await this.messagesService.deleteAllInRoom(id, userId);
-    await this.roomsService.deleteRoom(id, userId);
+    await this.roomsService.delete(id, userId);
     return { message: 'Messages deleted', data: null };
   }
 
