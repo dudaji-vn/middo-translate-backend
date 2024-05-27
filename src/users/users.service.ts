@@ -450,10 +450,10 @@ export class UsersService {
     if (!blockUser) {
       throw new HttpException(`User ${blockUserId} not found`, 404);
     }
-    if (user.blacklist.includes(blockUserId)) {
+    if (user?.blacklist?.includes(blockUserId)) {
       throw new HttpException(`User ${blockUserId} already blocked`, 400);
     }
-    user.blacklist.push(blockUserId);
+    user?.blacklist?.push(blockUserId);
   }
   async unblockUser(userId: string, blockUserId: string) {
     const user = await this.findById(userId);
@@ -461,19 +461,19 @@ export class UsersService {
     if (!blockUser) {
       throw new HttpException(`User ${blockUserId} not found`, 404);
     }
-    if (!user.blacklist.includes(blockUserId)) {
+    if (!user?.blacklist?.includes(blockUserId)) {
       throw new HttpException(`User ${blockUserId} not blocked`, 400);
     }
-    user.blacklist = user.blacklist.filter((id) => id !== blockUserId);
+    user.blacklist = user?.blacklist?.filter((id) => id !== blockUserId) || [];
   }
 
   async checkRelationship(userId: string, targetId: string) {
     const user = await this.findById(userId);
     const target = await this.findById(targetId);
-    if (user.blacklist.includes(targetId)) {
+    if (user?.blacklist?.includes(targetId)) {
       return UserRelationType.BLOCKING;
     }
-    if (target.blacklist.includes(userId)) {
+    if (target?.blacklist?.includes(userId)) {
       return UserRelationType.BLOCKED;
     }
     return UserRelationType.NONE;
