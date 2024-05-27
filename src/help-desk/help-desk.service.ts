@@ -769,10 +769,19 @@ export class HelpDeskService {
     const { type, fromDate, toDate, domain, memberId } = params;
     const today = moment().toDate();
     const fromDateBy: Record<AnalystType, Date> = {
-      [AnalystType.LAST_WEEK]: moment().subtract('6', 'd').toDate(),
-      [AnalystType.LAST_MONTH]: moment().subtract('1', 'months').toDate(),
-      [AnalystType.LAST_YEAR]: moment().subtract('1', 'years').toDate(),
-      [AnalystType.CUSTOM]: moment(fromDate).toDate(),
+      [AnalystType.LAST_WEEK]: moment()
+        .subtract('6', 'd')
+        .startOf('date')
+        .toDate(),
+      [AnalystType.LAST_MONTH]: moment()
+        .subtract('1', 'months')
+        .startOf('date')
+        .toDate(),
+      [AnalystType.LAST_YEAR]: moment()
+        .subtract('1', 'years')
+        .startOf('date')
+        .toDate(),
+      [AnalystType.CUSTOM]: moment(fromDate).startOf('date').toDate(),
     };
     const toDateBy: Record<AnalystType, Date> = {
       [AnalystType.LAST_WEEK]: today,
@@ -802,7 +811,7 @@ export class HelpDeskService {
       fromDomain: domain,
     });
 
-    const totalResponseTimePromise = this.roomsService.getAverageResponseChat({
+    const totalResponseTimePromise = this.roomsService.getTotalResponseTime({
       spaceId,
       fromDomain: domain,
       memberId: memberId,
@@ -824,7 +833,7 @@ export class HelpDeskService {
     const dropRateWithTimePromise =
       this.roomsService.countDropRate(analystFilter);
     const responseTimePromise =
-      this.roomsService.getAverageResponseChat(analystFilter);
+      this.roomsService.getTotalResponseTime(analystFilter);
     const totalRespondedMessagesWithTimePromise =
       this.roomsService.getTotalRespondedMessage(analystFilter);
 
@@ -1859,7 +1868,8 @@ export class HelpDeskService {
   }
 
   async addVisitor(extensionId: string, visitor: VisitorDto) {
-    const { domain } = visitor;
+    const { domain, trackingId } = visitor;
+
     const extension = await this.helpDeskBusinessModel.findOne({
       _id: extensionId,
       status: { $ne: StatusBusiness.DELETED },
@@ -1874,10 +1884,19 @@ export class HelpDeskService {
       throw new BadRequestException('Space not found');
     }
 
-    return await this.visitorModel.create({
-      space: extension.space,
-      fromDomain: domain,
-    });
+    if (trackingId) {
+      const data = this.visitorModel.findByIdAndUpdate(
+        trackingId,
+        { $inc: { count: 1 } },
+        { new: true },
+      );
+      return data;
+    } else {
+      return await this.visitorModel.create({
+        space: extension.space,
+        fromDomain: domain,
+      });
+    }
   }
 
   isAdminSpace(members: Member[], userId: string) {
