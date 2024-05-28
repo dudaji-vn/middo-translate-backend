@@ -1887,7 +1887,7 @@ export class HelpDeskService {
     if (trackingId) {
       const data = this.visitorModel.findByIdAndUpdate(
         trackingId,
-        { $inc: { count: 1 } },
+        { $push: { trackings: new Date() } },
         { new: true },
       );
       return data;
@@ -1895,6 +1895,7 @@ export class HelpDeskService {
       return await this.visitorModel.create({
         space: extension.space,
         fromDomain: domain,
+        trackings: new Date(),
       });
     }
   }
@@ -2014,19 +2015,37 @@ export class HelpDeskService {
 
   async countAnalyticsVisitor(filter: AnalystFilterDto) {
     const { spaceId, fromDate, toDate, fromDomain } = filter;
-    return await this.visitorModel.countDocuments({
-      space: spaceId,
-      ...(fromDomain && {
-        fromDomain: fromDomain,
-      }),
-      ...(fromDate &&
-        toDate && {
-          createdAt: {
-            $gte: fromDate,
-            $lte: toDate,
-          },
-        }),
-    });
+    const result = await this.visitorModel.aggregate([
+      {
+        $match: {
+          space: new Types.ObjectId(spaceId),
+          ...(fromDomain && {
+            fromDomain: fromDomain,
+          }),
+        },
+      },
+      {
+        $unwind: '$trackings',
+      },
+      {
+        $match: {
+          ...(fromDate &&
+            toDate && {
+              trackings: {
+                $gte: fromDate,
+                $lte: toDate,
+              },
+            }),
+        },
+      },
+      {
+        $group: {
+          _id: null,
+          totalCount: { $sum: 1 },
+        },
+      },
+    ]);
+    return result.length > 0 ? result[0]?.totalCount : 0;
   }
 
   async getChartOpenedConversation(filter: AnalystFilterDto) {
