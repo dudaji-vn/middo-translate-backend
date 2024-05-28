@@ -84,6 +84,7 @@ export const socketConfig = {
       },
     },
     space: {
+      update: 'space.update',
       notification: {
         new: 'space.notification.new',
       },
