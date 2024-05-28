@@ -2,6 +2,10 @@ import mongoose, { Document } from 'mongoose';
 import { Space } from './space.schema';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 
+@Schema({ timestamps: { createdAt: true, updatedAt: false } })
+export class Tracking {}
+const TrackingSchema = SchemaFactory.createForClass(Tracking);
+
 @Schema({
   timestamps: { createdAt: true, updatedAt: false },
 })
@@ -14,9 +18,9 @@ export class Visitor extends Document {
   fromDomain: string;
 
   @Prop({
-    type: Number,
-    default: 0,
+    type: [Date],
+    default: [],
   })
-  count: number;
+  trackings: Date[];
 }
 export const VisitorSchema = SchemaFactory.createForClass(Visitor);
