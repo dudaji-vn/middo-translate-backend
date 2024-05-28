@@ -50,7 +50,7 @@ export class RoomsController {
     return { data: room, message: 'Room created' };
   }
 
-  async acceptRoomInvite(
+  async acceptInvite(
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
   ) {
@@ -58,7 +58,7 @@ export class RoomsController {
     return { message: 'Room accepted' };
   }
 
-  async declineRoomInvite(
+  async rejectInvite(
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
   ) {
@@ -205,6 +205,28 @@ export class RoomsController {
     );
     return { data, message: 'Found' };
   }
+  @Patch(':id/accept')
+  async acceptRoom(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ): Promise<Response<null>> {
+    await this.roomsService.accept(id, userId);
+    return {
+      data: null,
+      message: 'Room accepted',
+    };
+  }
+  @Patch(':id/reject')
+  async rejectRoom(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ): Promise<Response<null>> {
+    await this.roomsService.reject(id, userId);
+    return {
+      data: null,
+      message: 'Room rejected',
+    };
+  }
 
   @Patch(':id')
   async updateRoom(
@@ -225,8 +247,6 @@ export class RoomsController {
         content: updateRoomDto.name,
       });
     }
-    console.log('isRemoveName', isRemoveName);
-
     if (isRemoveName) {
       this.messagesService.createAction({
         roomId: id,

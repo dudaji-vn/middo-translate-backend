@@ -40,6 +40,7 @@ export class UsersService {
           'status',
           'pinRoomIds',
           'username',
+          'allowUnknown',
         ]),
       )
       .lean();
@@ -93,6 +94,7 @@ export class UsersService {
         pinRoomIds: true,
         status: true,
         blacklist: true,
+        allowUnknown: true,
       })
       .lean();
     if (!user) {
@@ -481,12 +483,18 @@ export class UsersService {
     return user;
   }
 
+  async toggleAllowUnknown(userId: string) {
+    const user = await this.findById(userId);
+    const isAllow = user?.allowUnknown || false;
+    await this.update(userId, { allowUnknown: !isAllow });
+    return !isAllow;
+  }
+
   async checkRelationship(userId: string, targetId: string) {
     if (userId === targetId) {
       return UserRelationType.NONE;
     }
     const user = await this.findById(userId);
-    console.log(user);
     const target = await this.findById(targetId);
     if (user?.blacklist?.includes(targetId)) {
       return UserRelationType.BLOCKING;

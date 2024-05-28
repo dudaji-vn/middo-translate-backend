@@ -104,6 +104,16 @@ export class UsersController {
       message: 'User has been unblocked successfully!',
     };
   }
+  @Patch('allow-unknown')
+  async allowUnknownUser(@JwtUserId() userId: string): Promise<Response<null>> {
+    const isAllow = await this.usersService.toggleAllowUnknown(userId);
+    return {
+      data: null,
+      message: `Allow unknown user ${
+        isAllow ? 'enabled' : 'disabled'
+      } successfully!`,
+    };
+  }
   // check relationship api
   @Get('/:id/relation')
   async checkRelationship(
