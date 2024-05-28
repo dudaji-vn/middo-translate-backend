@@ -1164,7 +1164,7 @@ export class RoomsService {
     );
     return this.roomModel.aggregate(query);
   }
-  async getAverageResponseChat(filter: AnalystFilterDto) {
+  async getTotalResponseTime(filter: AnalystFilterDto) {
     const query = [
       ...queryResponseTime(filter),
       {
@@ -1181,6 +1181,7 @@ export class RoomsService {
         },
       },
     ];
+
     const data = await this.roomModel.aggregate(query);
     if (!data.length) {
       return 0;
@@ -1464,6 +1465,6 @@ export class RoomsService {
     const query = queryOpenedConversation(filter);
     const queryReport = queryReportByType(filter.type, query);
     const data = await this.roomModel.aggregate(queryReport);
-    return pivotChartByType(data, filter);
+    return data;
   }
 }

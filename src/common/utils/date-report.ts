@@ -102,7 +102,11 @@ export function addMissingMonths(data: AnalystResponseDto[]) {
   return data;
 }
 
-export function pivotChartByType(data: any, filter: AnalystFilterDto) {
+export function pivotChartByType(
+  data: any,
+  filter: AnalystFilterDto,
+  isIncludeDate?: boolean,
+) {
   const { fromDate, toDate, type } = filter;
   if (!fromDate || !toDate) {
     return [];
@@ -111,6 +115,7 @@ export function pivotChartByType(data: any, filter: AnalystFilterDto) {
     case AnalystType.LAST_WEEK:
       data = addMissingDates(data, fromDate, toDate).map((item) => {
         return {
+          ...(isIncludeDate ? { date: item.date } : {}),
           label: moment(item.date, 'DD/MM/YYYY').format('dddd'),
           value: item.count,
         };
@@ -121,6 +126,7 @@ export function pivotChartByType(data: any, filter: AnalystFilterDto) {
     case AnalystType.LAST_MONTH:
       data = addMissingDates(data, fromDate, toDate).map((item) => {
         return {
+          ...(isIncludeDate ? { date: item.date } : {}),
           label: item.date,
           value: item.count,
         };
@@ -130,6 +136,7 @@ export function pivotChartByType(data: any, filter: AnalystFilterDto) {
     case AnalystType.LAST_YEAR:
       data = addMissingMonths(data).map((item) => {
         return {
+          ...(isIncludeDate ? { date: `01-${item.month}-${item.year}` } : {}),
           label: `01-${item.month}-${item.year}`,
           value: item.count,
         };
@@ -152,6 +159,7 @@ export function pivotChartByType(data: any, filter: AnalystFilterDto) {
       }
       data = data.map((item: any) => {
         return {
+          ...(isIncludeDate ? { date: item.date } : {}),
           label: item.date,
           value: item.count,
         };
