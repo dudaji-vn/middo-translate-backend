@@ -3,7 +3,6 @@ import { RoomsService } from 'src/rooms/rooms.service';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import { SearchQueryParamsDto } from 'src/search/dtos';
 import { RecommendQueryDto } from './dto/recommend-query-dto';
 
 @Injectable()

@@ -1,9 +1,7 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { JwtUserId } from 'src/common/decorators';
-import { RecommendationService } from './recommendation.service';
-import { SearchQueryParamsDto } from '../search/dtos';
-import { query } from 'express';
 import { RecommendQueryDto } from './dto/recommend-query-dto';
+import { RecommendationService } from './recommendation.service';
 
 @Controller('recommendation')
 export class RecommendationController {

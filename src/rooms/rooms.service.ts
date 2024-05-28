@@ -1,6 +1,8 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -91,12 +93,21 @@ export class RoomsService {
     }
 
     const newRoom = new this.roomModel(createRoomDto);
+    const admin =
+      participants.find((p) => p._id.toString() === creatorId) || ({} as User);
 
     // add to waiting list first
     if (!createRoomDto?.isHelpDesk) {
-      newRoom.waitingUsers = isGroup
-        ? [...new Set(participants)]
-        : participants;
+      newRoom.participants = [];
+      newRoom.participants.push(admin);
+      participants.forEach((p) => {
+        if (p._id.toString() === creatorId) return;
+        if (!p.allowUnknown) {
+          newRoom.waitingUsers.push(p);
+        } else {
+          newRoom.participants.push(p);
+        }
+      });
     } else {
       newRoom.participants = isGroup
         ? [...new Set(participants)]
@@ -107,8 +118,7 @@ export class RoomsService {
       newRoom.isSetName = true;
     }
     newRoom.isGroup = isGroup;
-    newRoom.admin =
-      participants.find((p) => p._id.toString() === creatorId) || ({} as User);
+    newRoom.admin = admin;
 
     const room = await this.roomModel.create(newRoom);
     const responseRoom = await room.populate([
@@ -120,13 +130,20 @@ export class RoomsService {
         path: 'admin',
         select: userSelectFieldsString,
       },
+      {
+        path: 'waitingUsers',
+        select: userSelectFieldsString,
+      },
+      {
+        path: 'rejectedUsers',
+        select: userSelectFieldsString,
+      },
     ]);
     this.eventEmitter.emit(socketConfig.events.room.new, room);
     return responseRoom;
   }
 
   async accept(roomId: string, userId: string) {
-    // remove from waiting list
     const room = await this.roomModel.findOne({
       _id: roomId,
       waitingUsers: userId,
@@ -139,20 +156,14 @@ export class RoomsService {
       (p) => String(p._id) !== userId,
     );
     room.participants = [...room.participants, user];
-    await room.save();
-    await room.populate([
-      {
-        path: 'participants',
-        select: userSelectFieldsString,
-      },
-      {
-        path: 'admin',
-        select: userSelectFieldsString,
-      },
-    ]);
+    await this.updateRoom(roomId, {
+      waitingUsers: room.waitingUsers,
+      participants: room.participants,
+    });
   }
 
   async reject(roomId: string, userId: string) {
+    const user = await this.usersService.findById(userId);
     const room = await this.roomModel.findOne({
       _id: roomId,
       waitingUsers: userId,
@@ -163,17 +174,11 @@ export class RoomsService {
     room.waitingUsers = room.waitingUsers.filter(
       (p) => String(p._id) !== userId,
     );
-    await room.save();
-    await room.populate([
-      {
-        path: 'participants',
-        select: userSelectFieldsString,
-      },
-      {
-        path: 'admin',
-        select: userSelectFieldsString,
-      },
-    ]);
+    room.rejectedUsers = [...room.rejectedUsers, user];
+    await this.updateRoom(roomId, {
+      waitingUsers: room.waitingUsers,
+      rejectedUsers: room.rejectedUsers,
+    });
   }
 
   async delete(id: string, userId: string) {
@@ -338,6 +343,7 @@ export class RoomsService {
         );
         room.participants = participants;
         room.status = RoomStatus.TEMPORARY;
+        room.admin = user;
       } catch (error) {
         throw new NotFoundException('Room not found');
       }
@@ -361,6 +367,10 @@ export class RoomsService {
       },
       {
         path: 'admin',
+        select: userSelectFieldsString,
+      },
+      {
+        path: 'rejectedUsers',
         select: userSelectFieldsString,
       },
       {
@@ -450,6 +460,7 @@ export class RoomsService {
           : new Date().toISOString(),
       },
       participants: userId,
+      waitingUsers: { $nin: [userId] },
       status: { $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED] },
       deleteFor: { $nin: [userId] },
       archiveFor: { $nin: [userId] },
@@ -513,6 +524,7 @@ export class RoomsService {
       })
       .populate('participants', userSelectFieldsString)
       .populate('waitingUsers', userSelectFieldsString)
+      .populate('rejectedUsers', userSelectFieldsString)
       .populate('admin', userSelectFieldsString)
       .populate(
         selectPopulateField<Room>(['space']),
@@ -574,6 +586,10 @@ export class RoomsService {
         selectPopulateField<Room>(['waitingUsers']),
         userSelectFieldsString,
       )
+      .populate(
+        selectPopulateField<Room>(['rejectedUsers']),
+        userSelectFieldsString,
+      )
       .populate({
         path: 'lastMessage',
         populate: [
@@ -601,6 +617,10 @@ export class RoomsService {
       )
       .populate(
         selectPopulateField<Room>(['waitingUsers']),
+        userSelectFieldsString,
+      )
+      .populate(
+        selectPopulateField<Room>(['rejectedUsers']),
         userSelectFieldsString,
       )
       .populate(selectPopulateField<Room>(['admin']), userSelectFieldsString)
@@ -636,13 +656,28 @@ export class RoomsService {
         selectPopulateField<Room>(['waitingUsers']),
         userSelectFieldsString,
       )
+      .populate(
+        selectPopulateField<Room>(['rejectedUsers']),
+        userSelectFieldsString,
+      )
       .populate(selectPopulateField<Room>(['admin']), userSelectFieldsString);
     if (!updatedRoom) {
       throw new Error('Room not found');
     }
     const updatePayload: UpdateRoomPayload = {
-      roomId,
-      data,
+      roomId: updatedRoom._id.toString(),
+      data: {
+        ...data,
+        ...(data.participants && {
+          participants: updatedRoom.participants,
+        }),
+        ...(data.waitingUsers && {
+          waitingUsers: updatedRoom.waitingUsers,
+        }),
+        ...(data.rejectedUsers && {
+          rejectedUsers: updatedRoom.rejectedUsers,
+        }),
+      },
       participants: updatedRoom?.participants.map((p) => p._id) || [],
     };
     this.eventEmitter.emit(socketConfig.events.room.update, {
@@ -719,37 +754,42 @@ export class RoomsService {
     const participants = await Promise.all(
       userIds.map((id) => this.usersService.findById(id)),
     );
-    room.participants = [...room.participants, ...participants];
-    const participantIds = room.participants.map((p) => p._id.toString());
-    await room.updateOne({
-      participants: [...new Set(participantIds)],
-    });
-    await room.populate(
-      selectPopulateField<Room>(['participants']),
-      userSelectFieldsString,
+    // check if user is in waiting list or rejected list
+    const waitingUsers = room.waitingUsers.filter((p) =>
+      userIds.includes(p._id.toString()),
     );
-
-    this.eventEmitter.emit(socketConfig.events.room.update, {
-      roomId,
-      participants: room.participants.map((p) => p._id),
-      data: {
-        participants: room.participants,
-      },
+    const rejectedUsers = room.rejectedUsers.filter((p) =>
+      userIds.includes(p._id.toString()),
+    );
+    if (waitingUsers.length > 0) {
+      throw new HttpException(
+        'User is in waiting list',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    if (rejectedUsers.length > 0) {
+      throw new HttpException(
+        'User is in rejected list',
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+    // if user not allow unknown, add to waiting list first
+    const waitingUsersList = [];
+    const newParticipants = [];
+    for (const participant of participants) {
+      if (participant.allowUnknown) {
+        newParticipants.push(participant);
+      } else {
+        waitingUsersList.push(participant);
+      }
+    }
+    room.waitingUsers = [...room.waitingUsers, ...waitingUsersList];
+    room.participants = [...room.participants, ...newParticipants];
+    const updatedRoom = await this.updateRoom(roomId, {
+      waitingUsers: room.waitingUsers,
+      participants: room.participants,
     });
-    return await room.populate([
-      {
-        path: 'participants',
-        select: userSelectFieldsString,
-      },
-      {
-        path: selectPopulateField<Room>(['waitingUsers']),
-        select: userSelectFieldsString,
-      },
-      {
-        path: 'admin',
-        select: userSelectFieldsString,
-      },
-    ]);
+    return updatedRoom;
   }
 
   async removeParticipant(
@@ -761,35 +801,29 @@ export class RoomsService {
     if (!room) {
       throw new ForbiddenException('You are not admin');
     }
-    room.participants = room.participants.filter(
+    const participants = room.participants.filter(
       (p) => String(p._id) !== removeUserId,
     );
-    room.deleteFor = room.deleteFor.filter((p) => String(p) !== removeUserId);
-    await this.unPinIfExist(roomId, removeUserId);
-    await this.unarchive(roomId, removeUserId);
-    await room.save();
-    await room.populate([
-      {
-        path: 'participants',
-        select: userSelectFieldsString,
-      },
-      {
-        path: 'waitingUsers',
-        select: userSelectFieldsString,
-      },
-      {
-        path: 'admin',
-        select: userSelectFieldsString,
-      },
-    ]);
-    this.eventEmitter.emit(socketConfig.events.room.update, {
-      roomId,
-      participants: room.participants.map((p) => p._id),
-      data: {
-        participants: room.participants,
-      },
+    const waitingUsers = room.waitingUsers.filter(
+      (p) => String(p._id) !== removeUserId,
+    );
+    const rejectedUsers = room.rejectedUsers.filter(
+      (p) => String(p._id) !== removeUserId,
+    );
+    const deleteFor = room.deleteFor.filter((p) => String(p) !== removeUserId);
+    const isRejected = room.rejectedUsers.some(
+      (p) => String(p._id) === removeUserId,
+    );
+    if (!isRejected) {
+      await this.unPinIfExist(roomId, removeUserId);
+      await this.unarchive(roomId, removeUserId);
+    }
+    return await this.updateRoom(roomId, {
+      participants: participants,
+      waitingUsers,
+      rejectedUsers,
+      deleteFor,
     });
-    return room;
   }
 
   async findRecentChatRooms(
@@ -801,6 +835,7 @@ export class RoomsService {
       .find({
         participants: userId,
         ...(notGroup ? { isGroup: false } : {}),
+        waitingUsers: { $nin: [userId] },
         status: RoomStatus.ACTIVE,
         isHelpDesk: { $ne: true },
         ...(query?.type === 'help-desk'
@@ -812,6 +847,7 @@ export class RoomsService {
       .populate('participants', userSelectFieldsString)
       .populate('admin', userSelectFieldsString)
       .populate('waitingUsers', userSelectFieldsString)
+      .populate('rejectedUsers', userSelectFieldsString)
       .lean();
     if (query?.type === 'help-desk') {
       return rooms.map((item) => {
@@ -878,6 +914,10 @@ export class RoomsService {
       },
       {
         path: 'waitingUsers',
+        select: userSelectFieldsString,
+      },
+      {
+        path: selectPopulateField<Room>(['rejectedUsers']),
         select: userSelectFieldsString,
       },
       {
@@ -959,6 +999,10 @@ export class RoomsService {
       )
       .populate(
         selectPopulateField<Room>(['waitingUsers']),
+        userSelectFieldsString,
+      )
+      .populate(
+        selectPopulateField<Room>(['rejectedUsers']),
         userSelectFieldsString,
       )
       .populate(selectPopulateField<Room>(['admin']), userSelectFieldsString)

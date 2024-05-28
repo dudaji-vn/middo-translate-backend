@@ -31,6 +31,11 @@ export class Room {
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: User.name }],
     default: [],
   })
+  rejectedUsers: User[];
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: User.name }],
+    default: [],
+  })
   participants: User[];
 
   @Prop({ type: String })
