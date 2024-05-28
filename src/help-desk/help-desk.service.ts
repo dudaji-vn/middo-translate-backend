@@ -15,6 +15,7 @@ import {
   queryOpenedConversation,
   queryRating,
   queryReportByType,
+  queryVisitor,
 } from 'src/common/utils/query-report';
 import { MessageType } from 'src/messages/schemas/messages.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
@@ -323,6 +324,14 @@ export class HelpDeskService {
           ...(space.name ? { name: space.name } : {}),
         });
       }
+      if (spaceData.members && spaceData.members.length > 0) {
+        this.eventEmitter.emit(socketConfig.events.space.update, {
+          receiverIds: spaceData.members
+            .filter((item) => item.status === MemberStatus.JOINED)
+            .map((item) => item.user?.toString()),
+        });
+      }
+
       await spaceData.save();
       return spaceData;
     }
@@ -376,6 +385,14 @@ export class HelpDeskService {
         script.chatFlow = chatFlow as ChatFlow;
       }
       await script.save();
+    }
+
+    if (space.members && space.members.length > 0) {
+      this.eventEmitter.emit(socketConfig.events.space.update, {
+        receiverIds: space.members
+          .filter((item) => item.status === MemberStatus.JOINED)
+          .map((item) => item.user?.toString()),
+      });
     }
 
     return true;
@@ -767,7 +784,7 @@ export class HelpDeskService {
       throw new BadRequestException('You have not created an extension yet');
     }
     const { type, fromDate, toDate, domain, memberId } = params;
-    const today = moment().toDate();
+    const today = moment().endOf('date').toDate();
     const fromDateBy: Record<AnalystType, Date> = {
       [AnalystType.LAST_WEEK]: moment()
         .subtract('6', 'd')
@@ -1324,6 +1341,14 @@ export class HelpDeskService {
 
     script.isDeleted = true;
     await script.save();
+    if (space.members && space.members.length > 0) {
+      this.eventEmitter.emit(socketConfig.events.space.update, {
+        receiverIds: space.members
+          .filter((item) => item.status === MemberStatus.JOINED)
+          .map((item) => item.user?.toString()),
+      });
+    }
+
     return null;
   }
   async removeScripts(spaceId: string, userId: string, scriptIds: string[]) {
@@ -1355,6 +1380,13 @@ export class HelpDeskService {
         isDeleted: true,
       },
     );
+    if (space.members && space.members.length > 0) {
+      this.eventEmitter.emit(socketConfig.events.space.update, {
+        receiverIds: space.members
+          .filter((item) => item.status === MemberStatus.JOINED)
+          .map((item) => item.user?.toString()),
+      });
+    }
     return true;
   }
 
@@ -2014,30 +2046,8 @@ export class HelpDeskService {
   }
 
   async countAnalyticsVisitor(filter: AnalystFilterDto) {
-    const { spaceId, fromDate, toDate, fromDomain } = filter;
     const result = await this.visitorModel.aggregate([
-      {
-        $match: {
-          space: new Types.ObjectId(spaceId),
-          ...(fromDomain && {
-            fromDomain: fromDomain,
-          }),
-        },
-      },
-      {
-        $unwind: '$trackings',
-      },
-      {
-        $match: {
-          ...(fromDate &&
-            toDate && {
-              trackings: {
-                $gte: fromDate,
-                $lte: toDate,
-              },
-            }),
-        },
-      },
+      ...queryVisitor(filter),
       {
         $group: {
           _id: null,
@@ -2076,8 +2086,8 @@ export class HelpDeskService {
   }
 
   async getChartVisitor(filter: AnalystFilterDto) {
-    const query = queryOpenedConversation(filter);
-    const queryReport = queryReportByType(filter.type, query);
+    const query = queryVisitor(filter);
+    const queryReport = queryReportByType(filter.type, query, '$trackings');
     const data = await this.visitorModel.aggregate(queryReport);
     return pivotChartByType(data, filter);
   }

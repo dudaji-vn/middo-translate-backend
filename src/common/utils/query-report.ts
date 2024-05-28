@@ -10,7 +10,7 @@ import { UserStatus } from 'src/users/schemas/user.schema';
 export function queryReportByType(
   type: AnalystType = AnalystType.LAST_WEEK,
   pipeline?: any,
-  timeType?: '$createdAt' | '$updatedAt' | '$expiredAt',
+  timeType?: '$createdAt' | '$updatedAt' | '$expiredAt' | '$trackings',
 ): PipelineStage[] {
   return [
     ...pipeline,
@@ -118,6 +118,36 @@ export function queryDropRate(
     stages.push(...pipeline);
   }
   return stages;
+}
+
+export function queryVisitor(filter: AnalystFilterDto) {
+  const { spaceId, fromDate, toDate, fromDomain } = filter;
+  return [
+    {
+      $match: {
+        space: new Types.ObjectId(spaceId),
+        ...(fromDomain && {
+          fromDomain: fromDomain,
+        }),
+      },
+    },
+    {
+      $unwind: {
+        path: '$trackings',
+      },
+    },
+    {
+      $match: {
+        ...(fromDate &&
+          toDate && {
+            trackings: {
+              $gte: fromDate,
+              $lte: toDate,
+            },
+          }),
+      },
+    },
+  ];
 }
 
 export function queryOpenedConversation(filter: AnalystFilterDto) {
