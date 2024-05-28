@@ -43,7 +43,7 @@ import {
   StatusSpace,
   Tag,
 } from 'src/help-desk/schemas/space.schema';
-import moment from 'moment';
+import * as moment from 'moment';
 import { envConfig } from 'src/configs/env.config';
 import { pivotChartByType } from 'src/common/utils/date-report';
 

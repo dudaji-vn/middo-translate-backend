@@ -12,7 +12,6 @@ import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import {
   queryGroupByLanguage,
-  queryOpenedConversation,
   queryRating,
   queryReportByType,
   queryVisitor,
