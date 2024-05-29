@@ -1212,16 +1212,9 @@ export class RoomsService {
     const query = [
       ...queryResponseTime(filter),
       {
-        $project: {
-          timeDifference: {
-            $subtract: ['$secondMessage.createdAt', '$createdAt'],
-          },
-        },
-      },
-      {
         $group: {
           _id: null,
-          averageDifference: { $avg: '$timeDifference' },
+          averageDifference: { $avg: '$averageDifference' },
         },
       },
     ];
@@ -1233,36 +1226,8 @@ export class RoomsService {
     return parseFloat(data[0]?.averageDifference?.toFixed(2)) || 0;
   }
   async getChartResponseTime(filter: AnalystFilterDto) {
-    const { type } = filter;
-
     const query = [
       ...queryResponseTime(filter),
-      {
-        $project: {
-          day: {
-            $dayOfMonth: '$createdAt',
-          },
-          month: {
-            $month: '$createdAt',
-          },
-          year: {
-            $year: '$createdAt',
-          },
-          timeDifference: {
-            $subtract: ['$secondMessage.createdAt', '$createdAt'],
-          },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            ...(type !== AnalystType.LAST_YEAR && { day: '$day' }),
-            year: '$year',
-            month: '$month',
-          },
-          averageDifference: { $avg: '$timeDifference' },
-        },
-      },
       {
         $project: {
           _id: 0,
