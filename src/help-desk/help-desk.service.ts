@@ -779,9 +779,6 @@ export class HelpDeskService {
   }
   async analyst(spaceId: string, params: AnalystQueryDto, userId: string) {
     const business = await this.getBusinessByUser(userId, spaceId);
-    if (!business) {
-      throw new BadRequestException('You have not created an extension yet');
-    }
     const { type, fromDate, toDate, domain, memberId } = params;
     const today = moment().endOf('date').toDate();
     const fromDateBy: Record<AnalystType, Date> = {
@@ -921,6 +918,7 @@ export class HelpDeskService {
     ]);
 
     return {
+      isNotEnoughData: !business || (!totalVisitor && !totalClients),
       analysis: {
         newVisitor: {
           value: totalVisitorWithTime,
