@@ -2095,6 +2095,8 @@ export class HelpDeskService {
         const pipeline = queryGroupByLanguage({
           spaceId: filter.spaceId,
           fromDomain: filter.fromDomain,
+          fromDate: filter.fromDate,
+          toDate: filter.toDate,
           hour: item.x,
           dayOfWeek: item.y,
         });
