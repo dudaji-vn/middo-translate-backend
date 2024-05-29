@@ -1333,7 +1333,8 @@ export class MessagesService {
             'language',
           ]),
         },
-      ]);
+      ])
+      .sort({ createdAt: -1 });
     const pinMessagesWithRemoved = pinMessages.map((pinMessage) => {
       const message = convertMessageRemoved(pinMessage.message, userId);
       return {
