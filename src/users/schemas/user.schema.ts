@@ -104,6 +104,8 @@ export class User {
 
   @Prop({ type: String })
   phoneNumber: string;
+  @Prop({ type: Boolean, default: true })
+  allowUnknown: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

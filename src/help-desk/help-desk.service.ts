@@ -12,9 +12,9 @@ import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import {
   queryGroupByLanguage,
-  queryOpenedConversation,
   queryRating,
   queryReportByType,
+  queryVisitor,
 } from 'src/common/utils/query-report';
 import { MessageType } from 'src/messages/schemas/messages.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
@@ -323,6 +323,14 @@ export class HelpDeskService {
           ...(space.name ? { name: space.name } : {}),
         });
       }
+      if (spaceData.members && spaceData.members.length > 0) {
+        this.eventEmitter.emit(socketConfig.events.space.update, {
+          receiverIds: spaceData.members
+            .filter((item) => item.status === MemberStatus.JOINED)
+            .map((item) => item.user?.toString()),
+        });
+      }
+
       await spaceData.save();
       return spaceData;
     }
@@ -376,6 +384,14 @@ export class HelpDeskService {
         script.chatFlow = chatFlow as ChatFlow;
       }
       await script.save();
+    }
+
+    if (space.members && space.members.length > 0) {
+      this.eventEmitter.emit(socketConfig.events.space.update, {
+        receiverIds: space.members
+          .filter((item) => item.status === MemberStatus.JOINED)
+          .map((item) => item.user?.toString()),
+      });
     }
 
     return true;
@@ -763,16 +779,22 @@ export class HelpDeskService {
   }
   async analyst(spaceId: string, params: AnalystQueryDto, userId: string) {
     const business = await this.getBusinessByUser(userId, spaceId);
-    if (!business) {
-      throw new BadRequestException('You have not created an extension yet');
-    }
     const { type, fromDate, toDate, domain, memberId } = params;
-    const today = moment().toDate();
+    const today = moment().endOf('date').toDate();
     const fromDateBy: Record<AnalystType, Date> = {
-      [AnalystType.LAST_WEEK]: moment().subtract('6', 'd').toDate(),
-      [AnalystType.LAST_MONTH]: moment().subtract('1', 'months').toDate(),
-      [AnalystType.LAST_YEAR]: moment().subtract('1', 'years').toDate(),
-      [AnalystType.CUSTOM]: moment(fromDate).toDate(),
+      [AnalystType.LAST_WEEK]: moment()
+        .subtract('6', 'd')
+        .startOf('date')
+        .toDate(),
+      [AnalystType.LAST_MONTH]: moment()
+        .subtract('1', 'months')
+        .startOf('date')
+        .toDate(),
+      [AnalystType.LAST_YEAR]: moment()
+        .subtract('1', 'years')
+        .startOf('date')
+        .toDate(),
+      [AnalystType.CUSTOM]: moment(fromDate).startOf('date').toDate(),
     };
     const toDateBy: Record<AnalystType, Date> = {
       [AnalystType.LAST_WEEK]: today,
@@ -802,7 +824,7 @@ export class HelpDeskService {
       fromDomain: domain,
     });
 
-    const totalResponseTimePromise = this.roomsService.getAverageResponseChat({
+    const totalResponseTimePromise = this.roomsService.getTotalResponseTime({
       spaceId,
       fromDomain: domain,
       memberId: memberId,
@@ -824,14 +846,14 @@ export class HelpDeskService {
     const dropRateWithTimePromise =
       this.roomsService.countDropRate(analystFilter);
     const responseTimePromise =
-      this.roomsService.getAverageResponseChat(analystFilter);
+      this.roomsService.getTotalResponseTime(analystFilter);
     const totalRespondedMessagesWithTimePromise =
       this.roomsService.getTotalRespondedMessage(analystFilter);
 
     const conversationLanguagePromise = this.analystByLanguage(analystFilter);
 
     const newClientsChartPromise =
-      this.roomsService.getChartOpenedConversation(analystFilter);
+      this.getChartOpenedConversation(analystFilter);
 
     const dropRatesChartPromise =
       this.roomsService.getChartDropRate(analystFilter);
@@ -843,8 +865,7 @@ export class HelpDeskService {
     const visitorChartPromise = this.getChartVisitor(analystFilter);
     const respondedMessagesChartPromise =
       this.roomsService.getChartRespondedMessages(analystFilter);
-    const trafficTrackPromise =
-      this.roomsService.getTrafficChart(analystFilter);
+    const trafficTrackPromise = this.getTrafficChart(analystFilter);
     const chartConversationLanguagePromise =
       this.getChartConversationLanguage(analystFilter);
 
@@ -897,6 +918,7 @@ export class HelpDeskService {
     ]);
 
     return {
+      isNotEnoughData: !business || (!totalVisitor && !totalClients),
       analysis: {
         newVisitor: {
           value: totalVisitorWithTime,
@@ -977,7 +999,8 @@ export class HelpDeskService {
   async getChartConversationLanguage(filter: AnalystFilterDto) {
     const data = await this.userModel.aggregate(queryGroupByLanguage(filter));
     const total = data.reduce((sum, item) => sum + item?.count, 0);
-    return data
+
+    const dataCalculate = data
       .map((item) => {
         return {
           label: item?.language,
@@ -985,6 +1008,22 @@ export class HelpDeskService {
         };
       })
       .sort((a, b) => b.value - a.value);
+    if (dataCalculate.length <= 3) {
+      return dataCalculate;
+    }
+    return [
+      dataCalculate[0],
+      dataCalculate[1],
+      dataCalculate[2],
+      {
+        label: 'others',
+        value:
+          1 -
+          (dataCalculate[0]?.value +
+            dataCalculate[1]?.value +
+            dataCalculate[2]?.value),
+      },
+    ];
   }
 
   async validateInvite(
@@ -1299,6 +1338,14 @@ export class HelpDeskService {
 
     script.isDeleted = true;
     await script.save();
+    if (space.members && space.members.length > 0) {
+      this.eventEmitter.emit(socketConfig.events.space.update, {
+        receiverIds: space.members
+          .filter((item) => item.status === MemberStatus.JOINED)
+          .map((item) => item.user?.toString()),
+      });
+    }
+
     return null;
   }
   async removeScripts(spaceId: string, userId: string, scriptIds: string[]) {
@@ -1330,6 +1377,13 @@ export class HelpDeskService {
         isDeleted: true,
       },
     );
+    if (space.members && space.members.length > 0) {
+      this.eventEmitter.emit(socketConfig.events.space.update, {
+        receiverIds: space.members
+          .filter((item) => item.status === MemberStatus.JOINED)
+          .map((item) => item.user?.toString()),
+      });
+    }
     return true;
   }
 
@@ -1843,7 +1897,8 @@ export class HelpDeskService {
   }
 
   async addVisitor(extensionId: string, visitor: VisitorDto) {
-    const { domain } = visitor;
+    const { domain, trackingId } = visitor;
+
     const extension = await this.helpDeskBusinessModel.findOne({
       _id: extensionId,
       status: { $ne: StatusBusiness.DELETED },
@@ -1858,10 +1913,20 @@ export class HelpDeskService {
       throw new BadRequestException('Space not found');
     }
 
-    return await this.visitorModel.create({
-      space: extension.space,
-      fromDomain: domain,
-    });
+    if (trackingId) {
+      const data = this.visitorModel.findByIdAndUpdate(
+        trackingId,
+        { $push: { trackings: new Date() } },
+        { new: true },
+      );
+      return data;
+    } else {
+      return await this.visitorModel.create({
+        space: extension.space,
+        fromDomain: domain,
+        trackings: new Date(),
+      });
+    }
   }
 
   isAdminSpace(members: Member[], userId: string) {
@@ -1978,25 +2043,71 @@ export class HelpDeskService {
   }
 
   async countAnalyticsVisitor(filter: AnalystFilterDto) {
-    const { spaceId, fromDate, toDate, fromDomain } = filter;
-    return await this.visitorModel.countDocuments({
-      space: spaceId,
-      ...(fromDomain && {
-        fromDomain: fromDomain,
-      }),
-      ...(fromDate &&
-        toDate && {
-          createdAt: {
-            $gte: fromDate,
-            $lte: toDate,
-          },
-        }),
-    });
+    const result = await this.visitorModel.aggregate([
+      ...queryVisitor(filter),
+      {
+        $group: {
+          _id: null,
+          totalCount: { $sum: 1 },
+        },
+      },
+    ]);
+    return result.length > 0 ? result[0]?.totalCount : 0;
   }
+
+  async getChartOpenedConversation(filter: AnalystFilterDto) {
+    const data = await this.roomsService.getChartOpenedConversation(filter);
+
+    const pivotData = pivotChartByType(data, filter, true);
+
+    const mappedData = await Promise.all(
+      pivotData.map(async (item: any) => {
+        const pipeline = queryGroupByLanguage({
+          spaceId: filter.spaceId,
+          fromDomain: filter.fromDomain,
+          fromDate: moment(item.date, 'DD/MM/YYYY').startOf('date').toDate(),
+          toDate: moment(item.date, 'DD/MM/YYYY')
+            .endOf(filter.type === AnalystType.LAST_YEAR ? 'month' : 'date')
+            .toDate(),
+        });
+        const aggregatedData = await this.userModel.aggregate(pipeline);
+        delete item.date;
+        return {
+          ...item,
+          openedConversation: aggregatedData,
+        };
+      }),
+    );
+
+    return mappedData;
+  }
+
   async getChartVisitor(filter: AnalystFilterDto) {
-    const query = queryOpenedConversation(filter);
-    const queryReport = queryReportByType(filter.type, query);
+    const query = queryVisitor(filter);
+    const queryReport = queryReportByType(filter.type, query, '$trackings');
     const data = await this.visitorModel.aggregate(queryReport);
     return pivotChartByType(data, filter);
+  }
+  async getTrafficChart(filter: AnalystFilterDto) {
+    const pivotData = await this.roomsService.getTrafficChart(filter);
+    const mappedData = await Promise.all(
+      pivotData.map(async (item: any) => {
+        const pipeline = queryGroupByLanguage({
+          spaceId: filter.spaceId,
+          fromDomain: filter.fromDomain,
+          fromDate: filter.fromDate,
+          toDate: filter.toDate,
+          hour: item.x,
+          dayOfWeek: item.y,
+        });
+        const aggregatedData = await this.userModel.aggregate(pipeline);
+        delete item.date;
+        return {
+          ...item,
+          openedConversation: aggregatedData,
+        };
+      }),
+    );
+    return mappedData;
   }
 }

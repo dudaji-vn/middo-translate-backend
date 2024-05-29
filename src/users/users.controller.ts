@@ -96,12 +96,22 @@ export class UsersController {
   @Patch(':id/unblock')
   async unblockUser(
     @JwtUserId() userId: string,
-    @Body('id') targetId: string,
+    @ParamObjectId('id') targetId: string,
   ): Promise<Response<null>> {
     await this.usersService.unblockUser(userId, targetId);
     return {
       data: null,
       message: 'User has been unblocked successfully!',
+    };
+  }
+  @Patch('allow-unknown')
+  async allowUnknownUser(@JwtUserId() userId: string): Promise<Response<null>> {
+    const isAllow = await this.usersService.toggleAllowUnknown(userId);
+    return {
+      data: null,
+      message: `Allow unknown user ${
+        isAllow ? 'enabled' : 'disabled'
+      } successfully!`,
     };
   }
   // check relationship api

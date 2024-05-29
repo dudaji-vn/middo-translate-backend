@@ -77,7 +77,6 @@ export const socketConfig = {
       send_audio: 'speech_to_text.send_audio',
       receive_audio_text: 'speech_to_text.receive_audio_text',
     },
-
     typing: {
       update: {
         server: 'typing.update.server',
@@ -85,11 +84,17 @@ export const socketConfig = {
       },
     },
     space: {
+      update: 'space.update',
       notification: {
         new: 'space.notification.new',
       },
       member: {
         remove: 'space.member.remove',
+      },
+    },
+    user: {
+      relationship: {
+        update: 'user.relationship.update',
       },
     },
   },

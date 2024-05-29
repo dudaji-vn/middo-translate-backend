@@ -17,6 +17,8 @@ export class UserResponseDto {
   status: UserStatus;
   @Expose()
   username: string;
+  @Expose()
+  allowUnknown: boolean;
 
   @Exclude()
   password: string;

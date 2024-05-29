@@ -324,6 +324,12 @@ export class MessagesService {
       message: newMessageWithSender,
       clientTempId: createMessageDto.clientTempId,
     };
+    const isUserInWaitingList = room.waitingUsers.some(
+      (u: any) => u._id.toString() === user._id.toString(),
+    );
+    if (isUserInWaitingList) {
+      await this.roomsService.accept(room._id, user._id.toString());
+    }
     this.roomsService.updateRoom(String(newMessage.room._id), {
       lastMessage: newMessageWithSender,
       newMessageAt: new Date(),
@@ -331,6 +337,7 @@ export class MessagesService {
       deleteFor: [],
       archiveFor: [],
     });
+
     this.eventEmitter.emit(socketConfig.events.message.new, socketPayload);
     if (createMessageDto.senderType !== SenderType.BOT) {
       this.sendMessageNotification(newMessageWithSender);
@@ -1326,7 +1333,8 @@ export class MessagesService {
             'language',
           ]),
         },
-      ]);
+      ])
+      .sort({ createdAt: -1 });
     const pinMessagesWithRemoved = pinMessages.map((pinMessage) => {
       const message = convertMessageRemoved(pinMessage.message, userId);
       return {

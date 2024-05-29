@@ -762,6 +762,32 @@ export class EventsGateway
       .to(socketIds)
       .emit(socketConfig.events.space.member.remove, data);
   }
+
+  @OnEvent(socketConfig.events.user.relationship.update)
+  async handleUpdateRelationShip({ userIds }: { userIds: string[] }) {
+    const socketIds = userIds
+      .map((id) => this.clients[id.toString()]?.socketIds || [])
+      .flat();
+    this.server
+      .to(socketIds)
+      .emit(socketConfig.events.user.relationship.update, {
+        userIds,
+      });
+  }
+  //Update space
+  @OnEvent(socketConfig.events.space.update)
+  async handleUpdateSpace({
+    data,
+    receiverIds,
+  }: {
+    data: any;
+    receiverIds: string[];
+  }) {
+    const socketIds = receiverIds
+      .map((id) => this.clients[id.toString()]?.socketIds || [])
+      .flat();
+    this.server.to(socketIds).emit(socketConfig.events.space.update, data);
+  }
 }
 
 const findUserIdBySocketId = (clients: any, socketId: string) => {

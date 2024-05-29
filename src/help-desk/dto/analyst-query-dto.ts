@@ -34,4 +34,6 @@ export type AnalystFilterDto = {
   toDate?: Date;
   fromDomain?: string;
   memberId?: string;
+  hour?: number;
+  dayOfWeek?: boolean;
 };

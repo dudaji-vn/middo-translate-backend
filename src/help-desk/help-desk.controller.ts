@@ -384,7 +384,7 @@ export class HelpDeskController {
   }
 
   @Public()
-  @Post('spaces/:id/visitor')
+  @Post(':id/visitor')
   async addVisitor(
     @ParamObjectId('id') id: string,
     @Body() visitor: VisitorDto,
@@ -394,10 +394,4 @@ export class HelpDeskController {
       data: result,
     };
   }
-
-  // @Public()
-  // @Get('add-missing-data')
-  // async addMissingData() {
-  //   return await this.helpDeskService.addMissingData();
-  // }
 }
