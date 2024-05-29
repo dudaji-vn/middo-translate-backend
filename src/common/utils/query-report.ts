@@ -172,7 +172,7 @@ export function queryOpenedConversation(filter: AnalystFilterDto) {
 }
 
 export function queryResponseTime(filter: AnalystFilterDto) {
-  const { spaceId, fromDate, toDate, fromDomain, memberId } = filter;
+  const { spaceId, fromDate, toDate, fromDomain, memberId, type } = filter;
   return [
     {
       $match: {
@@ -224,6 +224,32 @@ export function queryResponseTime(filter: AnalystFilterDto) {
     {
       $addFields: {
         secondMessage: { $arrayElemAt: ['$messages', 0] },
+      },
+    },
+    {
+      $project: {
+        day: {
+          $dayOfMonth: '$createdAt',
+        },
+        month: {
+          $month: '$createdAt',
+        },
+        year: {
+          $year: '$createdAt',
+        },
+        timeDifference: {
+          $subtract: ['$secondMessage.createdAt', '$createdAt'],
+        },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          ...(type !== AnalystType.LAST_YEAR && { day: '$day' }),
+          year: '$year',
+          month: '$month',
+        },
+        averageDifference: { $avg: '$timeDifference' },
       },
     },
   ];
