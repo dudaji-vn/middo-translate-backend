@@ -225,7 +225,7 @@ export class MessagesService {
           content,
           sourceLang: createdMessage.language,
           participants: room.participants,
-        });
+        }).then((data) => data.translations);
       });
 
       // Execute translation tasks concurrently
