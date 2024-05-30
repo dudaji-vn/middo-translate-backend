@@ -221,10 +221,10 @@ export class MessagesService {
 
       // Prepare translation tasks
       const translationTasks = contentsToTranslate.map((content) => {
-        return multipleTranslate({
+        return this.translateMessageInRoom({
           content,
           sourceLang: createdMessage.language,
-          targetLangs: ['en', ...room.participants.map((p: any) => p.language)],
+          participants: room.participants,
         });
       });
 
