@@ -206,6 +206,7 @@ export class MessagesController {
     if (!createMessageDto.senderType) {
       createMessageDto.senderType = SenderType.ANONYMOUS;
     }
+    createMessageDto.language = '';
 
     const message = await this.messagesService.create(
       createMessageDto,

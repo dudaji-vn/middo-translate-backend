@@ -219,13 +219,20 @@ export class MessagesService {
         (item) => item.data.content,
       );
 
-      // Prepare translation tasks
+      const clientParticipants =
+        room?.participants && room?.participants?.length
+          ? [room.participants[0]]
+          : [];
       const translationTasks = contentsToTranslate.map((content) => {
         return this.translateMessageInRoom({
           content,
-          sourceLang: createdMessage.language,
-          participants: room.participants,
-        }).then((data) => data.translations);
+          participants: clientParticipants,
+        })
+          .then((data) => data.translations)
+          .catch((error) => {
+            console.error('Translation error:', error);
+            return [];
+          });
       });
 
       // Execute translation tasks concurrently
