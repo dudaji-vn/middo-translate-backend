@@ -40,6 +40,8 @@ export class EventsGateway
       socketIds: string[];
     };
   } = {};
+  private meetings: Record<string, Meeting> = {};
+  private socketToRoom: Record<string, any> = {};
   constructor(
     private callService: CallService,
     private roomService: RoomsService,
@@ -90,6 +92,10 @@ export class EventsGateway
     const userIds = Object.keys(this.clients);
     logger.info('socket connected', userIds);
     this.server.emit(socketConfig.events.client.list, userIds);
+    const meetingRoomIds = Object.values(this.meetings).map((m) => m.room);
+    this.server
+      .to(client.id)
+      .emit(socketConfig.events.meeting.list, meetingRoomIds);
   }
 
   @SubscribeMessage(socketConfig.events.chat.join)
@@ -254,8 +260,6 @@ export class EventsGateway
   }
 
   // Events for call
-  private meetings: Record<string, Meeting> = {};
-  private socketToRoom: Record<string, any> = {};
 
   // Handle join call event
   @SubscribeMessage(socketConfig.events.call.join)
@@ -278,6 +282,8 @@ export class EventsGateway
         room: roomId,
       };
       this.server.emit(socketConfig.events.call.start, roomId);
+      const meetingRoomIds = Object.values(this.meetings).map((m) => m.room);
+      this.server.emit(socketConfig.events.meeting.list, meetingRoomIds);
     }
     this.socketToRoom[client.id] = callId;
     const userInThisRoom = this.meetings[callId].participants.filter(
@@ -599,20 +605,22 @@ export class EventsGateway
     // Check if room is empty then delete room
     delete this.socketToRoom[client.id];
     if (meeting?.participants.length === 0) {
-      const room = this.meetings[roomId]?.room;
-      const roomData = await this.roomService.findById(room);
-      const participants = roomData?.participants?.filter((p: any) =>
-        p._id.toString(),
-      );
-      const socketIds =
-        participants
-          ?.map((p: any) => this.clients[p.toString()]?.socketIds || [])
-          .flat() || [];
-      this.server
-        // .to(socketIds)
-        .emit(socketConfig.events.call.meeting_end, room);
+      // const room = this.meetings[roomId]?.room;
+      // const roomData = await this.roomService.findById(room);
+      // const participants = roomData?.participants?.filter((p: any) =>
+      //   p._id.toString(),
+      // );
+      // const socketIds =
+      //   participants
+      //     ?.map((p: any) => this.clients[p.toString()]?.socketIds || [])
+      //     .flat() || [];
+      // this.server
+      //   // .to(socketIds)
+      //   .emit(socketConfig.events.call.meeting_end, room);
       delete this.meetings[roomId];
       this.callService.endCall(roomId);
+      const meetingRoomIds = Object.values(this.meetings).map((m) => m.room);
+      this.server.emit(socketConfig.events.meeting.list, meetingRoomIds);
     }
   }
 

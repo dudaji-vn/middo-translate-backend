@@ -71,6 +71,9 @@ export const socketConfig = {
         mic_change: 'call.status.mic_change',
       },
     },
+    meeting: {
+      list: 'meeting.list',
+    },
     speech_to_text: {
       start: 'speech_to_text.start',
       stop: 'speech_to_text.stop',
