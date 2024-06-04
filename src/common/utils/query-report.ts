@@ -366,7 +366,14 @@ export function queryResponseMessage(filter: AnalystFilterDto) {
 }
 
 export function queryGroupByLanguage(filter: AnalystFilterDto) {
-  const { spaceId, fromDate, toDate, fromDomain, hour, dayOfWeek } = filter;
+  const {
+    spaceId,
+    fromDate,
+    toDate,
+    fromDomain,
+    hour = -1,
+    dayOfWeek = -1,
+  } = filter;
 
   return [
     {
@@ -380,8 +387,8 @@ export function queryGroupByLanguage(filter: AnalystFilterDto) {
               $lte: toDate,
             },
           }),
-        ...(hour &&
-          dayOfWeek && {
+        ...(hour >= 0 &&
+          dayOfWeek >= 0 && {
             $expr: {
               $and: [
                 { $eq: [{ $hour: '$createdAt' }, hour] },
