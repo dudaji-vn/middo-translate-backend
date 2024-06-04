@@ -565,7 +565,7 @@ export class HelpDeskService {
     space.members = space.members
       ?.filter((user) => user.status !== MemberStatus.DELETED)
       .map((item) => {
-        const userId = item.user;
+        const userId = item?.user;
         delete item.user;
         return {
           ...item,
