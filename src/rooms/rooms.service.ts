@@ -1064,7 +1064,7 @@ export class RoomsService {
     newRoom.participants = participants;
     newRoom.space = createRoomDto.space;
     newRoom.admin = creatorId as any;
-    newRoom.readBy = createRoomDto.participants;
+    newRoom.readBy = [];
     newRoom.fromDomain = createRoomDto.fromDomain;
     newRoom.expiredAt = moment()
       .add(envConfig.helpDesk.room.expireIn, 'seconds')
@@ -1083,15 +1083,10 @@ export class RoomsService {
       { new: true },
     );
   }
-  async updateRoomHelpDesk(
-    roomId: ObjectId,
-    userId: string,
-    senderType?: SenderType,
-  ) {
+  async updateRoomHelpDesk(roomId: ObjectId, senderType?: SenderType) {
     return await this.roomModel.findByIdAndUpdate(
       roomId,
       {
-        readBy: [userId],
         ...(senderType === SenderType.ANONYMOUS && {
           expiredAt: moment()
             .add(envConfig.helpDesk.room.expireIn, 'seconds')

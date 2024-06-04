@@ -292,10 +292,10 @@ export class MessagesService {
         room.space.bot
       ) {
         createdMessage.sender = room.space.bot;
+        createdMessage.readBy = [];
       }
       await this.roomsService.updateRoomHelpDesk(
         room._id,
-        user._id.toString(),
         createMessageDto.senderType,
       );
     }
@@ -1363,21 +1363,11 @@ export class MessagesService {
       user._id.toString(),
     );
 
-    const createdMessage = new this.messageModel();
-    createdMessage.sender = user;
-    createdMessage.content = createMessageDto.content || '';
-    createdMessage.contentEnglish = createMessageDto.contentEnglish || '';
-
-    createdMessage.room = room;
-    createdMessage.readBy = [user._id];
-    createdMessage.deliveredTo = [user._id];
-
     const newMessage = await this.messageModel.findOneAndUpdate(
       { room: room._id },
       {
         content: createMessageDto.content,
         contentEnglish: createMessageDto.contentEnglish,
-        readBy: [user._id, createMessageDto.businessUserId],
         deliveredTo: [user._id],
         sender: senderId,
       },
