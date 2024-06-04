@@ -1,6 +1,6 @@
 export default interface Meeting {
   participants: any[];
-  room?: any;
+  room: string; // Room Id
   startTime?: Date;
   doodle?: {
     image?: string;
