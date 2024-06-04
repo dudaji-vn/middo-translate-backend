@@ -563,7 +563,7 @@ export class HelpDeskService {
       .lean();
 
     space.members = space.members
-      ?.filter((user) => user.status === MemberStatus.JOINED)
+      ?.filter((user) => user.status !== MemberStatus.DELETED)
       .map((item) => {
         const userId = item.user;
         delete item.user;
