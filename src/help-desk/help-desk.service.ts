@@ -242,7 +242,6 @@ export class HelpDeskService {
         email: `${slug}@gmail.com`,
         username: slug,
         name: space.name,
-        language: user.language,
         avatar: space.avatar,
       });
 
