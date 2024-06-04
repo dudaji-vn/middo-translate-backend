@@ -968,31 +968,22 @@ export class HelpDeskService {
     };
   }
   async analystByLanguage(filter: AnalystFilterDto) {
-    const { spaceId, fromDomain } = filter;
-
     const dataWithTime = await this.userModel.aggregate(
       queryGroupByLanguage(filter),
     );
-    const data = await this.userModel.aggregate(
-      queryGroupByLanguage({
-        spaceId: spaceId,
-        fromDomain: fromDomain,
-      }),
-    );
-    if (!data.length) {
+
+    if (!dataWithTime.length) {
       return [];
     }
-    return data
+    return dataWithTime
       .map((item) => {
         return {
           ...item,
-          count:
-            dataWithTime.find((subItem) => subItem?.language === item?.language)
-              ?.count || 0,
-          total: item?.count,
+          count: item?.count,
         };
       })
-      .sort((a, b) => b.count - a.count);
+      .filter((item) => item?.count > 0)
+      .sort((a, b) => b?.count - a?.count);
   }
 
   async getChartConversationLanguage(filter: AnalystFilterDto) {
