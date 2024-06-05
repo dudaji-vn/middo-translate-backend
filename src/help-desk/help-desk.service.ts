@@ -1743,12 +1743,14 @@ export class HelpDeskService {
     }
     const member = spaceData.members[index];
 
-    if (isOwnerSpace && member?.user?.toString() === userId.toString()) {
-      throw new BadRequestException('You cannot change role of owner');
+    if (member?.user?.toString() === userId.toString()) {
+      throw new BadRequestException('You cannot change role of your self');
     }
 
     if (isAdminSpace && !isOwnerSpace && member.role === ROLE.ADMIN) {
-      throw new ForbiddenException('You do not have permission to change role');
+      throw new ForbiddenException(
+        'You do not have permission to change role of admin',
+      );
     }
 
     spaceData.members[index].role = data.role;
