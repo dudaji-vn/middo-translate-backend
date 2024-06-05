@@ -1521,7 +1521,8 @@ export class HelpDeskService {
 
     data.members.forEach((member) => {
       const user = spaceData.members.find(
-        (item) => item.email === member.email,
+        (item) =>
+          item.email === member.email && item.status !== MemberStatus.DELETED,
       );
       if (user?.status === MemberStatus.INVITED) {
         throw new BadRequestException(`Email ${user.email} already invited!`);
