@@ -1,7 +1,16 @@
-import { Body, Controller, Get, Patch, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Patch,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { JwtUserId, ParamObjectId } from 'src/common/decorators';
 import { CreateOrEditStationDto } from './dto/create-or-edit-station.dto';
 import { StationsService } from './stations.service';
+import { RemoveMemberDto } from './dto/remove-member.dto';
 
 @Controller('stations')
 export class StationsController {
@@ -45,6 +54,34 @@ export class StationsController {
       userId,
       station,
     );
+    return { data: result };
+  }
+
+  @Delete(':id')
+  async deleteStation(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.stationsService.deleteStation(id, userId);
+    return { data: result };
+  }
+
+  @Delete(':id/members')
+  async removeMember(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+    @Body() member: RemoveMemberDto,
+  ) {
+    const result = await this.stationsService.removeMember(id, userId, member);
+    return { data: result };
+  }
+
+  @Delete(':id/members/leave')
+  async leaveStation(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.stationsService.leaveStation(id, userId);
     return { data: result };
   }
 }

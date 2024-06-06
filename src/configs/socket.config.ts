@@ -101,5 +101,16 @@ export const socketConfig = {
         update: 'user.relationship.update',
       },
     },
+    station: {
+      update: 'space.update',
+      notification: {
+        new: 'space.notification.new',
+      },
+      member: {
+        remove: 'space.member.remove',
+        leave: 'space.member.leave',
+        update: 'space.member.update',
+      },
+    },
   },
 };

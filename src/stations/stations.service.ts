@@ -9,8 +9,10 @@ import * as moment from 'moment';
 import { Model, Types } from 'mongoose';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import { envConfig } from 'src/configs/env.config';
+import { socketConfig } from 'src/configs/socket.config';
 import { UsersService } from 'src/users/users.service';
 import { CreateOrEditStationDto } from './dto/create-or-edit-station.dto';
+import { RemoveMemberDto } from './dto/remove-member.dto';
 import { MemberStatus, ROLE } from './schemas/member.schema';
 import { Station, StationStatus } from './schemas/station.schema';
 
@@ -152,6 +154,102 @@ export class StationsService {
         totalMembers: members.length,
       };
     });
+  }
+
+  async removeMember(stationId: string, userId: string, data: RemoveMemberDto) {
+    const stationData = await this.stationModel.findOne({
+      _id: stationId,
+      status: { $ne: StationStatus.DELETED },
+    });
+
+    if (!stationData) {
+      throw new BadRequestException('Station not found!');
+    }
+    if (!this.isOwnerStation(stationData, userId)) {
+      throw new ForbiddenException(
+        'You do not have permission to remove member',
+      );
+    }
+
+    const index = stationData.members.findIndex(
+      (item) =>
+        item.email === data.email && item.status !== MemberStatus.DELETED,
+    );
+    if (index === -1) {
+      throw new BadRequestException('This user is not in station');
+    }
+    if (stationData.members[index]?.user?.toString() === userId) {
+      throw new BadRequestException('You can not remove yourself');
+    }
+
+    stationData.members[index].status = MemberStatus.DELETED;
+
+    await stationData.save();
+    if (!!stationData.members[index].user) {
+      this.eventEmitter.emit(socketConfig.events.station.member.remove, {
+        receiverIds: stationData.members
+          .filter((member) => member.status === MemberStatus.JOINED)
+          .map((item) => item.user?.toString()),
+      });
+    }
+
+    return true;
+  }
+
+  async leaveStation(stationId: string, userId: string) {
+    const stationData = await this.stationModel.findOne({
+      _id: stationId,
+      status: { $ne: StationStatus.DELETED },
+    });
+
+    if (!stationData) {
+      throw new BadRequestException('Station not found!');
+    }
+
+    const index = stationData.members.findIndex(
+      (item) =>
+        item.user?.toString() === userId && item.status === MemberStatus.JOINED,
+    );
+    if (this.isOwnerStation(stationData, userId)) {
+      throw new BadRequestException('Owner cannot leave station');
+    }
+    if (index === -1) {
+      throw new BadRequestException('This user is not in station');
+    }
+
+    stationData.members[index].status = MemberStatus.DELETED;
+
+    await stationData.save();
+    if (!!stationData.members[index].user) {
+      this.eventEmitter.emit(socketConfig.events.station.member.leave, {
+        receiverIds: stationData.members
+          .filter((member) => member.status === MemberStatus.JOINED)
+          .map((item) => item.user?.toString()),
+      });
+    }
+
+    return true;
+  }
+
+  async deleteStation(stationId: string, userId: string) {
+    const station = await this.stationModel.findOne({
+      _id: stationId,
+      status: { $ne: StationStatus.DELETED },
+    });
+
+    if (!station) {
+      throw new BadRequestException('Station not found');
+    }
+    if (!this.isOwnerStation(station, userId)) {
+      throw new ForbiddenException(
+        'You do not have permission to delete station',
+      );
+    }
+
+    station.status = StationStatus.DELETED;
+    await station.save();
+
+    return true;
   }
 
   private createVerifyUrl(token: string) {
