@@ -385,4 +385,13 @@ export class RoomsController {
     const result = await this.roomsService.changeTagRoom(id, userId, tagId);
     return { message: 'Changed room tag', data: result };
   }
+
+  @Patch(':id/delete-contact')
+  async deleteContact(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ): Promise<Response<null>> {
+    await this.roomsService.deleteContact(id, userId);
+    return { message: 'Contact deleted', data: null };
+  }
 }

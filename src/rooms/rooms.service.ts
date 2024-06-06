@@ -104,8 +104,14 @@ export class RoomsService {
         if (p._id.toString() === creatorId) return;
         if (!p.allowUnknown) {
           newRoom.waitingUsers.push(p);
-        } else {
+        }
+
+        if (!isGroup || p.allowUnknown) {
           newRoom.participants.push(p);
+        }
+
+        if (!isGroup && !p.allowUnknown) {
+          newRoom.status = RoomStatus.WAITING;
         }
       });
     } else {
@@ -119,7 +125,7 @@ export class RoomsService {
     }
     newRoom.isGroup = isGroup;
     newRoom.admin = admin;
-
+    console.log(newRoom);
     const room = await this.roomModel.create(newRoom);
     const responseRoom = await room.populate([
       {
@@ -143,7 +149,7 @@ export class RoomsService {
     return responseRoom;
   }
 
-  async accept(roomId: string, userId: string) {
+  async accept(roomId: string, userId: string, roomStatus?: RoomStatus) {
     const room = await this.roomModel.findOne({
       _id: roomId,
       waitingUsers: userId,
@@ -155,10 +161,13 @@ export class RoomsService {
     room.waitingUsers = room.waitingUsers.filter(
       (p) => String(p._id) !== userId,
     );
-    room.participants = [...room.participants, user];
+    if (!room.participants.some((p) => String(p._id) === userId)) {
+      room.participants = [...room.participants, user];
+    }
     await this.updateRoom(roomId, {
       waitingUsers: room.waitingUsers,
       participants: room.participants,
+      status: roomStatus || RoomStatus.ACTIVE,
     });
   }
 
@@ -242,7 +251,27 @@ export class RoomsService {
     });
     return room;
   }
-
+  async deleteContact(roomId: string, userId: string) {
+    const room = await this.findByIdAndUserId(roomId, userId);
+    const otherUser = room.participants.find(
+      (p) => p._id.toString() !== userId,
+    );
+    await this.roomModel.updateOne(
+      {
+        _id: room._id,
+      },
+      {
+        status: RoomStatus.WAITING,
+        waitingUsers: [...room.waitingUsers, otherUser, userId],
+      },
+    );
+    const newRoom = await this.findByIdAndUserId(roomId, userId);
+    this.eventEmitter.emit(socketConfig.events.room.delete_contact, {
+      participants: [...room.participants.map((p: User) => p._id)],
+      data: newRoom,
+    });
+    return room;
+  }
   async leaveRoom(id: string, userId: string) {
     const room = await this.findGroupByIdAndUserId(id, userId);
     if (!room.isGroup) {
@@ -320,7 +349,7 @@ export class RoomsService {
       $or: [{ waitingUsers: userId }, { participants: userId }],
 
       status: {
-        $in: [RoomStatus.ACTIVE, RoomStatus.ARCHIVED],
+        $in: [RoomStatus.ACTIVE, RoomStatus.ARCHIVED, RoomStatus.WAITING],
       },
     });
 
@@ -420,6 +449,7 @@ export class RoomsService {
       type?:
         | 'all'
         | 'group'
+        | 'contact'
         | 'individual'
         | 'help-desk'
         | 'unread-help-desk'
@@ -434,7 +464,6 @@ export class RoomsService {
     userId: string,
   ): Promise<Pagination<Room, CursorPaginationInfo>> {
     const {
-      limit = 10,
       cursor,
       type,
       status,
@@ -443,7 +472,7 @@ export class RoomsService {
       tags,
       countries = [],
     } = queryParams;
-
+    let limit = queryParams.limit;
     const user = await this.usersService.findById(userId);
     let userIds: ObjectId[] = [];
     if (spaceId && countries && countries.length > 0) {
@@ -461,7 +490,9 @@ export class RoomsService {
       },
       participants: userId,
       waitingUsers: { $nin: [userId] },
-      status: { $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED] },
+      status: {
+        $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED, RoomStatus.WAITING],
+      },
       deleteFor: { $nin: [userId] },
       archiveFor: { $nin: [userId] },
       isHelpDesk: { $ne: true },
@@ -496,9 +527,29 @@ export class RoomsService {
       case 'archived':
         Object.assign(query, { archiveFor: { $in: [userId] } });
         break;
+      case 'contact':
+        Object.assign(query, {
+          isGroup: false,
+          status: { $ne: RoomStatus.WAITING },
+        });
+        delete query.archiveFor;
+        // delete query.waitingUsers;
+        limit = Infinity;
+        break;
       case 'waiting':
-        Object.assign(query, { waitingUsers: { $in: [userId] } });
-        Object.assign(query, { participants: { $nin: [userId] } });
+        Object.assign(query, {
+          $or: [
+            { waitingUsers: { $in: [userId] } },
+            {
+              status: { $eq: RoomStatus.WAITING },
+            },
+          ],
+        });
+        delete query.status;
+        delete query.waitingUsers;
+        delete query.participants;
+        // Object.assign(query, { waitingUsers: { $in: [userId] } });
+        // Object.assign(query, { participants: { $nin: [userId] } });
         break;
     }
 

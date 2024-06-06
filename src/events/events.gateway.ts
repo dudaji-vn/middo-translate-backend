@@ -15,7 +15,10 @@ import {
   NewMessagePayload,
   ReplyMessagePayload,
 } from './types/message-payload.type';
-import { UpdateRoomPayload } from './types/room-payload.type';
+import {
+  DeleteContactPayload,
+  UpdateRoomPayload,
+} from './types/room-payload.type';
 import { CallService } from 'src/call/call.service';
 import Meeting from './interface/meeting.interface';
 import { Room } from 'src/rooms/schemas/room.schema';
@@ -162,6 +165,14 @@ export class EventsGateway
 
     // Update room
     this.server.to(roomId).emit(socketConfig.events.room.update, data);
+  }
+  @OnEvent(socketConfig.events.room.delete_contact)
+  async handleDeleteContact({ participants, data }: DeleteContactPayload) {
+    const socketIds = participants
+      .map((p) => this.clients[p.toString()]?.socketIds || [])
+      .flat();
+    this.server.to(socketIds).emit(socketConfig.events.room.delete_contact);
+    this.server.to(socketIds).emit(socketConfig.events.room.update, data);
   }
 
   @OnEvent(socketConfig.events.room.delete)

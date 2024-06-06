@@ -335,12 +335,39 @@ export class MessagesService {
       (u: any) => u._id.toString() === user._id.toString(),
     );
     if (isUserInWaitingList) {
-      await this.roomsService.accept(room._id, user._id.toString());
+      await this.roomsService.accept(
+        room._id,
+        user._id.toString(),
+        room?.status,
+      );
+    }
+    let roomNewStatus = room.status;
+    if (roomNewStatus === RoomStatus.ARCHIVED) {
+      roomNewStatus = RoomStatus.ACTIVE;
+    }
+    if (!room?.isGroup) {
+      if (isUserInWaitingList && room.waitingUsers.length == 1) {
+        roomNewStatus = RoomStatus.ACTIVE;
+      }
+      const anotherUserId = room.waitingUsers.find(
+        (u: any) => u._id.toString() !== user._id.toString(),
+      )?._id;
+      if (anotherUserId) {
+        const anotherUser = await this.usersService.findById(anotherUserId);
+        if (anotherUser.allowUnknown) {
+          await this.roomsService.accept(
+            room._id,
+            anotherUser._id.toString(),
+            room?.status,
+          );
+          roomNewStatus = RoomStatus.ACTIVE;
+        }
+      }
     }
     this.roomsService.updateRoom(String(newMessage.room._id), {
       lastMessage: newMessageWithSender,
       newMessageAt: new Date(),
-      status: RoomStatus.ACTIVE,
+      status: roomNewStatus,
       deleteFor: [],
       archiveFor: [],
     });
