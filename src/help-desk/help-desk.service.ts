@@ -1728,9 +1728,9 @@ export class HelpDeskService {
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
     }
-    const isAdminSpace = this.isAdminSpace(spaceData.members, userId);
+
     const isOwnerSpace = this.isOwnerSpace(spaceData, userId);
-    if (!isAdminSpace) {
+    if (!isOwnerSpace) {
       throw new ForbiddenException('You do not have permission to change role');
     }
 
@@ -1745,12 +1745,6 @@ export class HelpDeskService {
 
     if (member?.user?.toString() === userId.toString()) {
       throw new BadRequestException('You cannot change role of your self');
-    }
-
-    if (isAdminSpace && !isOwnerSpace && member.role === ROLE.ADMIN) {
-      throw new ForbiddenException(
-        'You do not have permission to change role of admin',
-      );
     }
 
     spaceData.members[index].role = data.role;
