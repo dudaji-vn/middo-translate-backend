@@ -28,7 +28,4 @@ export class CreateOrEditStationDto {
   @ValidateNested({ each: true })
   @Type(() => MemberDto)
   members: MemberDto[];
-
-  @ApiProperty()
-  spaceId: string;
 }

@@ -24,7 +24,7 @@ import { envConfig } from './configs/env.config';
 import { GoogleApiStatController } from './google-api-stat/google-api-stat.controller';
 import { WatchingModule } from './watching/watching.module';
 import { HelpDeskModule } from './help-desk/help-desk.module';
-import { StationModule } from './station/station.module';
+import { StationModule } from './stations/stations.module';
 
 @Module({
   imports: [
