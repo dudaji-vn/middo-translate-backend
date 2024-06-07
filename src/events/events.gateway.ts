@@ -808,6 +808,25 @@ export class EventsGateway
       .flat();
     this.server.to(socketIds).emit(socketConfig.events.space.update, data);
   }
+
+  //App notification
+  @OnEvent(socketConfig.events.app.notification)
+  async handleNotify({
+    data,
+    receiverIds,
+  }: {
+    data: any;
+
+    receiverIds: string[];
+  }) {
+    const socketIds = receiverIds
+      .map((id) => this.clients[id.toString()]?.socketIds || [])
+      .flat();
+    console.log('socketIds', socketIds);
+    this.server
+      .to(socketIds)
+      .emit(socketConfig.events.space.notification.new, data);
+  }
 }
 
 const findUserIdBySocketId = (clients: any, socketId: string) => {

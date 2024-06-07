@@ -7,11 +7,15 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
 import { Model, Types } from 'mongoose';
+import { AppNotificationsService } from 'src/app-notifications/app-notifications.service';
 import { generateSlug } from 'src/common/utils/generate-slug';
-import { envConfig } from 'src/configs/env.config';
 import { socketConfig } from 'src/configs/socket.config';
+import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import { CreateOrEditStationDto } from './dto/create-or-edit-station.dto';
+import {
+  CreateOrEditStationDto,
+  MemberDto,
+} from './dto/create-or-edit-station.dto';
 import { RemoveMemberDto } from './dto/remove-member.dto';
 import { MemberStatus, ROLE } from './schemas/member.schema';
 import { Station, StationStatus } from './schemas/station.schema';
@@ -22,6 +26,7 @@ export class StationsService {
     @InjectModel(Station.name)
     private stationModel: Model<Station>,
     private userService: UsersService,
+    private appNotificationsService: AppNotificationsService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -73,7 +78,20 @@ export class StationsService {
       members: [me, ...members],
       name: station.name,
     });
-    return stationData;
+
+    const memberPromises = members.map((member) =>
+      this.processMember(user, member, stationData),
+    );
+    await Promise.all(memberPromises);
+    const stationDataObject = stationData.toObject();
+
+    return {
+      ...stationDataObject,
+      members: stationDataObject.members.map((item) => {
+        const { verifyToken: _, ...data } = item;
+        return data;
+      }),
+    };
   }
   async updateStation(
     id: string,
@@ -253,9 +271,35 @@ export class StationsService {
   }
 
   private createVerifyUrl(token: string) {
-    return `${envConfig.app.url}/station-verify?token=${token}`;
+    return `/station-verify?token=${token}`;
   }
   private isOwnerStation(station: Station, userId: string) {
     return station.owner?.toString() === userId.toString();
+  }
+
+  private async processMember(
+    sender: User,
+    member: MemberDto,
+    stationData: Station,
+  ) {
+    // Find user by email
+    const receiver = await this.userService.findByEmail(member.email, {
+      ignoreNotFound: true,
+    });
+
+    // If user exists, create notification and emit event
+    if (receiver && receiver._id) {
+      await this.appNotificationsService.create({
+        from: sender._id.toString(),
+        to: receiver._id.toString(),
+        link: member.verifyUrl,
+        description: `You've been invited to join station ${stationData.name}`,
+        stationId: stationData._id.toString(),
+      });
+
+      this.eventEmitter.emit(socketConfig.events.app.notification, {
+        receiverIds: [receiver._id.toString()],
+      });
+    }
   }
 }
