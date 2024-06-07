@@ -25,6 +25,7 @@ import { GoogleApiStatController } from './google-api-stat/google-api-stat.contr
 import { WatchingModule } from './watching/watching.module';
 import { HelpDeskModule } from './help-desk/help-desk.module';
 import { StationModule } from './stations/stations.module';
+import { AppNotificationsModule } from './app-notifications/app-notifications.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { StationModule } from './stations/stations.module';
     WatchingModule,
     HelpDeskModule,
     StationModule,
+    AppNotificationsModule,
   ],
   controllers: [AppController, GoogleApiStatController],
   providers: [

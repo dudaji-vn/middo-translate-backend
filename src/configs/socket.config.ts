@@ -112,5 +112,8 @@ export const socketConfig = {
         update: 'space.member.update',
       },
     },
+    app: {
+      notification: 'app.notification',
+    },
   },
 };
