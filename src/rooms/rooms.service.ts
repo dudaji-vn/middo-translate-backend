@@ -34,7 +34,7 @@ import { convertMessageRemoved } from 'src/messages/utils/convert-message-remove
 import { RecommendQueryDto } from 'src/recommendation/dto/recommend-query-dto';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import { HelpDeskBusiness } from '../help-desk/schemas/help-desk-business.schema';
+import { HelpDeskBusiness } from 'src/help-desk/schemas/help-desk-business.schema';
 import { CreateRoomDto } from './dto';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 import { UpdateRoomDto } from './dto/update-room.dto';
@@ -48,6 +48,7 @@ import {
 import * as moment from 'moment';
 import { envConfig } from 'src/configs/env.config';
 import { pivotChartByType } from 'src/common/utils/date-report';
+import { StationsService } from 'src/stations/stations.service';
 
 const userSelectFieldsString = selectPopulateField<User>([
   '_id',
@@ -63,6 +64,7 @@ const userSelectFieldsString = selectPopulateField<User>([
 export class RoomsService {
   constructor(
     private readonly usersService: UsersService,
+    private readonly stationService: StationsService,
     private readonly eventEmitter: EventEmitter2,
     @InjectModel(Room.name) private readonly roomModel: Model<Room>,
     @InjectModel(HelpDeskBusiness.name)
@@ -84,8 +86,9 @@ export class RoomsService {
     }
 
     if (!isGroup) {
-      const room = await this.findByParticipantIds(
+      const room = await this.findByParticipantIdsAndStationId(
         participants.map((p) => p._id),
+        createRoomDto.stationId,
       );
       if (room) {
         return room;
@@ -93,6 +96,13 @@ export class RoomsService {
     }
 
     const newRoom = new this.roomModel(createRoomDto);
+    if (createRoomDto.stationId) {
+      const station = await this.stationService.findStationByIdAndUserId(
+        createRoomDto.stationId,
+        creatorId,
+      );
+      newRoom.station = station;
+    }
     const admin =
       participants.find((p) => p._id.toString() === creatorId) || ({} as User);
 
@@ -316,19 +326,17 @@ export class RoomsService {
     return room;
   }
 
-  async findByParticipantIds(
+  async findByParticipantIdsAndStationId(
     participantIds: ObjectId[] | string[],
-    inCludeDeleted = false,
-    isHelpDesk = false,
+    stationId?: string,
   ) {
     const room = await this.roomModel
       .findOne({
+        ...(stationId && { station: stationId }),
         participants: {
           $all: participantIds,
           $size: participantIds.length,
         },
-        ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
-        ...(isHelpDesk && { isHelpDesk: isHelpDesk }),
       })
       .populate({
         path: 'lastMessage',
@@ -477,6 +485,7 @@ export class RoomsService {
         | 'archived'
         | 'waiting';
       spaceId?: string;
+      stationId?: string;
       status?: RoomStatus;
       domains?: string[];
       tags?: string[];
@@ -492,6 +501,7 @@ export class RoomsService {
       domains,
       tags,
       countries = [],
+      stationId,
     } = queryParams;
     let limit = queryParams.limit;
     const user = await this.usersService.findById(userId);
@@ -517,12 +527,14 @@ export class RoomsService {
       deleteFor: { $nin: [userId] },
       archiveFor: { $nin: [userId] },
       isHelpDesk: { $ne: true },
+      station: { $exists: false },
       ...(status && { status }),
       ...(countries?.length && {
         $and: [{ participants: { $in: userIds } }, { participants: userId }],
       }),
       ...(tags?.length && { tag: { $in: tags } }),
       ...(domains?.length && { fromDomain: { $in: domains } }),
+      ...(stationId && { station: stationId }),
     };
 
     switch (type) {
