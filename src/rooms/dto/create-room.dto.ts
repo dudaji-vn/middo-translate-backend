@@ -37,4 +37,8 @@ export class CreateRoomDto {
   @IsOptional()
   @IsBoolean()
   isHelpDesk?: boolean;
+
+  @IsOptional()
+  @IsMongoId()
+  stationId?: string;
 }
