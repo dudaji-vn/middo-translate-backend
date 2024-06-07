@@ -1,5 +1,4 @@
 import { IsMongoId, IsOptional, IsString } from 'class-validator';
-import { User } from 'src/users/schemas/user.schema';
 
 export class CreateAppNotificationDto {
   @IsMongoId()
@@ -19,9 +18,3 @@ export class CreateAppNotificationDto {
   @IsMongoId()
   stationId?: string;
 }
-
-// space:
-// description,
-// from: user,
-// to: data.email,
-// link: data.verifyUrl,

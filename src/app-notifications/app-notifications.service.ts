@@ -23,7 +23,6 @@ export class AppNotificationsService {
       })
       .sort({ _id: -1 })
       .populate('from', 'name avatar')
-      .populate('space')
       .select('-to');
     return notifications;
   }
