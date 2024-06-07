@@ -12,7 +12,6 @@ export class AppNotification {
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: Station.name,
-    required: true,
   })
   station: Station;
 
