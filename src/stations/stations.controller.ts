@@ -36,7 +36,7 @@ export class StationsController {
     @JwtUserId() userId: string,
     @ParamObjectId('id') id: string,
   ) {
-    const result = await this.stationsService.getStationByIdAndUserId(
+    const result = await this.stationsService.findStationByIdAndUserId(
       id,
       userId,
     );

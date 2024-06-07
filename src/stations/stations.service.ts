@@ -107,7 +107,7 @@ export class StationsService {
     return data;
   }
 
-  async getStationByIdAndUserId(id: string, userId: string) {
+  async findStationByIdAndUserId(id: string, userId: string) {
     const query = {
       _id: id,
       status: StationStatus.ACTIVE,
