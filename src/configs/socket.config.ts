@@ -102,14 +102,11 @@ export const socketConfig = {
       },
     },
     station: {
-      update: 'space.update',
-      notification: {
-        new: 'space.notification.new',
-      },
+      update: 'station.update',
       member: {
-        remove: 'space.member.remove',
-        leave: 'space.member.leave',
-        update: 'space.member.update',
+        remove: 'station.member.remove',
+        leave: 'station.member.leave',
+        update: 'station.member.update',
       },
     },
   },
