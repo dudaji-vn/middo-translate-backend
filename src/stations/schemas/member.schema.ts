@@ -28,10 +28,10 @@ export class Member {
   email: string;
 
   @Prop({ type: String })
-  verifyToken: string;
+  verifyToken?: string;
 
   @Prop({ type: Date })
-  invitedAt: Date;
+  invitedAt?: Date;
 
   @Prop({ type: Date })
   joinedAt?: Date;

@@ -13,6 +13,7 @@ export class MemberDto {
   invitedAt?: Date;
   joinedAt?: Date;
   expiredAt?: Date;
+  verifyUrl: string;
 }
 export class CreateOrEditStationDto {
   @ApiProperty()
