@@ -109,5 +109,8 @@ export const socketConfig = {
         update: 'station.member.update',
       },
     },
+    app: {
+      notification: 'app.notification',
+    },
   },
 };
