@@ -171,8 +171,9 @@ export class EventsGateway
     const socketIds = participants
       .map((p) => this.clients[p.toString()]?.socketIds || [])
       .flat();
-    this.server.to(socketIds).emit(socketConfig.events.room.delete_contact);
-    this.server.to(socketIds).emit(socketConfig.events.room.update, data);
+    this.server
+      .to(socketIds)
+      .emit(socketConfig.events.room.delete_contact, data);
   }
 
   @OnEvent(socketConfig.events.room.delete)

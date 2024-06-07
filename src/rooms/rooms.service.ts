@@ -263,6 +263,7 @@ export class RoomsService {
       {
         status: RoomStatus.WAITING,
         waitingUsers: [...room.waitingUsers, otherUser, userId],
+        participants: [],
       },
     );
     const newRoom = await this.findByIdAndUserId(roomId, userId);
@@ -353,6 +354,7 @@ export class RoomsService {
       },
     });
 
+    // CASE: Search room by user ID
     if (!room) {
       const participantIds = [...new Set([userId, id])];
       room = await this.roomModel.findOne({
@@ -361,6 +363,25 @@ export class RoomsService {
           $size: participantIds.length,
         },
         status: RoomStatus.ACTIVE,
+      });
+    }
+    // CASE: Delete contact P2P
+    if (!room) {
+      const participantIds = [...new Set([userId, id])];
+      room = await this.roomModel.findOne({
+        $or: [
+          {
+            waitingUsers: {
+              $all: participantIds,
+            },
+          },
+          {
+            $and: [{ participants: userId }, { waitingUsers: id }],
+          },
+          {
+            $and: [{ participants: id }, { waitingUsers: userId }],
+          },
+        ],
       });
     }
     if (!room) {
@@ -541,14 +562,16 @@ export class RoomsService {
           $or: [
             { waitingUsers: { $in: [userId] } },
             {
-              status: { $eq: RoomStatus.WAITING },
+              $and: [
+                { participants: { $in: [userId] } },
+                { status: RoomStatus.WAITING },
+              ],
             },
           ],
         });
         delete query.status;
         delete query.waitingUsers;
         delete query.participants;
-        // Object.assign(query, { waitingUsers: { $in: [userId] } });
         // Object.assign(query, { participants: { $nin: [userId] } });
         break;
     }
