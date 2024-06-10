@@ -107,6 +107,20 @@ export class MessagesController {
     };
   }
 
+  @Public()
+  @Get('help-desk/:id/seen/:userId')
+  async checkSeenHelpDesk(
+    @ParamObjectId() id: string,
+    @ParamObjectId() userId: string,
+  ) {
+    const seen = await this.messagesService.checkSeen(id, userId);
+    return {
+      data: {
+        seen,
+      },
+    };
+  }
+
   @Patch(':id/edit')
   async editMessage(
     @ParamObjectId() id: string,
