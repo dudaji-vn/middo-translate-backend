@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { SearchQueryParamsDto } from './dtos/search-query-params.dto';
 import { SearchService } from './search.service';
 import { User } from 'src/users/schemas/user.schema';
@@ -36,26 +44,14 @@ export class SearchController {
     };
   }
 
-  @Get('keywords/:keyword')
-  async checkKeyword(
-    @JwtUserId() userId: string,
-    @Param('keyword') keyword: string,
-    @Query() query: KeywordQueryParamsDto,
-  ) {
-    const users = await this.searchService.checkKeyword(userId, keyword, query);
-    return {
-      data: users,
-    };
-  }
-
   @Post('keywords')
   async addKeyword(
     @JwtUserId() userId: string,
     @Body() payload: AddKeywordDto,
   ) {
-    const users = await this.searchService.addKeyword(userId, payload);
+    const result = await this.searchService.addKeyword(userId, payload);
     return {
-      data: users,
+      data: result,
     };
   }
 
@@ -64,9 +60,25 @@ export class SearchController {
     @JwtUserId() userId: string,
     @Query() query: KeywordQueryParamsDto,
   ) {
-    const users = await this.searchService.getKeywords(userId, query);
+    const result = await this.searchService.getKeywords(userId, query);
     return {
-      data: users,
+      data: result,
+    };
+  }
+
+  @Get('keywords/:keyword')
+  async checkKeyword(
+    @JwtUserId() userId: string,
+    @Param('keyword') keyword: string,
+    @Query() query: KeywordQueryParamsDto,
+  ) {
+    const result = await this.searchService.checkKeyword(
+      userId,
+      keyword,
+      query,
+    );
+    return {
+      data: result,
     };
   }
 }
