@@ -84,6 +84,19 @@ export class MessagesController {
     };
   }
 
+  @Public()
+  @Patch('help-desk/:id/seen')
+  async seenMessageHelpDesk(
+    @ParamObjectId() id: string,
+    @Body() { userId }: { userId: string },
+  ) {
+    await this.messagesService.seen(id, userId);
+    return {
+      data: null,
+      message: 'Message seen',
+    };
+  }
+
   @Get(':id/seen')
   async checkSeen(@JwtUserId() userId: string, @ParamObjectId() id: string) {
     const seen = await this.messagesService.checkSeen(id, userId);
