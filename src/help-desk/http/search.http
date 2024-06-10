@@ -1,0 +1,29 @@
+@SERVER_URL = http://localhost:8080
+@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxNzk4NTcwMSwiZXhwIjoxNzE4MDcyMTAxfQ.rzoLMdvretmcy83_hT34tQFGzpGOOnn-Pxfl0W_y_CI
+
+###
+POST  {{SERVER_URL}}/api/search/keywords
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  "keyword":"ABC",
+ // "stationId":"6662d3336c2bd7cc71563677",
+ // "spaceId":""
+}
+
+###
+GET  {{SERVER_URL}}/api/search/keywords?stationId=6662d3336c2bd7cc71563677
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET  {{SERVER_URL}}/api/search/keywords?spaceId=6662d3336c2bd7cc71563677
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+###
+GET  {{SERVER_URL}}/api/search/keywords/ABC?stationId=6662d3336c2bd7cc71563677
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+GET  {{SERVER_URL}}/api/search/keywords/ABC?spaceId=6662d3336c2bd7cc71563677
+Authorization: Bearer {{ACCESS_TOKEN}}
