@@ -98,6 +98,8 @@ export class SearchService {
     const data = await this.searchModel.exists({
       'keywords.keyword': keyword,
       user: userId,
+      station: { $exists: false },
+      space: { $exists: false },
       ...(spaceId && { space: spaceId }),
       ...(stationId && { station: stationId }),
     });
@@ -108,6 +110,8 @@ export class SearchService {
     const { keyword, spaceId, stationId } = payload;
     const filter = {
       user: userId,
+      station: { $exists: false },
+      space: { $exists: false },
       ...(spaceId && { space: spaceId }),
       ...(stationId && { station: stationId }),
     };
@@ -140,6 +144,8 @@ export class SearchService {
     const data = await this.searchModel
       .findOne({
         user: userId,
+        station: { $exists: false },
+        space: { $exists: false },
         ...(spaceId && { space: spaceId }),
         ...(stationId && { station: stationId }),
       })
