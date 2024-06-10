@@ -567,6 +567,7 @@ export class RoomsService {
         });
         delete query.archiveFor;
         // delete query.waitingUsers;
+        delete query._id;
         limit = Infinity;
         break;
       case 'waiting':
