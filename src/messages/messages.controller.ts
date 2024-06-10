@@ -110,8 +110,8 @@ export class MessagesController {
   @Public()
   @Get('help-desk/:id/seen/:userId')
   async checkSeenHelpDesk(
-    @ParamObjectId() id: string,
-    @ParamObjectId() userId: string,
+    @ParamObjectId('id') id: string,
+    @ParamObjectId('userId') userId: string,
   ) {
     const seen = await this.messagesService.checkSeen(id, userId);
     return {
