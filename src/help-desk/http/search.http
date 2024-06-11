@@ -1,5 +1,5 @@
 @SERVER_URL = http://localhost:8080
-@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxNzk4NTcwMSwiZXhwIjoxNzE4MDcyMTAxfQ.rzoLMdvretmcy83_hT34tQFGzpGOOnn-Pxfl0W_y_CI
+@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxODA3NTM4OCwiZXhwIjoxNzE4MTYxNzg4fQ.PCxcROwSLO9-_RRcMgntu7kIile8HMB5PjFWoErAwWw
 
 ###
 POST  {{SERVER_URL}}/api/search/keywords
@@ -42,5 +42,13 @@ DELETE {{SERVER_URL}}/api/search/keywords/ABC
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
-GET {{SERVER_URL}}/api/search/inboxes?q=h
+GET {{SERVER_URL}}/api/search/inboxes?q=L&limit=3
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/search/inboxes/count?q=L
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/search/rooms/6667c743ba6a1ef11a9992a6?q=T
 Authorization: Bearer {{ACCESS_TOKEN}}

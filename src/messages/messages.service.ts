@@ -1451,8 +1451,37 @@ export class MessagesService {
     });
     return null;
   }
-  search({ query, limit }: { query: FilterQuery<Message>; limit: number }) {
-    return this.messageModel.find(query).limit(limit).sort({ _id: -1 });
+  search({
+    query,
+    params,
+  }: {
+    query: FilterQuery<Message>;
+    params: {
+      limit: number;
+      userId: string;
+      q: string;
+    };
+  }) {
+    const translationsKey = `translations.en`;
+    const { limit, userId, q } = params;
+    return this.messageModel
+      .find({
+        removedFor: { $nin: userId },
+        isForwarded: { $ne: true },
+        parent: { $exists: false },
+        $or: [
+          {
+            [translationsKey]: { $regex: q, $options: 'i' },
+          },
+          {
+            content: { $regex: q, $options: 'i' },
+          },
+        ],
+        ...query,
+      })
+      .limit(limit)
+      .select('_id sender content translations room createdAt updatedAt')
+      .sort({ _id: -1 });
   }
   translateMessageInRoom = async ({
     content,

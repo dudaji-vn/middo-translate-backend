@@ -12,6 +12,7 @@ import { Model } from 'mongoose';
 import { KeywordQueryParamsDto } from './dtos/keyword-query-params.dto';
 import { MessagesService } from 'src/messages/messages.service';
 import { SearchCountResult } from './types/search-count-result.type';
+import { selectPopulateField } from 'src/common/utils';
 
 @Injectable()
 export class SearchService {
@@ -74,23 +75,29 @@ export class SearchService {
         }),
       },
     });
-    const translationsKey = `translations.en`;
 
-    const messages = await this.messagesService.search({
-      query: {
-        room: roomIds,
-        removedFor: { $nin: userId },
-        $or: [
-          {
-            [translationsKey]: { $regex: q, $options: 'i' },
-          },
-          {
-            content: { $regex: q, $options: 'i' },
-          },
-        ],
-      },
-      limit,
-    });
+    const messages = await this.messagesService
+      .search({
+        query: {
+          room: roomIds,
+        },
+        params: {
+          q,
+          userId,
+          limit,
+        },
+      })
+      .populate([
+        {
+          path: 'sender',
+          select: selectPopulateField<User>([
+            '_id',
+            'name',
+            'avatar',
+            'language',
+          ]),
+        },
+      ]);
 
     if (type === 'help-desk') {
       return {
@@ -167,22 +174,16 @@ export class SearchService {
         }),
       },
     });
-    const translationsKey = `translations.en`;
 
     const messages = await this.messagesService.search({
       query: {
         room: roomIds,
-        removedFor: { $nin: userId },
-        $or: [
-          {
-            [translationsKey]: { $regex: q, $options: 'i' },
-          },
-          {
-            content: { $regex: q, $options: 'i' },
-          },
-        ],
       },
-      limit,
+      params: {
+        q,
+        userId,
+        limit,
+      },
     });
 
     return {
