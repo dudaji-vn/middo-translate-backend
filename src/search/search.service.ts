@@ -10,6 +10,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Search } from './schemas/search.schema';
 import { Model } from 'mongoose';
 import { KeywordQueryParamsDto } from './dtos/keyword-query-params.dto';
+import { MessagesService } from 'src/messages/messages.service';
 
 @Injectable()
 export class SearchService {
@@ -18,6 +19,7 @@ export class SearchService {
     private searchModel: Model<Search>,
     private readonly usersService: UsersService,
     private readonly roomsService: RoomsService,
+    private readonly messagesService: MessagesService,
   ) {}
 
   async searchInbox(
@@ -59,6 +61,35 @@ export class SearchService {
       },
       limit,
     });
+
+    const roomIds = await this.roomsService.findRoomIdsByQuery({
+      query: {
+        participants: userId,
+        space: { $exists: false },
+        station: { $exists: false },
+        ...(spaceId && {
+          isHelpDesk: true,
+          space: { $exists: true, $eq: spaceId },
+        }),
+      },
+    });
+    const translationsKey = `translations.en`;
+
+    const messages = await this.messagesService.search({
+      query: {
+        room: roomIds,
+        $or: [
+          {
+            [translationsKey]: { $regex: q, $options: 'i' },
+          },
+          {
+            content: { $regex: q, $options: 'i' },
+          },
+        ],
+      },
+      limit,
+    });
+
     if (type === 'help-desk') {
       return {
         users: [],
@@ -72,11 +103,14 @@ export class SearchService {
                 : user.email,
           })),
         })),
+        messages,
       };
     }
+
     return {
       users,
       rooms,
+      messages,
     };
   }
 

@@ -1451,6 +1451,15 @@ export class MessagesService {
     });
     return null;
   }
+  async search({
+    query,
+    limit,
+  }: {
+    query: FilterQuery<Message>;
+    limit: number;
+  }) {
+    return await this.messageModel.find(query).limit(limit).sort({ _id: -1 });
+  }
   translateMessageInRoom = async ({
     content,
     participants,
