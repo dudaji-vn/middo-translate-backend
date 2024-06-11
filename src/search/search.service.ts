@@ -11,6 +11,7 @@ import { Search } from './schemas/search.schema';
 import { Model } from 'mongoose';
 import { KeywordQueryParamsDto } from './dtos/keyword-query-params.dto';
 import { MessagesService } from 'src/messages/messages.service';
+import { SearchCountResult } from './types/search-count-result.type';
 
 @Injectable()
 export class SearchService {
@@ -78,6 +79,7 @@ export class SearchService {
     const messages = await this.messagesService.search({
       query: {
         room: roomIds,
+        removedFor: { $nin: userId },
         $or: [
           {
             [translationsKey]: { $regex: q, $options: 'i' },
@@ -111,6 +113,82 @@ export class SearchService {
       users,
       rooms,
       messages,
+    };
+  }
+
+  async countSearchInbox(
+    { q, limit, type, spaceId }: FindParams,
+    userId: string,
+  ): Promise<SearchCountResult> {
+    const users = await this.searchUsers({ q, limit, type });
+
+    const userIds = users.map((u) => u._id);
+
+    const rooms = await this.roomsService.search({
+      query: {
+        ...(type === 'help-desk' && {
+          isHelpDesk: true,
+          space: { $exists: true, $eq: spaceId },
+        }),
+        $or: [
+          {
+            name: { $regex: q, $options: 'i' },
+            participants: userId,
+          },
+          {
+            $and: [
+              {
+                participants: {
+                  $in: [userId],
+                },
+              },
+              {
+                participants: {
+                  $in: userIds,
+                },
+              },
+            ],
+          },
+        ],
+        status: RoomStatus.ACTIVE,
+        isGroup: type === 'help-desk' ? false : true,
+      },
+      limit,
+    });
+
+    const roomIds = await this.roomsService.findRoomIdsByQuery({
+      query: {
+        participants: userId,
+        space: { $exists: false },
+        station: { $exists: false },
+        ...(spaceId && {
+          isHelpDesk: true,
+          space: { $exists: true, $eq: spaceId },
+        }),
+      },
+    });
+    const translationsKey = `translations.en`;
+
+    const messages = await this.messagesService.search({
+      query: {
+        room: roomIds,
+        removedFor: { $nin: userId },
+        $or: [
+          {
+            [translationsKey]: { $regex: q, $options: 'i' },
+          },
+          {
+            content: { $regex: q, $options: 'i' },
+          },
+        ],
+      },
+      limit,
+    });
+
+    return {
+      totalUsers: users.length,
+      totalGroups: rooms.length,
+      totalMessages: messages.length,
     };
   }
 

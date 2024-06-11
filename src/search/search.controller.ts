@@ -15,6 +15,7 @@ import { JwtUserId } from 'src/common/decorators';
 import { SearchMainResult } from './types';
 import { AddKeywordDto } from './dtos/add-keyword-dto';
 import { KeywordQueryParamsDto } from './dtos/keyword-query-params.dto';
+import { SearchCountResult } from './types/search-count-result.type';
 
 @Controller('search')
 export class SearchController {
@@ -26,6 +27,19 @@ export class SearchController {
   ): Promise<Response<SearchMainResult>> {
     query.limit = query.limit || 10;
     const data = await this.searchService.searchInbox(query, userId);
+    return {
+      data,
+      message: 'Inboxes found',
+    };
+  }
+
+  @Get('inboxes/count')
+  async countSearchInbox(
+    @JwtUserId() userId: string,
+    @Query() query: SearchQueryParamsDto,
+  ): Promise<Response<SearchCountResult>> {
+    query.limit = Infinity;
+    const data = await this.searchService.countSearchInbox(query, userId);
     return {
       data,
       message: 'Inboxes found',
