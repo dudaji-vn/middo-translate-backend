@@ -1451,6 +1451,44 @@ export class MessagesService {
     });
     return null;
   }
+  search({
+    query,
+    params,
+    select,
+  }: {
+    query: FilterQuery<Message>;
+    params: {
+      limit: number;
+      userId: string;
+      q: string;
+    };
+    select?: string;
+  }) {
+    const translationsKey = `translations.en`;
+    const { limit, userId, q } = params;
+    return this.messageModel
+      .find({
+        removedFor: { $nin: userId },
+        isForwarded: { $ne: true },
+        parent: { $exists: false },
+        $or: [
+          {
+            [translationsKey]: { $regex: q, $options: 'i' },
+          },
+          {
+            content: { $regex: q, $options: 'i' },
+          },
+        ],
+        ...query,
+      })
+      .limit(limit)
+      .select(
+        select
+          ? select
+          : '_id sender content translations room createdAt updatedAt',
+      )
+      .sort({ _id: -1 });
+  }
   translateMessageInRoom = async ({
     content,
     participants,

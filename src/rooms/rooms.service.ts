@@ -815,6 +815,11 @@ export class RoomsService {
 
     return room;
   }
+
+  async findRoomIdsByQuery({ query }: { query: FilterQuery<Room> }) {
+    const data = await this.roomModel.find(query).select('_id');
+    return data.map((item) => item._id);
+  }
   async addHelpDeskParticipant(
     spaceId: string,
     userId: string,
