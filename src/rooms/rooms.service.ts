@@ -490,6 +490,8 @@ export class RoomsService {
       domains?: string[];
       tags?: string[];
       countries: string[];
+      isGroup?: boolean;
+      isUnread?: boolean;
     },
     userId: string,
   ): Promise<Pagination<Room, CursorPaginationInfo>> {
@@ -502,6 +504,8 @@ export class RoomsService {
       tags,
       countries = [],
       stationId,
+      isUnread,
+      isGroup,
     } = queryParams;
     let limit = queryParams.limit;
     const user = await this.usersService.findById(userId);
@@ -538,9 +542,6 @@ export class RoomsService {
     };
 
     switch (type) {
-      case 'group':
-        Object.assign(query, { isGroup: true });
-        break;
       case 'individual':
         Object.assign(query, { isGroup: false });
         break;
@@ -553,7 +554,7 @@ export class RoomsService {
       case 'unread-help-desk':
         Object.assign(query, {
           isHelpDesk: true,
-          readBy: { $nin: [user] },
+          'lastMessage.readBy': { $nin: [userId] },
           space: { $exists: true, $eq: spaceId },
         });
         break;
@@ -587,6 +588,20 @@ export class RoomsService {
         delete query.participants;
         // Object.assign(query, { participants: { $nin: [userId] } });
         break;
+    }
+
+    // if (isUnread !== undefined) {
+    //   if (isUnread) {
+    //     query['lastMessage.readBy'] = { $nin: [userId] };
+    //   } else {
+    //     query['lastMessage.readBy'] = { $in: [userId] };
+    //   }
+    // }
+
+    if (isGroup !== undefined) {
+      query.isGroup = isGroup;
+    } else {
+      delete query.isGroup;
     }
 
     const rooms = await this.roomModel
