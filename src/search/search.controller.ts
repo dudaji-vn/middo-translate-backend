@@ -11,7 +11,7 @@ import { SearchQueryParamsDto } from './dtos/search-query-params.dto';
 import { SearchService } from './search.service';
 import { User } from 'src/users/schemas/user.schema';
 import { Response } from 'src/common/types';
-import { JwtUserId } from 'src/common/decorators';
+import { JwtUserId, ParamObjectId } from 'src/common/decorators';
 import { SearchMainResult } from './types';
 import { AddKeywordDto } from './dtos/add-keyword-dto';
 import { KeywordQueryParamsDto } from './dtos/keyword-query-params.dto';
@@ -42,7 +42,24 @@ export class SearchController {
     const data = await this.searchService.countSearchInbox(query, userId);
     return {
       data,
-      message: 'Inboxes found',
+      message: 'Count search inbox',
+    };
+  }
+
+  @Get('rooms/:id')
+  async searchInRoom(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+    @Query() query: SearchQueryParamsDto,
+  ) {
+    const data = await this.searchService.searchMessageInRoom(
+      id,
+      userId,
+      query,
+    );
+    return {
+      data,
+      message: 'Search message in room',
     };
   }
 

@@ -1454,6 +1454,7 @@ export class MessagesService {
   search({
     query,
     params,
+    select,
   }: {
     query: FilterQuery<Message>;
     params: {
@@ -1461,6 +1462,7 @@ export class MessagesService {
       userId: string;
       q: string;
     };
+    select?: string;
   }) {
     const translationsKey = `translations.en`;
     const { limit, userId, q } = params;
@@ -1480,7 +1482,11 @@ export class MessagesService {
         ...query,
       })
       .limit(limit)
-      .select('_id sender content translations room createdAt updatedAt')
+      .select(
+        select
+          ? select
+          : '_id sender content translations room createdAt updatedAt',
+      )
       .sort({ _id: -1 });
   }
   translateMessageInRoom = async ({

@@ -201,6 +201,22 @@ export class SearchService {
     });
     return users;
   }
+  async searchMessageInRoom(
+    roomId: string,
+    userId: string,
+    { q, limit }: FindParams,
+  ) {
+    return await this.messagesService.search({
+      query: {
+        room: roomId,
+      },
+      params: {
+        q,
+        userId,
+        limit,
+      },
+    });
+  }
 
   findKeywordsBy(
     userId: string,
