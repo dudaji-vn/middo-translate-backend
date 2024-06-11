@@ -554,7 +554,7 @@ export class RoomsService {
       case 'unread-help-desk':
         Object.assign(query, {
           isHelpDesk: true,
-          'lastMessage.readBy': { $nin: [userId] },
+          readBy: { $nin: [userId] },
           space: { $exists: true, $eq: spaceId },
         });
         break;
