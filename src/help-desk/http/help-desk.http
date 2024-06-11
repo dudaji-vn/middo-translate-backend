@@ -1,9 +1,9 @@
-@SERVER_URL = http://localhost:8080
-@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxNTY1NzgxMywiZXhwIjoxNzE1NzQ0MjEzfQ.QJ5VLulVHpHBadPqpvpAfc6gayg6ykt9wqEQ96Ox0Xs
+@SERVER_URL = 
+@ACCESS_TOKEN = 
 
-@ROOM_ID =6621dc60fd6facdd5522307d
+@ROOM_ID =
 
-@BUSINESS_ID=65effd002d3c6a72235bbe8e
+@BUSINESS_ID=
 
 ####
 PUT {{SERVER_URL}}/api/help-desk/create-or-edit-extension
@@ -126,9 +126,9 @@ Content-Type: application/json
   "star": 3
 }
 
+
 ### 
-GET {{SERVER_URL}}/api/search/inboxes?q=h&type=help-desk&spaceId=661dd18f79fa16e0ac8777db
-Authorization: Bearer {{ACCESS_TOKEN}}
+
 
 
 ####
