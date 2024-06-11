@@ -50,5 +50,5 @@ GET {{SERVER_URL}}/api/search/inboxes/count?q=L
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
-GET {{SERVER_URL}}/api/search/rooms/6667c743ba6a1ef11a9992a6?q=T
+GET {{SERVER_URL}}/api/search/rooms/6667c743ba6a1ef11a9992a6/messages?q=T
 Authorization: Bearer {{ACCESS_TOKEN}}

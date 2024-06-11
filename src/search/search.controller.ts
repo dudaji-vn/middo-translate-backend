@@ -46,7 +46,7 @@ export class SearchController {
     };
   }
 
-  @Get('rooms/:id')
+  @Get('rooms/:id/messages')
   async searchInRoom(
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
