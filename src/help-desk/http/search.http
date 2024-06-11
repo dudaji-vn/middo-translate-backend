@@ -7,17 +7,17 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
-  "keyword":"ABC",
- // "stationId":"6662d3336c2bd7cc71563677",
+  "keyword":"ABC"
+ // "stationId":"6662d3336c2bd7cc71563677"
  // "spaceId":""
 }
 
 ###
-GET  {{SERVER_URL}}/api/search/keywords?stationId=6662d3336c2bd7cc71563677
+GET {{SERVER_URL}}/api/search/keywords?stationId=6662d3336c2bd7cc71563677
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
-GET  {{SERVER_URL}}/api/search/keywords?spaceId=6662d3336c2bd7cc71563677
+GET  {{SERVER_URL}}/api/search/keywords
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 
@@ -25,5 +25,22 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 GET  {{SERVER_URL}}/api/search/keywords/ABC?stationId=6662d3336c2bd7cc71563677
 Authorization: Bearer {{ACCESS_TOKEN}}
 
-GET  {{SERVER_URL}}/api/search/keywords/ABC?spaceId=6662d3336c2bd7cc71563677
+###
+GET  {{SERVER_URL}}/api/search/keywords/ABC
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+//Delete all keyword
+###
+DELETE {{SERVER_URL}}/api/search/keywords
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+//Delete keywory by name
+###
+DELETE {{SERVER_URL}}/api/search/keywords/ABC
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/search/inboxes?q=h
 Authorization: Bearer {{ACCESS_TOKEN}}

@@ -81,4 +81,31 @@ export class SearchController {
       data: result,
     };
   }
+
+  @Delete('keywords/:keyword')
+  async deleteKeyword(
+    @JwtUserId() userId: string,
+    @Param('keyword') keyword: string,
+    @Query() query: KeywordQueryParamsDto,
+  ) {
+    const result = await this.searchService.deleteKeyword(
+      userId,
+      keyword,
+      query,
+    );
+    return {
+      data: result,
+    };
+  }
+
+  @Delete('keywords')
+  async deleteAllKeywords(
+    @JwtUserId() userId: string,
+    @Query() query: KeywordQueryParamsDto,
+  ) {
+    const result = await this.searchService.deleteAllKeywords(userId, query);
+    return {
+      data: result,
+    };
+  }
 }

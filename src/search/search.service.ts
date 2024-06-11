@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { FindParams } from 'src/common/types';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { RoomStatus } from 'src/rooms/schemas/room.schema';
@@ -89,20 +89,30 @@ export class SearchService {
     return users;
   }
 
+  findKeywordsBy(
+    userId: string,
+    query: KeywordQueryParamsDto & { keyword?: string },
+  ) {
+    const { spaceId, stationId, keyword } = query;
+    return this.searchModel.findOne({
+      user: userId,
+      station: { $exists: false },
+      space: { $exists: false },
+      ...(keyword && { 'keywords.keyword': keyword }),
+      ...(spaceId && { space: spaceId }),
+      ...(stationId && { station: stationId }),
+    });
+  }
+
   async checkKeyword(
     userId: string,
     keyword: string,
     payload: KeywordQueryParamsDto,
   ) {
-    const { spaceId, stationId } = payload;
-    const data = await this.searchModel.exists({
-      'keywords.keyword': keyword,
-      user: userId,
-      station: { $exists: false },
-      space: { $exists: false },
-      ...(spaceId && { space: spaceId }),
-      ...(stationId && { station: stationId }),
-    });
+    const data = await this.findKeywordsBy(userId, {
+      ...payload,
+      keyword,
+    }).lean();
     return !!data;
   }
 
@@ -140,16 +150,7 @@ export class SearchService {
   }
 
   async getKeywords(userId: string, query: KeywordQueryParamsDto) {
-    const { spaceId, stationId } = query;
-    const data = await this.searchModel
-      .findOne({
-        user: userId,
-        station: { $exists: false },
-        space: { $exists: false },
-        ...(spaceId && { space: spaceId }),
-        ...(stationId && { station: stationId }),
-      })
-      .lean();
+    const data = await this.findKeywordsBy(userId, query).lean();
 
     if (!data || !data?.keywords) {
       return [];
@@ -159,5 +160,31 @@ export class SearchService {
       (a: any, b: any) =>
         new Date(b?.updatedAt).getTime() - new Date(a?.updatedAt).getTime(),
     );
+  }
+
+  async deleteKeyword(
+    userId: string,
+    keyword: string,
+    payload: KeywordQueryParamsDto,
+  ) {
+    const data = await this.findKeywordsBy(userId, { ...payload, keyword });
+
+    if (!data || !data.keywords) {
+      throw new BadRequestException('keyword not found');
+    }
+    data.keywords = data.keywords.filter((item) => item.keyword !== keyword);
+    await data.save();
+    return true;
+  }
+
+  async deleteAllKeywords(userId: string, payload: KeywordQueryParamsDto) {
+    const data = await this.findKeywordsBy(userId, payload);
+
+    if (!data || !data.keywords) {
+      throw new BadRequestException('keyword not found');
+    }
+    data.keywords = [];
+    await data.save();
+    return true;
   }
 }
