@@ -662,13 +662,19 @@ export class MessagesService {
             room.name !== '' ? room.name : 'your group'
           }`;
         }
-        body += `: ${messageContent}`;
+        // body += `: ${messageContent}`;
         break;
       case MessageType.MEDIA:
         body += ' sent media';
+        if (room.isGroup) {
+          body += ` in ${room.name !== '' ? room.name : 'your group'}`;
+        }
         break;
       case MessageType.NOTIFICATION:
         body += ` ${messageContent}`;
+        if (room.isGroup) {
+          body += ` in ${room.name !== '' ? room.name : 'your group'}`;
+        }
         break;
       case MessageType.ACTION:
         body += generateSystemMessageContent({
@@ -678,6 +684,9 @@ export class MessagesService {
         break;
       case MessageType.CALL:
         body += ' started a call';
+        if (room.isGroup) {
+          body += ` in ${room.name !== '' ? room.name : 'your group'}`;
+        }
         break;
       default:
         break;
@@ -701,6 +710,43 @@ export class MessagesService {
         ? `spaces/${room.space?.toString()}/conversations`
         : 'talk'
     }/${room._id}`;
+    if (message.type === MessageType.TEXT) {
+      // base on targetUserIds laguage to send notification in correct language of message translations field
+      const groupByLanguage = targetUserIds.reduce((acc, id) => {
+        const user = room.participants.find((p) => p._id.toString() === id);
+        if (user) {
+          if (!acc[user.language]) {
+            acc[user.language] = [];
+          }
+          acc[user.language].push(id);
+        }
+        return acc;
+      }, {} as Record<string, string[]>);
+
+      for (const language in groupByLanguage) {
+        console.log('language', language);
+        console.log(message.translations[language]);
+        const messageContent = convert(
+          message.translations[language] || message.content,
+          {
+            selectors: [{ selector: 'a', options: { ignoreHref: true } }],
+          },
+        );
+        this.notificationService.sendNotification({
+          userIds: groupByLanguage[language],
+          title,
+          body: body + `: ${messageContent}`,
+          roomId: room._id.toString(),
+          link,
+          messageId: message._id.toString(),
+          message: {
+            roomId: room._id.toString(),
+            messageId: message._id.toString(),
+          },
+        });
+      }
+      return;
+    }
     this.notificationService.sendNotification({
       userIds: targetUserIds,
       title,
