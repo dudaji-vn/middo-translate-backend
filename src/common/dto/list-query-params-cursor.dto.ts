@@ -1,7 +1,6 @@
 import { IsMongoId, IsOptional, IsString, Min } from 'class-validator';
 
 import { Transform } from 'class-transformer';
-import { ParseArrayPipe, Query } from '@nestjs/common';
 
 export class ListQueryParamsCursorDto {
   @IsOptional()
