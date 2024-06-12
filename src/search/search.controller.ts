@@ -16,6 +16,8 @@ import { SearchMainResult } from './types';
 import { AddKeywordDto } from './dtos/add-keyword-dto';
 import { KeywordQueryParamsDto } from './dtos/keyword-query-params.dto';
 import { SearchCountResult } from './types/search-count-result.type';
+import { Keyword } from './schemas/search.schema';
+import { Message } from 'src/messages/schemas/messages.schema';
 
 @Controller('search')
 export class SearchController {
@@ -51,7 +53,7 @@ export class SearchController {
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
     @Query() query: SearchQueryParamsDto,
-  ) {
+  ): Promise<Response<Message[]>> {
     const data = await this.searchService.searchMessageInRoom(
       id,
       userId,
@@ -79,10 +81,11 @@ export class SearchController {
   async addKeyword(
     @JwtUserId() userId: string,
     @Body() payload: AddKeywordDto,
-  ) {
+  ): Promise<Response<Keyword[]>> {
     const result = await this.searchService.addKeyword(userId, payload);
     return {
       data: result,
+      message: 'Add keyword',
     };
   }
 
@@ -90,10 +93,11 @@ export class SearchController {
   async getKeywords(
     @JwtUserId() userId: string,
     @Query() query: KeywordQueryParamsDto,
-  ) {
+  ): Promise<Response<Keyword[]>> {
     const result = await this.searchService.getKeywords(userId, query);
     return {
       data: result,
+      message: 'get keywords',
     };
   }
 
@@ -102,7 +106,7 @@ export class SearchController {
     @JwtUserId() userId: string,
     @Param('keyword') keyword: string,
     @Query() query: KeywordQueryParamsDto,
-  ) {
+  ): Promise<Response<boolean>> {
     const result = await this.searchService.checkKeyword(
       userId,
       keyword,
@@ -110,6 +114,7 @@ export class SearchController {
     );
     return {
       data: result,
+      message: 'Check keyword',
     };
   }
 
@@ -118,7 +123,7 @@ export class SearchController {
     @JwtUserId() userId: string,
     @Param('keyword') keyword: string,
     @Query() query: KeywordQueryParamsDto,
-  ) {
+  ): Promise<Response<null>> {
     const result = await this.searchService.deleteKeyword(
       userId,
       keyword,
@@ -126,6 +131,7 @@ export class SearchController {
     );
     return {
       data: result,
+      message: 'Delete keyword',
     };
   }
 
@@ -133,10 +139,11 @@ export class SearchController {
   async deleteAllKeywords(
     @JwtUserId() userId: string,
     @Query() query: KeywordQueryParamsDto,
-  ) {
+  ): Promise<Response<null>> {
     const result = await this.searchService.deleteAllKeywords(userId, query);
     return {
       data: result,
+      message: 'Delete all keywords',
     };
   }
 }

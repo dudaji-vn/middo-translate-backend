@@ -7,12 +7,13 @@ import { UsersService } from 'src/users/users.service';
 import { SearchMainResult } from './types';
 import { AddKeywordDto } from './dtos/add-keyword-dto';
 import { InjectModel } from '@nestjs/mongoose';
-import { Search } from './schemas/search.schema';
+import { Keyword, Search } from './schemas/search.schema';
 import { Model } from 'mongoose';
 import { KeywordQueryParamsDto } from './dtos/keyword-query-params.dto';
 import { MessagesService } from 'src/messages/messages.service';
 import { SearchCountResult } from './types/search-count-result.type';
 import { selectPopulateField } from 'src/common/utils';
+import { Message } from '../messages/schemas/messages.schema';
 
 @Injectable()
 export class SearchService {
@@ -205,7 +206,7 @@ export class SearchService {
     roomId: string,
     userId: string,
     { q, limit }: FindParams,
-  ) {
+  ): Promise<Message[]> {
     return await this.messagesService.search({
       query: {
         room: roomId,
@@ -245,7 +246,7 @@ export class SearchService {
     return !!data;
   }
 
-  async addKeyword(userId: string, payload: AddKeywordDto) {
+  async addKeyword(userId: string, payload: AddKeywordDto): Promise<Keyword[]> {
     const { keyword, spaceId, stationId } = payload;
     const filter = {
       user: userId,
@@ -261,7 +262,7 @@ export class SearchService {
       : -1;
 
     if (!result || keywordIndex === -1) {
-      return await this.searchModel.findOneAndUpdate(
+      const data = await this.searchModel.findOneAndUpdate(
         filter,
         {
           $push: { keywords: { keyword: keyword } },
@@ -271,14 +272,18 @@ export class SearchService {
           new: true,
         },
       );
+      return data.keywords;
     } else {
       result.keywords[keywordIndex] = { keyword: keyword };
       await result.save();
-      return result;
+      return result.keywords;
     }
   }
 
-  async getKeywords(userId: string, query: KeywordQueryParamsDto) {
+  async getKeywords(
+    userId: string,
+    query: KeywordQueryParamsDto,
+  ): Promise<Keyword[]> {
     const data = await this.findKeywordsBy(userId, query).lean();
 
     if (!data || !data?.keywords) {
@@ -295,7 +300,7 @@ export class SearchService {
     userId: string,
     keyword: string,
     payload: KeywordQueryParamsDto,
-  ) {
+  ): Promise<null> {
     const data = await this.findKeywordsBy(userId, { ...payload, keyword });
 
     if (!data || !data.keywords) {
@@ -303,10 +308,13 @@ export class SearchService {
     }
     data.keywords = data.keywords.filter((item) => item.keyword !== keyword);
     await data.save();
-    return true;
+    return null;
   }
 
-  async deleteAllKeywords(userId: string, payload: KeywordQueryParamsDto) {
+  async deleteAllKeywords(
+    userId: string,
+    payload: KeywordQueryParamsDto,
+  ): Promise<null> {
     const data = await this.findKeywordsBy(userId, payload);
 
     if (!data || !data.keywords) {
@@ -314,6 +322,6 @@ export class SearchService {
     }
     data.keywords = [];
     await data.save();
-    return true;
+    return null;
   }
 }
