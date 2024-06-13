@@ -54,7 +54,6 @@ export class NotificationService {
     watchingList.forEach((watching) => {
       tokens = tokens.filter((token) => token !== watching.notifyToken);
     });
-
     try {
       if (tokens.length) {
         const response = await messaging().sendEachForMulticast({
@@ -95,20 +94,18 @@ export class NotificationService {
             },
           },
         });
-        await Promise.all(
-          response.responses.map(async (res, index) => {
-            if (
-              res.error?.code === 'messaging/invalid-registration-token' ||
-              res.error?.code === 'messaging/registration-token-not-registered'
-            ) {
-              const token = tokens[index];
-              await this.notificationModel.updateOne(
-                { tokens: { $in: [token] } },
-                { $pull: { tokens: token } },
-              );
-            }
-          }),
-        );
+        response.responses.map(async (res, index) => {
+          if (
+            res.error?.code === 'messaging/invalid-registration-token' ||
+            res.error?.code === 'messaging/registration-token-not-registered'
+          ) {
+            const token = tokens[index];
+            await this.notificationModel.updateOne(
+              { tokens: { $in: [token] } },
+              { $pull: { tokens: token } },
+            );
+          }
+        });
       }
     } catch (error) {
       logger.error(
