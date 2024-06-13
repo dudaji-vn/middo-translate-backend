@@ -30,7 +30,7 @@ export class SearchService {
   ) {}
 
   async searchInbox(
-    { q, limit, type, spaceId }: FindParams,
+    { q, limit, spaceId }: FindParams,
     userId: string,
   ): Promise<SearchMainResult> {
     const users = await this.usersService
@@ -38,6 +38,7 @@ export class SearchService {
         params: {
           limit,
           q,
+          spaceId,
         },
       })
       .sort({ _id: -1 });
@@ -47,8 +48,7 @@ export class SearchService {
     const rooms = await this.roomsService
       .search({
         query: {
-          ...(type === 'help-desk' && {
-            isHelpDesk: true,
+          ...(spaceId && {
             space: { $exists: true, $eq: spaceId },
           }),
           $or: [
@@ -72,7 +72,7 @@ export class SearchService {
             },
           ],
           status: RoomStatus.ACTIVE,
-          isGroup: type === 'help-desk' ? false : true,
+          isGroup: spaceId ? false : true,
         },
         limit,
       })
@@ -84,7 +84,6 @@ export class SearchService {
         space: { $exists: false },
         station: { $exists: false },
         ...(spaceId && {
-          isHelpDesk: true,
           space: { $exists: true, $eq: spaceId },
         }),
       },
@@ -103,7 +102,7 @@ export class SearchService {
       })
       .sort({ _id: -1 });
 
-    if (type === 'help-desk') {
+    if (spaceId) {
       return {
         users: [],
         rooms: rooms.map((item) => ({
@@ -151,6 +150,7 @@ export class SearchService {
             params: {
               limit,
               q,
+              spaceId,
             },
           })
           .sort({ _id: -1 });
@@ -163,6 +163,7 @@ export class SearchService {
           params: {
             limit: Infinity,
             q,
+            spaceId,
           },
         });
         const userIds = users.map((u) => u._id);
@@ -208,7 +209,6 @@ export class SearchService {
             space: { $exists: false },
             station: { $exists: false },
             ...(spaceId && {
-              isHelpDesk: true,
               space: { $exists: true, $eq: spaceId },
             }),
           },
@@ -248,7 +248,7 @@ export class SearchService {
   }
 
   async countSearchInbox(
-    { q, limit, type, spaceId }: FindParams,
+    { q, limit, spaceId }: FindParams,
     userId: string,
   ): Promise<SearchCountResult> {
     if (q.trim().length === 0) {
@@ -262,6 +262,7 @@ export class SearchService {
       params: {
         limit,
         q,
+        spaceId,
       },
     });
 
@@ -269,8 +270,7 @@ export class SearchService {
 
     const rooms = await this.roomsService.search({
       query: {
-        ...(type === 'help-desk' && {
-          isHelpDesk: true,
+        ...(spaceId && {
           space: { $exists: true, $eq: spaceId },
         }),
         $or: [
@@ -294,7 +294,7 @@ export class SearchService {
           },
         ],
         status: RoomStatus.ACTIVE,
-        isGroup: type === 'help-desk' ? false : true,
+        isGroup: spaceId ? false : true,
       },
       limit,
     });
@@ -305,7 +305,6 @@ export class SearchService {
         space: { $exists: false },
         station: { $exists: false },
         ...(spaceId && {
-          isHelpDesk: true,
           space: { $exists: true, $eq: spaceId },
         }),
       },

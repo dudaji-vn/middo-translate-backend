@@ -513,18 +513,24 @@ export class UsersService {
     params: {
       limit: number;
       q: string;
+      spaceId?: string;
     };
   }) {
-    const { limit, q } = params;
+    const { limit, q, spaceId } = params;
     return this.userModel
       .find({
-        status: UserStatus.ACTIVE,
+        status: spaceId ? UserStatus.ANONYMOUS : UserStatus.ACTIVE,
+        ...(spaceId && { space: spaceId }),
         $or: [
           { name: { $regex: q, $options: 'i' } },
           {
             username: { $regex: q, $options: 'i' },
           },
-          { email: { $regex: q, $options: 'i' } },
+          {
+            ...(spaceId
+              ? { tempEmail: { $regex: q, $options: 'i' } }
+              : { email: { $regex: q, $options: 'i' } }),
+          },
         ],
         ...query,
       })
