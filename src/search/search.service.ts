@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { FindParams } from 'src/common/types';
+import { CursorPaginationInfo, FindParams, Pagination } from 'src/common/types';
 import { RoomsService } from 'src/rooms/rooms.service';
-import { RoomStatus } from 'src/rooms/schemas/room.schema';
+import { Room, RoomStatus } from 'src/rooms/schemas/room.schema';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { SearchMainResult } from './types';
@@ -14,6 +14,7 @@ import { MessagesService } from 'src/messages/messages.service';
 import { SearchCountResult } from './types/search-count-result.type';
 import { selectPopulateField } from 'src/common/utils';
 import { Message } from '../messages/schemas/messages.schema';
+import { SearchQueryParamsCursorDto } from './dtos/search-query-params-cusor.dto';
 
 @Injectable()
 export class SearchService {
@@ -29,41 +30,50 @@ export class SearchService {
     { q, limit, type, spaceId }: FindParams,
     userId: string,
   ): Promise<SearchMainResult> {
-    const users = await this.searchUsers({ q, limit, type });
+    const users = await this.usersService
+      .search({
+        params: {
+          limit,
+          q,
+        },
+      })
+      .sort({ _id: -1 });
 
     const userIds = users.map((u) => u._id);
 
-    const rooms = await this.roomsService.search({
-      query: {
-        ...(type === 'help-desk' && {
-          isHelpDesk: true,
-          space: { $exists: true, $eq: spaceId },
-        }),
-        $or: [
-          {
-            name: { $regex: q, $options: 'i' },
-            participants: userId,
-          },
-          {
-            $and: [
-              {
-                participants: {
-                  $in: [userId],
+    const rooms = await this.roomsService
+      .search({
+        query: {
+          ...(type === 'help-desk' && {
+            isHelpDesk: true,
+            space: { $exists: true, $eq: spaceId },
+          }),
+          $or: [
+            {
+              name: { $regex: q, $options: 'i' },
+              participants: userId,
+            },
+            {
+              $and: [
+                {
+                  participants: {
+                    $in: [userId],
+                  },
                 },
-              },
-              {
-                participants: {
-                  $in: userIds,
+                {
+                  participants: {
+                    $in: userIds,
+                  },
                 },
-              },
-            ],
-          },
-        ],
-        status: RoomStatus.ACTIVE,
-        isGroup: type === 'help-desk' ? false : true,
-      },
-      limit,
-    });
+              ],
+            },
+          ],
+          status: RoomStatus.ACTIVE,
+          isGroup: type === 'help-desk' ? false : true,
+        },
+        limit,
+      })
+      .sort({ newMessageAt: -1 });
 
     const roomIds = await this.roomsService.findRoomIdsByQuery({
       query: {
@@ -88,17 +98,7 @@ export class SearchService {
           limit,
         },
       })
-      .populate([
-        {
-          path: 'sender',
-          select: selectPopulateField<User>([
-            '_id',
-            'name',
-            'avatar',
-            'language',
-          ]),
-        },
-      ]);
+      .sort({ _id: -1 });
 
     if (type === 'help-desk') {
       return {
@@ -124,11 +124,143 @@ export class SearchService {
     };
   }
 
+  async searchConversationBy(
+    queryParams: SearchQueryParamsCursorDto,
+    userId: string,
+  ): Promise<Pagination<Room | User | Message, CursorPaginationInfo>> {
+    const { limit, cursor, type, q, spaceId } = queryParams;
+
+    const cursorDate = cursor
+      ? new Date(cursor).toDateString()
+      : new Date().toISOString();
+
+    let data: any = [];
+
+    switch (type) {
+      case 'user':
+        data = await this.usersService
+          .search({
+            query: {
+              createdAt: {
+                $lt: cursorDate,
+              },
+            },
+            params: {
+              limit,
+              q,
+            },
+          })
+          .sort({ _id: -1 });
+        break;
+      case 'group':
+        const users = await this.usersService.search({
+          query: {
+            status: UserStatus.ACTIVE,
+          },
+          params: {
+            limit: Infinity,
+            q,
+          },
+        });
+        const userIds = users.map((u) => u._id);
+
+        data = await this.roomsService
+          .search({
+            query: {
+              newMessageAt: {
+                $lt: cursorDate,
+              },
+              space: { $exists: false },
+              $or: [
+                {
+                  name: { $regex: q, $options: 'i' },
+                  participants: userId,
+                },
+                {
+                  $and: [
+                    {
+                      participants: {
+                        $in: [userId],
+                      },
+                    },
+                    {
+                      participants: {
+                        $in: userIds,
+                      },
+                    },
+                  ],
+                },
+              ],
+              status: RoomStatus.ACTIVE,
+              isGroup: true,
+            },
+            limit,
+          })
+          .sort({ newMessageAt: -1 });
+        break;
+      case 'message':
+        const roomIds = await this.roomsService.findRoomIdsByQuery({
+          query: {
+            participants: userId,
+            space: { $exists: false },
+            station: { $exists: false },
+            ...(spaceId && {
+              isHelpDesk: true,
+              space: { $exists: true, $eq: spaceId },
+            }),
+          },
+        });
+
+        data = await this.messagesService
+          .search({
+            query: {
+              room: roomIds,
+              createdAt: {
+                $lt: cursorDate,
+              },
+            },
+            params: {
+              q,
+              userId,
+              limit,
+            },
+          })
+          .sort({ _id: -1 });
+
+        break;
+    }
+
+    const pageInfo: CursorPaginationInfo = {
+      endCursor:
+        type === 'group'
+          ? data[data.length - 1]?.newMessageAt?.toISOString()
+          : data[data.length - 1]?.createdAt?.toISOString(),
+      hasNextPage: data.length === limit,
+    };
+
+    return {
+      items: data,
+      pageInfo,
+    };
+  }
+
   async countSearchInbox(
     { q, limit, type, spaceId }: FindParams,
     userId: string,
   ): Promise<SearchCountResult> {
-    const users = await this.searchUsers({ q, limit, type });
+    if (q.trim().length === 0) {
+      return {
+        totalUsers: 0,
+        totalGroups: 0,
+        totalMessages: 0,
+      };
+    }
+    const users = await this.usersService.search({
+      params: {
+        limit,
+        q,
+      },
+    });
 
     const userIds = users.map((u) => u._id);
 
@@ -207,16 +339,18 @@ export class SearchService {
     userId: string,
     { q, limit }: FindParams,
   ): Promise<Message[]> {
-    return await this.messagesService.search({
-      query: {
-        room: roomId,
-      },
-      params: {
-        q,
-        userId,
-        limit,
-      },
-    });
+    return await this.messagesService
+      .search({
+        query: {
+          room: roomId,
+        },
+        params: {
+          q,
+          userId,
+          limit,
+        },
+      })
+      .sort({ _id: -1 });
   }
 
   findKeywordsBy(

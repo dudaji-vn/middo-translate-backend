@@ -8,7 +8,13 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
-import mongoose, { FilterQuery, Model, ObjectId, Types } from 'mongoose';
+import mongoose, {
+  FilterQuery,
+  Model,
+  ObjectId,
+  SortOrder,
+  Types,
+} from 'mongoose';
 import {
   CursorPaginationInfo,
   ListQueryParamsCursor,
@@ -670,14 +676,8 @@ export class RoomsService {
       pageInfo,
     };
   }
-  async search({
-    query,
-    limit,
-  }: {
-    query: FilterQuery<Room>;
-    limit: number;
-  }): Promise<Room[]> {
-    const rooms = await this.roomModel
+  search({ query, limit }: { query: FilterQuery<Room>; limit: number }) {
+    const rooms = this.roomModel
       .find(query)
       .limit(limit)
       .populate(
