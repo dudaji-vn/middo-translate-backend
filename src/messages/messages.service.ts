@@ -1533,7 +1533,34 @@ export class MessagesService {
           ? select
           : '_id sender content translations room createdAt updatedAt',
       )
-      .sort({ _id: -1 });
+      .populate([
+        {
+          path: 'sender',
+          select: selectPopulateField<User>([
+            '_id',
+            'name',
+            'avatar',
+            'language',
+          ]),
+        },
+        {
+          path: 'room',
+          select: selectPopulateField<Room>([
+            '_id',
+            'name',
+            'participants',
+            'isGroup',
+          ]),
+          populate: [
+            {
+              path: 'participants',
+              select: selectPopulateField<User>(['_id']),
+            },
+          ],
+        },
+      ])
+
+      .lean();
   }
   translateMessageInRoom = async ({
     content,
