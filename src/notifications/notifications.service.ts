@@ -39,10 +39,12 @@ export class NotificationService {
     if (!notifications.length) {
       return;
     }
-    let tokens: string[] = notifications.reduce((acc, notification) => {
-      acc.push(...notification.tokens);
-      return acc;
-    }, [] as string[]);
+    let tokens: string[] = notifications
+      .reduce((acc, notification) => {
+        acc.push(...notification.tokens);
+        return acc;
+      }, [] as string[])
+      .filter((token) => !!token);
 
     const watchingList = await this.watchingService.getWatchingListByRoomId(
       roomId,
@@ -93,18 +95,20 @@ export class NotificationService {
             },
           },
         });
-        response.responses.forEach(async (res, index) => {
-          if (
-            res.error?.code === 'messaging/invalid-registration-token' ||
-            res.error?.code === 'messaging/registration-token-not-registered'
-          ) {
-            const token = tokens[index];
-            await this.notificationModel.updateOne(
-              { tokens: { $in: [token] } },
-              { $pull: { tokens: token } },
-            );
-          }
-        });
+        await Promise.all(
+          response.responses.map(async (res, index) => {
+            if (
+              res.error?.code === 'messaging/invalid-registration-token' ||
+              res.error?.code === 'messaging/registration-token-not-registered'
+            ) {
+              const token = tokens[index];
+              await this.notificationModel.updateOne(
+                { tokens: { $in: [token] } },
+                { $pull: { tokens: token } },
+              );
+            }
+          }),
+        );
       }
     } catch (error) {
       logger.error(
