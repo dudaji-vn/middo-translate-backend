@@ -1,6 +1,11 @@
-import { IsMongoId, IsOptional, IsString, Min } from 'class-validator';
-
+import { IsEnum, IsMongoId, IsOptional, IsString, Min } from 'class-validator';
 import { Transform } from 'class-transformer';
+
+export enum SearchByType {
+  GROUP = 'group',
+  USER = 'user',
+  MESSAGE = 'message',
+}
 
 export class SearchQueryParamsCursorDto {
   @IsOptional()
@@ -11,8 +16,8 @@ export class SearchQueryParamsCursorDto {
   @IsOptional()
   readonly cursor: string;
 
-  @IsString()
-  readonly type: 'group' | 'user' | 'message';
+  @IsEnum(SearchByType)
+  readonly type: SearchByType;
 
   @IsString()
   readonly q: string;

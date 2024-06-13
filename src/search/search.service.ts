@@ -14,7 +14,10 @@ import { MessagesService } from 'src/messages/messages.service';
 import { SearchCountResult } from './types/search-count-result.type';
 import { selectPopulateField } from 'src/common/utils';
 import { Message } from '../messages/schemas/messages.schema';
-import { SearchQueryParamsCursorDto } from './dtos/search-query-params-cusor.dto';
+import {
+  SearchByType,
+  SearchQueryParamsCursorDto,
+} from './dtos/search-query-params-cusor.dto';
 
 @Injectable()
 export class SearchService {
@@ -137,7 +140,7 @@ export class SearchService {
     let data: any = [];
 
     switch (type) {
-      case 'user':
+      case SearchByType.USER:
         data = await this.usersService
           .search({
             query: {
@@ -152,7 +155,7 @@ export class SearchService {
           })
           .sort({ _id: -1 });
         break;
-      case 'group':
+      case SearchByType.GROUP:
         const users = await this.usersService.search({
           query: {
             status: UserStatus.ACTIVE,
@@ -198,7 +201,7 @@ export class SearchService {
           })
           .sort({ newMessageAt: -1 });
         break;
-      case 'message':
+      case SearchByType.MESSAGE:
         const roomIds = await this.roomsService.findRoomIdsByQuery({
           query: {
             participants: userId,

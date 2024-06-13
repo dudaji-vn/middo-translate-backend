@@ -74,7 +74,7 @@ export class SearchController {
     );
     return {
       data,
-      message: 'Search message in room',
+      message: 'Search messages in room',
     };
   }
 
