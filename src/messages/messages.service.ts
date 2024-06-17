@@ -645,14 +645,16 @@ export class MessagesService {
   }
 
   async sendMessageNotification(message: Message) {
+    let title = envConfig.app.name;
     let body = message.sender.name;
     const room = await this.roomsService.findById(message.room._id.toString());
     if (!room) {
       throw new NotFoundException('Room not found');
     }
-    const title = room.isHelpDesk
-      ? envConfig.app.extension_name
-      : envConfig.app.name;
+    if (room.isHelpDesk) {
+      title = envConfig.app.extension_name;
+      body = `${message.sender.name} sent message to ${room?.space}`;
+    }
     const messageContent = convert(message.content, {
       selectors: [{ selector: 'a', options: { ignoreHref: true } }],
     });
