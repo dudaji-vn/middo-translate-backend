@@ -1,6 +1,5 @@
-@SERVER_URL = http://localhost:8080
+@SERVER_URL = 
 @ACCESS_TOKEN = 
-
 ###
 POST  {{SERVER_URL}}/api/search/keywords
 Authorization: Bearer {{ACCESS_TOKEN}}
@@ -42,11 +41,11 @@ DELETE {{SERVER_URL}}/api/search/keywords/ABC
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
-GET {{SERVER_URL}}/api/search/inboxes?q=L&limit=3
+GET {{SERVER_URL}}/api/search/inboxes?q=Linh&spaceId=6628764846f721ef0c128461
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
-GET {{SERVER_URL}}/api/search/inboxes/count?q=Linh
+GET {{SERVER_URL}}/api/search/inboxes/count?q=Linh&spaceId=6628764846f721ef0c128461
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
@@ -55,5 +54,5 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 ###
-GET {{SERVER_URL}}/api/search/conversations?q=Linh&type=message&limit=7&cursor=
+GET {{SERVER_URL}}/api/search/conversations?q=Linh&type=user&limit=7&stationId=
 Authorization: Bearer {{ACCESS_TOKEN}}
