@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
-import mongoose, { Model, ObjectId, Types } from 'mongoose';
+import mongoose, { Model, ObjectId, PipelineStage, Types } from 'mongoose';
 import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import {
@@ -1271,6 +1271,11 @@ export class HelpDeskService {
           updatedAt: 1,
         },
       },
+      {
+        $sort: {
+          _id: -1,
+        },
+      } as PipelineStage,
     ];
     const dataPromise = this.scriptModel.aggregate(query) as any;
     const [allItems, data] = await Promise.all([allItemsPromise, dataPromise]);
