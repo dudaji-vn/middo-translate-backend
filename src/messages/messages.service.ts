@@ -652,7 +652,6 @@ export class MessagesService {
       throw new NotFoundException('Room not found');
     }
     if (room.isHelpDesk) {
-      console.log('room.space:>>', room);
       title = envConfig.app.extension_name;
       body = `${message.sender.name} sent message from ${room?.fromDomain}`;
     }
