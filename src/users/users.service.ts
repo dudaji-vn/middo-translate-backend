@@ -1,6 +1,6 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, ObjectId, Types } from 'mongoose';
+import { FilterQuery, Model, ObjectId, Types } from 'mongoose';
 import { FindParams } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
 import {
@@ -503,5 +503,46 @@ export class UsersService {
       return UserRelationType.BLOCKED;
     }
     return UserRelationType.NONE;
+  }
+
+  search({
+    query,
+    params,
+  }: {
+    query?: FilterQuery<User>;
+    params: {
+      limit: number;
+      q: string;
+      spaceId?: string;
+    };
+  }) {
+    const { limit, q, spaceId } = params;
+    return this.userModel
+      .find({
+        status: spaceId ? UserStatus.ANONYMOUS : UserStatus.ACTIVE,
+        ...(spaceId && { space: spaceId }),
+        $or: [
+          { name: { $regex: q, $options: 'i' } },
+          {
+            username: { $regex: q, $options: 'i' },
+          },
+          {
+            ...(spaceId
+              ? { tempEmail: { $regex: q, $options: 'i' } }
+              : { email: { $regex: q, $options: 'i' } }),
+          },
+        ],
+        ...query,
+      })
+      .limit(limit)
+      .select({
+        name: true,
+        username: true,
+        avatar: true,
+        email: true,
+        tempEmail: true,
+        createdAt: true,
+      })
+      .lean();
   }
 }

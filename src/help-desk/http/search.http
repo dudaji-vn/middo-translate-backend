@@ -1,4 +1,4 @@
-@SERVER_URL = 
+@SERVER_URL = http://localhost:8080
 @ACCESS_TOKEN = 
 
 ###
@@ -46,9 +46,14 @@ GET {{SERVER_URL}}/api/search/inboxes?q=L&limit=3
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
-GET {{SERVER_URL}}/api/search/inboxes/count?q=L
+GET {{SERVER_URL}}/api/search/inboxes/count?q=Linh
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
 GET {{SERVER_URL}}/api/search/rooms/6667c743ba6a1ef11a9992a6/messages?q=T
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+###
+GET {{SERVER_URL}}/api/search/conversations?q=Linh&type=message&limit=7&cursor=
 Authorization: Bearer {{ACCESS_TOKEN}}

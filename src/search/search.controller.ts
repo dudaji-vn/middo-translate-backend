@@ -10,12 +10,16 @@ import {
 import { SearchQueryParamsDto } from './dtos/search-query-params.dto';
 import { SearchService } from './search.service';
 import { User } from 'src/users/schemas/user.schema';
-import { Response } from 'src/common/types';
+import { CursorPaginationInfo, Pagination, Response } from 'src/common/types';
 import { JwtUserId, ParamObjectId } from 'src/common/decorators';
 import { SearchMainResult } from './types';
 import { AddKeywordDto } from './dtos/add-keyword-dto';
 import { KeywordQueryParamsDto } from './dtos/keyword-query-params.dto';
 import { SearchCountResult } from './types/search-count-result.type';
+import { Keyword } from './schemas/search.schema';
+import { Message } from 'src/messages/schemas/messages.schema';
+import { Room } from 'src/rooms/schemas/room.schema';
+import { SearchQueryParamsCursorDto } from './dtos/search-query-params-cusor.dto';
 
 @Controller('search')
 export class SearchController {
@@ -31,6 +35,17 @@ export class SearchController {
       data,
       message: 'Inboxes found',
     };
+  }
+
+  @Get('conversations')
+  async searchConversationBy(
+    @Query() query: SearchQueryParamsCursorDto,
+    @JwtUserId() userId: string,
+  ): Promise<
+    Response<Pagination<User | Room | Message, CursorPaginationInfo>>
+  > {
+    const data = await this.searchService.searchConversationBy(query, userId);
+    return { data, message: 'Search conversations' };
   }
 
   @Get('inboxes/count')
@@ -51,7 +66,7 @@ export class SearchController {
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
     @Query() query: SearchQueryParamsDto,
-  ) {
+  ): Promise<Response<Message[]>> {
     const data = await this.searchService.searchMessageInRoom(
       id,
       userId,
@@ -59,7 +74,7 @@ export class SearchController {
     );
     return {
       data,
-      message: 'Search message in room',
+      message: 'Search messages in room',
     };
   }
 
@@ -79,10 +94,11 @@ export class SearchController {
   async addKeyword(
     @JwtUserId() userId: string,
     @Body() payload: AddKeywordDto,
-  ) {
+  ): Promise<Response<Keyword[]>> {
     const result = await this.searchService.addKeyword(userId, payload);
     return {
       data: result,
+      message: 'Add keyword',
     };
   }
 
@@ -90,10 +106,11 @@ export class SearchController {
   async getKeywords(
     @JwtUserId() userId: string,
     @Query() query: KeywordQueryParamsDto,
-  ) {
+  ): Promise<Response<Keyword[]>> {
     const result = await this.searchService.getKeywords(userId, query);
     return {
       data: result,
+      message: 'get keywords',
     };
   }
 
@@ -102,7 +119,7 @@ export class SearchController {
     @JwtUserId() userId: string,
     @Param('keyword') keyword: string,
     @Query() query: KeywordQueryParamsDto,
-  ) {
+  ): Promise<Response<boolean>> {
     const result = await this.searchService.checkKeyword(
       userId,
       keyword,
@@ -110,6 +127,7 @@ export class SearchController {
     );
     return {
       data: result,
+      message: 'Check keyword',
     };
   }
 
@@ -118,7 +136,7 @@ export class SearchController {
     @JwtUserId() userId: string,
     @Param('keyword') keyword: string,
     @Query() query: KeywordQueryParamsDto,
-  ) {
+  ): Promise<Response<null>> {
     const result = await this.searchService.deleteKeyword(
       userId,
       keyword,
@@ -126,6 +144,7 @@ export class SearchController {
     );
     return {
       data: result,
+      message: 'Delete keyword',
     };
   }
 
@@ -133,10 +152,11 @@ export class SearchController {
   async deleteAllKeywords(
     @JwtUserId() userId: string,
     @Query() query: KeywordQueryParamsDto,
-  ) {
+  ): Promise<Response<null>> {
     const result = await this.searchService.deleteAllKeywords(userId, query);
     return {
       data: result,
+      message: 'Delete all keywords',
     };
   }
 }
