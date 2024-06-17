@@ -654,7 +654,7 @@ export class MessagesService {
     if (room.isHelpDesk) {
       console.log('room.space:>>', room);
       title = envConfig.app.extension_name;
-      body = `${message.sender.name} sent message from "${room?.fromDomain}"`;
+      body = `${message.sender.name} sent message from ${room?.fromDomain}`;
     }
     const messageContent = convert(message.content, {
       selectors: [{ selector: 'a', options: { ignoreHref: true } }],
