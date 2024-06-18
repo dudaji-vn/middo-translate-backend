@@ -24,6 +24,7 @@ export class NotificationService {
     userIds,
     link,
     messageId,
+    destinationApp,
   }: {
     userIds: string[];
     title: string;
@@ -32,16 +33,21 @@ export class NotificationService {
     link?: string;
     messageId?: string;
     message?: any;
+    destinationApp?: 'extension' | 'other';
   }) {
+    const isSendToExtension = destinationApp === 'extension';
+    const tokensKey = isSendToExtension ? 'extensionTokens' : 'tokens';
+
     const notifications = await this.notificationModel.find({
       userId: { $in: userIds },
     });
     if (!notifications.length) {
       return;
     }
+    console.log('notifications:::>>>>>>', notifications, tokensKey);
     let tokens: string[] = notifications
       .reduce((acc, notification) => {
-        acc.push(...notification.tokens);
+        acc.push(...notification[tokensKey]);
         return acc;
       }, [] as string[])
       .filter((token) => !!token);
@@ -116,7 +122,11 @@ export class NotificationService {
     }
   }
 
-  async storageToken(userId: string, token: string) {
+  async storageToken(
+    userId: string,
+    token: string,
+    type?: 'extension' | 'other',
+  ) {
     if (!token || !token?.trim().length) {
       logger.error(
         'StorageToken: Token cannot be empty',
@@ -125,16 +135,22 @@ export class NotificationService {
       );
       return;
     }
+    const isExtension = type === 'extension';
+    const storeDestinationKey = isExtension ? 'extensionTokens' : 'tokens';
     const notification = await this.notificationModel.findOne({ userId });
     if (!notification) {
       const newNotification = new this.notificationModel({
         userId,
-        tokens: [token],
+        [storeDestinationKey]: [token],
       });
       await newNotification.save();
       return;
     }
-    await notification.updateOne({ $addToSet: { tokens: token } });
+    await notification.updateOne({
+      $addToSet: {
+        [storeDestinationKey]: token,
+      },
+    });
   }
 
   async getDevices(userId: string) {
@@ -145,18 +161,26 @@ export class NotificationService {
     return notification.tokens;
   }
 
-  async checkSubscription(userId: string, token: string) {
+  async checkSubscription(
+    userId: string,
+    token: string,
+    type?: 'extension' | 'other',
+  ) {
+    const isExtension = type === 'extension';
+    const storeKey = isExtension ? 'extensionTokens' : 'tokens';
     const notification = await this.notificationModel.findOne({
       userId,
-      tokens: { $in: [token] },
+      [storeKey]: { $in: [token] },
     });
     return !!notification;
   }
 
-  async deleteToken(userId: string, token: string) {
+  async deleteToken(userId: string, token: string, type?: string) {
+    const isExtension = type === 'extension';
+    const storeKey = isExtension ? 'extensionTokens' : 'tokens';
     await this.notificationModel.updateOne(
       { userId },
-      { $pull: { tokens: token } },
+      { $pull: { [storeKey]: token } },
     );
   }
 
