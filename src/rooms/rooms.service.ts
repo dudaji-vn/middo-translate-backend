@@ -1578,4 +1578,12 @@ export class RoomsService {
     const data = await this.roomModel.aggregate(queryReport);
     return data;
   }
+  async getTotalNewMessagesBySpaceIdAndUserId(spaceId: string, userId: string) {
+    return await this.roomModel.countDocuments({
+      space: spaceId,
+      status: RoomStatus.ACTIVE,
+      readBy: { $ne: new mongoose.Types.ObjectId(userId) },
+      deleteFor: { $ne: new mongoose.Types.ObjectId(userId) },
+    });
+  }
 }
