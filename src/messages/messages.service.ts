@@ -647,25 +647,21 @@ export class MessagesService {
   async sendMessageNotification(message: Message) {
     let title = envConfig.app.name;
     let body = message.sender.name;
+    let featurePath = 'talk';
     const room = await this.roomsService.findById(message.room._id.toString());
     if (!room) {
       throw new NotFoundException('Room not found');
     }
     if (room.isHelpDesk) {
-      title = envConfig.app.extension_name;
-      const roomWithSpace: any = await room.populate([
-        {
-          path: 'space',
-          select: `name`,
-        },
-      ]);
-      title = `${title} -  ${roomWithSpace.space?.name} `;
+      const roomWithSpace: any = await room.populate('space');
+      title = `${envConfig.app.extension_name} -  ${roomWithSpace.space?.name}`;
+      featurePath = `spaces/${roomWithSpace.space?._id}/conversations`;
       switch (message.action) {
         case ActionTypes.LEAVE_HELP_DESK:
           body = ` ${message.sender.name} left the conversation`;
           break;
         default:
-          body = `${message.sender.name} sent message from ${room?.fromDomain} `;
+          body = `${message.sender.name} from ${room?.fromDomain}`;
           break;
       }
     }
@@ -723,11 +719,7 @@ export class MessagesService {
     targetUserIds = targetUserIds.filter(
       (id) => !userIgnoredNotification.includes(id),
     );
-    const link = `${envConfig.app.url}/${
-      room.isHelpDesk
-        ? `spaces/${room.space?.toString()}/conversations`
-        : 'talk'
-    }/${room._id}`;
+    const link = `${envConfig.app.url}/${featurePath}/${room._id}`;
     if (message.type === MessageType.TEXT) {
       // base on targetUserIds laguage to send notification in correct language of message translations field
       const groupByLanguage = targetUserIds.reduce((acc, id) => {

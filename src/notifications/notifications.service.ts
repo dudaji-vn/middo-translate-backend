@@ -117,6 +117,14 @@ export class NotificationService {
   }
 
   async storageToken(userId: string, token: string) {
+    if (!token || !token?.trim().length) {
+      logger.error(
+        'StorageToken: Token cannot be empty',
+        '',
+        NotificationService.name,
+      );
+      return;
+    }
     const notification = await this.notificationModel.findOne({ userId });
     if (!notification) {
       const newNotification = new this.notificationModel({

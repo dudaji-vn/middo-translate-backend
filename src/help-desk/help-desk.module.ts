@@ -5,6 +5,8 @@ import { UsersModule } from 'src/users/users.module';
 import { User, UserSchema } from '../users/schemas/user.schema';
 import { HelpDeskController } from './help-desk.controller';
 import { HelpDeskService } from './help-desk.service';
+import { NotificationModule } from 'src/notifications/notifications.module';
+
 import {
   HelpDeskBusiness,
   HelpDeskBusinessSchema,
@@ -34,8 +36,10 @@ import { Visitor, VisitorSchema } from './schemas/visitor.schema';
       { name: SpaceNotification.name, schema: SpaceNotificationSchema },
       { name: Script.name, schema: ScriptSchema },
       { name: Visitor.name, schema: VisitorSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     UsersModule,
+    NotificationModule,
     MailModule,
     forwardRef(() => MessagesModule),
     forwardRef(() => RoomsModule),
