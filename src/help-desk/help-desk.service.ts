@@ -185,7 +185,6 @@ export class HelpDeskService {
     } else {
       info.currentScript = null;
     }
-
     const extension = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
         space: spaceId,
@@ -193,6 +192,14 @@ export class HelpDeskService {
       info,
       { new: true, upsert: true },
     );
+    const who = await this.userService.findById(userId);
+    this.notificationService.sendNotification({
+      body: `${who?.name} updated the Extension`,
+      title: `${envConfig.app.extension_name} - ${space.name}`,
+      link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
+      userIds: [space.owner.toString()],
+      roomId: '',
+    });
     return extension;
   }
 
@@ -258,7 +265,7 @@ export class HelpDeskService {
 
       // get all userId from members
 
-      await members.forEach((data) => {
+      members.forEach((data) => {
         this.spaceNotificationModel
           .create({
             space: spaceData._id,
@@ -281,6 +288,13 @@ export class HelpDeskService {
                       receiverIds: [user?._id.toString()],
                     },
                   );
+                  this.notificationService.sendNotification({
+                    body: `${user.name} has invited you to join the "${spaceData.name}" space`,
+                    title: `${envConfig.app.extension_name}`,
+                    link: data.link,
+                    userIds: [user._id.toString()],
+                    roomId: '',
+                  });
                 }
               });
           });
@@ -1596,12 +1610,20 @@ export class HelpDeskService {
                     receiverIds: [user?._id.toString()],
                   },
                 );
+                this.notificationService.sendNotification({
+                  body: `${user.name} has invited you to join the "${spaceData.name}" space`,
+                  title: `${envConfig.app.extension_name} - ${spaceData.name}`,
+                  link: data.link,
+                  userIds: [user?._id.toString()],
+                  roomId: '',
+                });
               }
             })
             .catch(() => {
               console.log('User not found');
             });
         });
+
       this.mailService.sendMail(
         data.email,
         `${user.name} has invited you to join the ${spaceData.name} space`,
@@ -1817,19 +1839,19 @@ export class HelpDeskService {
       space.tags[index].color = color;
     }
     await space.save();
-    const who = space.members.find(
-      (item) => item.user?.toString() === userId.toString(),
-    );
+    const who = await this.userService.findById(userId);
     const otherMembers = space.members
       .filter(
         (item) =>
           item.user?.toString() !== userId.toString() &&
-          item.status === MemberStatus.JOINED,
+          item.status === MemberStatus.JOINED &&
+          item.role !== ROLE.MEMBER,
       )
       ?.map((item) => String(item.user));
-    await this.notificationService.sendNotification({
-      body: `Someone ${action} a tag: ${name}`,
-      title: `${envConfig.app.name} - ${space.name}`,
+
+    this.notificationService.sendNotification({
+      body: `${who?.name} ${action} a tag named "${name}"`,
+      title: `${envConfig.app.extension_name} - ${space.name}`,
       link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
       userIds: otherMembers,
       roomId: '',
