@@ -44,7 +44,6 @@ export class NotificationService {
     if (!notifications.length) {
       return;
     }
-    console.log('notifications:::>>>>>>', notifications, tokensKey);
     let tokens: string[] = notifications
       .reduce((acc, notification) => {
         acc.push(...notification[tokensKey]);
@@ -107,8 +106,8 @@ export class NotificationService {
           ) {
             const token = tokens[index];
             await this.notificationModel.updateOne(
-              { tokens: { $in: [token] } },
-              { $pull: { tokens: token } },
+              { [tokensKey]: { $in: [token] } },
+              { $pull: { [tokensKey]: token } },
             );
           }
         });
