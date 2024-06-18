@@ -547,7 +547,7 @@ export class HelpDeskService {
       );
     }
 
-    const extension = await this.helpDeskBusinessModel
+    const extensionPromise = this.helpDeskBusinessModel
       .findOne({
         space: new Types.ObjectId(spaceId),
         status: { $ne: StatusBusiness.DELETED },
@@ -555,12 +555,20 @@ export class HelpDeskService {
       .select('-space')
       .lean();
 
-    const countries = await this.userModel
+    const countriesPromise = this.userModel
       .find({
-        business: extension?._id,
+        space: space?._id,
       })
       .select('language')
       .lean();
+    const totalNewMessagesPromise =
+      this.roomsService.getTotalNewMessagesBySpaceIdAndUserId(spaceId, userId);
+
+    const [extension, countries, totalNewMessages] = await Promise.all([
+      extensionPromise,
+      countriesPromise,
+      totalNewMessagesPromise,
+    ]);
 
     space.members = space.members
       ?.filter((user) => user.status !== MemberStatus.DELETED)
@@ -573,10 +581,12 @@ export class HelpDeskService {
         };
       });
     space.tags = space.tags?.filter((tag) => !tag.isDeleted);
+
     return {
       ...space,
       extension: extension,
       countries: [...new Set(countries.map((item) => item.language))],
+      totalNewMessages: totalNewMessages,
     };
   }
 
