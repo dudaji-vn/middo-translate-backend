@@ -645,14 +645,30 @@ export class MessagesService {
   }
 
   async sendMessageNotification(message: Message) {
+    let title = envConfig.app.name;
     let body = message.sender.name;
     const room = await this.roomsService.findById(message.room._id.toString());
     if (!room) {
       throw new NotFoundException('Room not found');
     }
-    const title = room.isHelpDesk
-      ? envConfig.app.extension_name
-      : envConfig.app.name;
+    if (room.isHelpDesk) {
+      title = envConfig.app.extension_name;
+      const roomWithSpace: any = await room.populate([
+        {
+          path: 'space',
+          select: `name`,
+        },
+      ]);
+      title = `${title} -  ${roomWithSpace.space?.name} `;
+      switch (message.action) {
+        case ActionTypes.LEAVE_HELP_DESK:
+          body = ` ${message.sender.name} left the conversation`;
+          break;
+        default:
+          body = `${message.sender.name} sent message from ${room?.fromDomain} `;
+          break;
+      }
+    }
     const messageContent = convert(message.content, {
       selectors: [{ selector: 'a', options: { ignoreHref: true } }],
     });
