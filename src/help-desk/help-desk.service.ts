@@ -61,6 +61,7 @@ import { SpaceNotification } from './schemas/space-notifications.schema';
 import { Member, Script, Space, StatusSpace } from './schemas/space.schema';
 import { Visitor } from './schemas/visitor.schema';
 import { pivotChartByType } from 'src/common/utils/date-report';
+import { NotificationService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class HelpDeskService {
@@ -81,6 +82,7 @@ export class HelpDeskService {
     private roomsService: RoomsService,
     private messagesService: MessagesService,
     private mailService: MailService,
+    private notificationService: NotificationService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -1789,6 +1791,7 @@ export class HelpDeskService {
         'You do not have permission to create or edit tag',
       );
     }
+    let action = 'created';
     const item: any = {
       color: color,
       name: name,
@@ -1800,6 +1803,7 @@ export class HelpDeskService {
       }
       space.tags.push(item);
     } else {
+      action = 'edited';
       const index = space.tags.findIndex(
         (item) => item._id.toString() === tagId,
       );
@@ -1813,6 +1817,23 @@ export class HelpDeskService {
       space.tags[index].color = color;
     }
     await space.save();
+    const who = space.members.find(
+      (item) => item.user?.toString() === userId.toString(),
+    );
+    const otherMembers = space.members
+      .filter(
+        (item) =>
+          item.user?.toString() !== userId.toString() &&
+          item.status === MemberStatus.JOINED,
+      )
+      ?.map((item) => String(item.user));
+    await this.notificationService.sendNotification({
+      body: `Someone ${action} a tag: ${name}`,
+      title: `${envConfig.app.name} - ${space.name}`,
+      link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
+      userIds: otherMembers,
+      roomId: '',
+    });
     return space.tags;
   }
 
