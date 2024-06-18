@@ -117,6 +117,9 @@ export class NotificationService {
   }
 
   async storageToken(userId: string, token: string) {
+    if (!token) {
+      throw new Error('Token is required');
+    }
     const notification = await this.notificationModel.findOne({ userId });
     if (!notification) {
       const newNotification = new this.notificationModel({
