@@ -17,72 +17,40 @@ export class NotificationService {
     private notificationModel: Model<Notification>,
     private watchingService: WatchingService,
   ) {}
-  async sendNotification({
+  async notifyOnMobileApps({
     body,
     roomId,
     title,
-    userIds,
     link,
     messageId,
+    tokens,
     destinationApp,
   }: {
-    userIds: string[];
     title: string;
     body: string;
     roomId: string;
     link?: string;
     messageId?: string;
     message?: any;
+    tokens: string[];
     destinationApp?: 'extension' | 'other';
   }) {
-    const isSendToExtension = destinationApp === 'extension';
-    const tokensKey = isSendToExtension ? 'extensionTokens' : 'tokens';
-
-    const notifications = await this.notificationModel.find({
-      userId: { $in: userIds },
-    });
-    if (!notifications.length) {
-      return;
-    }
-    let tokens: string[] = notifications
-      .reduce((acc, notification) => {
-        acc.push(...notification[tokensKey]);
-        return acc;
-      }, [] as string[])
-      .filter((token) => !!token);
-
-    const watchingList = await this.watchingService.getWatchingListByRoomId(
+    const nameField =
+      destinationApp === 'extension' ? 'extensionTokens' : 'tokens';
+    const data = {
+      title,
+      body,
+      url: link || envConfig.app.url,
+      messageId: messageId || '',
       roomId,
-    );
-
-    // not push notification to user who is watching the room
-    watchingList.forEach((watching) => {
-      tokens = tokens.filter((token) => token !== watching.notifyToken);
-    });
+    };
     try {
       if (tokens.length) {
         const response = await messaging().sendEachForMulticast({
           tokens: tokens || [],
-          data: {
-            title,
-            body,
-            url: link || envConfig.app.url,
-            messageId: messageId || '',
-            roomId,
-          },
-          webpush: {
-            fcmOptions: {
-              link: link || envConfig.app.url,
-            },
-          },
+          data,
           android: {
-            data: {
-              title,
-              body,
-              url: link || envConfig.app.url,
-              messageId: messageId || '',
-              roomId,
-            },
+            data,
             priority: 'high',
           },
           apns: {
@@ -106,8 +74,101 @@ export class NotificationService {
           ) {
             const token = tokens[index];
             await this.notificationModel.updateOne(
-              { [tokensKey]: { $in: [token] } },
-              { $pull: { [tokensKey]: token } },
+              { [nameField]: { $in: [token] } },
+              { $pull: { [nameField]: token } },
+            );
+          }
+        });
+      }
+    } catch (error) {
+      logger.error(
+        `SERVER_ERROR in line 86: ${error['message']}`,
+        '',
+        NotificationService.name,
+      );
+    }
+  }
+  async sendNotification({
+    body,
+    roomId,
+    title,
+    userIds,
+    link,
+    messageId,
+    destinationApp,
+  }: {
+    userIds: string[];
+    title: string;
+    body: string;
+    roomId: string;
+    link?: string;
+    messageId?: string;
+    message?: any;
+    destinationApp?: 'extension' | 'other';
+  }) {
+    const notifications = await this.notificationModel.find({
+      userId: { $in: userIds },
+    });
+    if (!notifications.length) {
+      return;
+    }
+    let tokens: string[] = notifications
+      .reduce((acc, notification) => {
+        acc.push(...notification.tokens);
+        return acc;
+      }, [] as string[])
+      .filter((token) => !!token);
+    const watchingList = await this.watchingService.getWatchingListByRoomId(
+      roomId,
+    );
+    // not push notification to user who is watching the room
+    watchingList.forEach((watching) => {
+      tokens = tokens.filter((token) => token !== watching.notifyToken);
+    });
+    const data = {
+      title,
+      body,
+      url: link || envConfig.app.url,
+      messageId: messageId || '',
+      roomId,
+    };
+    const mobileAnouncementTokens =
+      destinationApp === 'extension'
+        ? notifications.reduce((acc, curr) => {
+            acc.push(...curr.extensionTokens);
+            return acc;
+          }, [] as string[])
+        : tokens;
+    this.notifyOnMobileApps({
+      title,
+      body,
+      roomId,
+      link,
+      messageId,
+      tokens: mobileAnouncementTokens,
+      destinationApp,
+    });
+    try {
+      if (tokens.length) {
+        // send notification to web apps
+        const response = await messaging().sendEachForMulticast({
+          tokens: tokens || [],
+          data,
+          webpush: {
+            fcmOptions: {
+              link: link || envConfig.app.url,
+            },
+          },
+        });
+        response.responses.map(async (res, index) => {
+          if (
+            res.error?.code === 'messaging/invalid-registration-token' ||
+            res.error?.code === 'messaging/registration-token-not-registered'
+          ) {
+            const token = tokens[index];
+            await this.notificationModel.updateOne(
+              { tokens: { $in: [token] } },
+              { $pull: { tokens: token } },
             );
           }
         });
