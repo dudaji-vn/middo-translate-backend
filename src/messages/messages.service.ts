@@ -653,7 +653,21 @@ export class MessagesService {
     }
     if (room.isHelpDesk) {
       title = envConfig.app.extension_name;
-      body = `${message.sender.name} sent message from ${room?.fromDomain}`;
+      const roomWithSpace: any = await room.populate([
+        {
+          path: 'space',
+          select: `name`,
+        },
+      ]);
+      title = `${title} -  ${roomWithSpace.space?.name} `;
+      switch (message.action) {
+        case ActionTypes.LEAVE_HELP_DESK:
+          body = ` ${message.sender.name} left the conversation`;
+          break;
+        default:
+          body = `${message.sender.name} sent message from ${room?.fromDomain} `;
+          break;
+      }
     }
     const messageContent = convert(message.content, {
       selectors: [{ selector: 'a', options: { ignoreHref: true } }],
