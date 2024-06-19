@@ -30,7 +30,7 @@ export class SearchService {
   ) {}
 
   async searchInbox(
-    { q, limit, spaceId }: FindParams,
+    { q, limit, spaceId, stationId }: FindParams,
     userId: string,
   ): Promise<SearchMainResult> {
     const users = await this.usersService
@@ -39,6 +39,7 @@ export class SearchService {
           limit,
           q,
           spaceId,
+          stationId,
         },
       })
       .sort({ _id: -1 });
@@ -48,6 +49,12 @@ export class SearchService {
     const rooms = await this.roomsService
       .search({
         query: {
+          space: {
+            $exists: false,
+          },
+          station: {
+            $exists: false,
+          },
           ...(spaceId && {
             space: { $exists: true, $eq: spaceId },
           }),
@@ -130,7 +137,7 @@ export class SearchService {
     queryParams: SearchQueryParamsCursorDto,
     userId: string,
   ): Promise<Pagination<Room | User | Message, CursorPaginationInfo>> {
-    const { limit, cursor, type, q, spaceId } = queryParams;
+    const { limit, cursor, type, q, spaceId, stationId } = queryParams;
 
     const cursorDate = cursor
       ? new Date(cursor).toDateString()
@@ -151,6 +158,7 @@ export class SearchService {
               limit,
               q,
               spaceId,
+              stationId,
             },
           })
           .sort({ _id: -1 });
@@ -164,6 +172,7 @@ export class SearchService {
             limit: Infinity,
             q,
             spaceId,
+            stationId,
           },
         });
         const userIds = users.map((u) => u._id);
@@ -175,6 +184,10 @@ export class SearchService {
                 $lt: cursorDate,
               },
               space: { $exists: false },
+              station: { $exists: false },
+              ...(stationId && {
+                station: { $exists: true, $eq: stationId },
+              }),
               $or: [
                 {
                   name: { $regex: q, $options: 'i' },
@@ -210,6 +223,9 @@ export class SearchService {
             station: { $exists: false },
             ...(spaceId && {
               space: { $exists: true, $eq: spaceId },
+            }),
+            ...(stationId && {
+              station: { $exists: true, $eq: stationId },
             }),
           },
         });
@@ -248,7 +264,7 @@ export class SearchService {
   }
 
   async countSearchInbox(
-    { q, limit, spaceId }: FindParams,
+    { q, limit, spaceId, stationId }: FindParams,
     userId: string,
   ): Promise<SearchCountResult> {
     if (q.trim().length === 0) {
@@ -263,6 +279,7 @@ export class SearchService {
         limit,
         q,
         spaceId,
+        stationId,
       },
     });
 
@@ -272,6 +289,10 @@ export class SearchService {
       query: {
         ...(spaceId && {
           space: { $exists: true, $eq: spaceId },
+        }),
+        station: { $exists: false },
+        ...(stationId && {
+          station: { $exists: true, $eq: stationId },
         }),
         $or: [
           {
@@ -306,6 +327,9 @@ export class SearchService {
         station: { $exists: false },
         ...(spaceId && {
           space: { $exists: true, $eq: spaceId },
+        }),
+        ...(stationId && {
+          station: { $exists: true, $eq: stationId },
         }),
       },
     });
