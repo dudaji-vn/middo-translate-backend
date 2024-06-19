@@ -91,12 +91,13 @@ export class NotificationService {
       return;
     }
 
-    let tokens: string[] = notifications.reduce((acc, curr) => {
-      return acc.concat(curr.tokens || []);
-    }, [] as string[]);
-    let extensionTokens: string[] = notifications.reduce((acc, curr) => {
-      return acc.concat(curr.extensionTokens || []);
-    }, [] as string[]);
+    let tokens: string[] = notifications.flatMap((notification) =>
+      notification.tokens.filter((t) => !!t),
+    );
+    let extensionTokens: string[] = notifications.flatMap((notification) =>
+      notification.extensionTokens.filter((t) => !!t),
+    );
+
     const watchingList = await this.watchingService.getWatchingListByRoomId(
       roomId,
     );
@@ -143,10 +144,11 @@ export class NotificationService {
     try {
       if (tokens.length) {
         logger.info(
-          `Sending notification to ${tokens.length} users`,
+          `Sending notification to ${tokens.length} places`,
           '',
           NotificationService.name,
         );
+        console.log('notify OTHER-tokens::>', tokens);
         const response = await messaging().sendEachForMulticast({
           tokens: tokens || [],
           data,
