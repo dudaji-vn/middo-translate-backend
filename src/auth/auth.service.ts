@@ -74,6 +74,9 @@ export class AuthService {
       notFoundMessage: 'Invalid email or password',
       notFoundCode: 401,
     });
+    if (user.provider && user.provider !== Provider.LOCAL) {
+      throw new HttpException('Sign in using another method', 401);
+    }
     const isMatch = await bcrypt.compare(signDto.password, user.password);
     if (!isMatch) {
       throw new HttpException('Invalid email or password', 401);
@@ -268,6 +271,9 @@ export class AuthService {
     let user = await this.usersService.findByEmail(profile.email, {
       ignoreNotFound: true,
     });
+    if (user?.provider && user.provider !== profile.provider) {
+      throw new HttpException('Sign in using another method', 401);
+    }
     if (!user?._id) {
       const username = await this.usersService.generateUsernameByEmail(
         profile.email,
