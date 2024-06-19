@@ -20,13 +20,14 @@ import {
   UpdateRoomPayload,
 } from './types/room-payload.type';
 import { CallService } from 'src/call/call.service';
-import Meeting from './interface/meeting.interface';
+import Meeting, { ParticipantMeeting } from './interface/meeting.interface';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { WatchingService } from 'src/watching/watching.service';
 import speech from '@google-cloud/speech';
 // import { Logger } from '@nestjs/common';
 import { logger } from 'src/common/utils/logger';
+import { User } from 'src/users/schemas/user.schema';
 process.env.GOOGLE_APPLICATION_CREDENTIALS = './speech-to-text-key.json';
 const speechClient = new speech.SpeechClient();
 @WebSocketGateway({
@@ -95,10 +96,11 @@ export class EventsGateway
     const userIds = Object.keys(this.clients);
     logger.info('socket connected', userIds);
     this.server.emit(socketConfig.events.client.list, userIds);
-    const meetingRoomIds = Object.values(this.meetings).map((m) => m.room);
-    this.server
-      .to(client.id)
-      .emit(socketConfig.events.meeting.list, meetingRoomIds);
+    
+    this.pushMeetingList({
+      type: 'user',
+      id: userId.toString()
+    })
   }
 
   @SubscribeMessage(socketConfig.events.chat.join)
@@ -271,17 +273,23 @@ export class EventsGateway
     client.leave(messageId);
   }
 
-  // Events for call
-
+  // EVENTS FOR VIDEO CALL
   // Handle join call event
   @SubscribeMessage(socketConfig.events.call.join)
-  handleJoinCall(
+  async handleJoinCall(
     @ConnectedSocket() client: Socket,
     @MessageBody()
-    { callId, user, roomId }: { callId: string; user: any; roomId: string },
+    { callId, user, roomId }: { callId: string; user: User; roomId: string },
   ) {
     if (this.meetings[callId]) {
-      this.meetings[callId].participants.push({ id: client.id, user });
+      this.meetings[callId].participants.push({ 
+        socketId: client.id, 
+        user: {
+          _id: user._id.toString(),
+          name: user.name,
+          avatar: user.avatar,
+        } 
+      });
       let startTime = this.meetings[callId].startTime;
       if (!startTime) {
         startTime = new Date();
@@ -289,17 +297,34 @@ export class EventsGateway
         this.callService.callStart({ callId, time: startTime });
       }
     } else {
+      let roomData = await this.roomService.findById(roomId);
+      let participantsIds = roomData?.participants.map((p: any) => p._id.toString());
+      
       this.meetings[callId] = {
-        participants: [{ id: client.id, user }],
-        room: roomId,
+        participants: [
+          { 
+            socketId: client.id, 
+            user: {
+              _id: user._id.toString(),
+              name: user.name,
+              avatar: user.avatar,
+            }
+          }
+        ],
+        room: {
+          _id: roomId,
+          participantIds: participantsIds || []
+        },
       };
       this.server.emit(socketConfig.events.call.start, roomId);
-      const meetingRoomIds = Object.values(this.meetings).map((m) => m.room);
-      this.server.emit(socketConfig.events.meeting.list, meetingRoomIds);
     }
+    this.pushMeetingList({
+      type: 'room',
+      id: roomId
+    })
     this.socketToRoom[client.id] = callId;
-    const userInThisRoom = this.meetings[callId].participants.filter(
-      (user: any) => user.id !== client.id,
+    const userInThisRoom: ParticipantMeeting[] = this.meetings[callId].participants.filter(
+      (user: ParticipantMeeting) => user.socketId !== client.id,
     );
     client.join(callId);
     this.server.to(client.id).emit(socketConfig.events.call.list_participant, {
@@ -372,7 +397,7 @@ export class EventsGateway
     @MessageBody()
     payload: {
       id: string;
-      user: any;
+      user: User;
       callerId: string;
       isTurnOnMic: boolean;
       signal: any;
@@ -401,6 +426,7 @@ export class EventsGateway
       isShareScreen: boolean;
     },
   ) {
+    console.log('returnSignal', payload);
     this.server
       .to(payload.callerId)
       .emit(socketConfig.events.call.receive_return_signal, {
@@ -438,7 +464,7 @@ export class EventsGateway
     @MessageBody() roomId: string,
   ) {
     const userInRoom = this.meetings[roomId].participants.filter(
-      (user: any) => user.id !== client.id,
+      (user: ParticipantMeeting) => user.socketId !== client.id,
     );
     this.server
       .to(client.id)
@@ -502,11 +528,11 @@ export class EventsGateway
     @MessageBody()
     payload: { socketId: string },
   ) {
-    const roomId = this.socketToRoom[client.id];
+    const callId = this.socketToRoom[client.id];
     const socketId = payload.socketId;
     this.server.to(socketId).emit(socketConfig.events.call.reject_join_room);
     this.server
-      .to(roomId)
+      .to(callId)
       .emit(socketConfig.events.call.answered_join_room, socketId);
   }
   // Start doodle
@@ -515,13 +541,13 @@ export class EventsGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { image_url: string; name: string },
   ) {
-    const roomId = this.socketToRoom[client.id];
-    this.meetings[roomId].doodle = {
+    const callId = this.socketToRoom[client.id];
+    this.meetings[callId].doodle = {
       image: payload.image_url,
       data: {},
       socketId: client.id,
     };
-    this.server.to(roomId).emit(socketConfig.events.call.start_doodle, {
+    this.server.to(callId).emit(socketConfig.events.call.start_doodle, {
       image_url: payload.image_url,
       name: payload.name,
     });
@@ -532,9 +558,9 @@ export class EventsGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() name: string,
   ) {
-    const roomId = this.socketToRoom[client.id];
-    delete this.meetings[roomId].doodle;
-    this.server.to(roomId).emit(socketConfig.events.call.end_doodle, name);
+    const callId = this.socketToRoom[client.id];
+    delete this.meetings[callId].doodle;
+    this.server.to(callId).emit(socketConfig.events.call.end_doodle, name);
   }
   // Draw doodle
   @SubscribeMessage(socketConfig.events.call.draw_doodle)
@@ -543,9 +569,9 @@ export class EventsGateway
     @MessageBody()
     payload: { image: any; user: any; color: string },
   ) {
-    const roomId = this.socketToRoom[client.id];
-    if (!this.meetings[roomId]?.doodle?.data) return;
-    const doodleData = this.meetings[roomId]?.doodle?.data;
+    const callId = this.socketToRoom[client.id];
+    if (!this.meetings[callId]?.doodle?.data) return;
+    const doodleData = this.meetings[callId]?.doodle?.data;
     if (!doodleData) return;
     if (!doodleData?.[client.id]) {
       doodleData[client.id] = {
@@ -556,7 +582,7 @@ export class EventsGateway
     } else {
       doodleData[client.id].image = payload.image;
     }
-    this.server.to(roomId).emit(socketConfig.events.call.draw_doodle, {
+    this.server.to(callId).emit(socketConfig.events.call.draw_doodle, {
       image: payload.image,
       user: payload.user,
       color: payload.color,
@@ -566,8 +592,8 @@ export class EventsGateway
   // Request get old doodle data
   @SubscribeMessage(socketConfig.events.call.request_get_old_doodle_data)
   handleRequestGetOldDoodleData(@ConnectedSocket() client: Socket) {
-    const roomId = this.socketToRoom[client.id];
-    const doodleData = this.meetings[roomId].doodle?.data || {};
+    const callId = this.socketToRoom[client.id];
+    const doodleData = this.meetings[callId].doodle?.data || {};
     this.server
       .to(client.id)
       .emit(socketConfig.events.call.request_get_old_doodle_data, doodleData);
@@ -578,9 +604,9 @@ export class EventsGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { image: string; user: any },
   ) {
-    const roomId = this.socketToRoom[client.id];
+    const callId = this.socketToRoom[client.id];
     this.server
-      .to(roomId)
+      .to(callId)
       .emit(socketConfig.events.call.send_doodle_share_screen, payload);
   }
   // Send caption
@@ -589,33 +615,34 @@ export class EventsGateway
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: any,
   ) {
-    const roomId = this.socketToRoom[client.id];
-    this.server.to(roomId).emit(socketConfig.events.call.send_caption, payload);
+    const callId = this.socketToRoom[client.id];
+    this.server.to(callId).emit(socketConfig.events.call.send_caption, payload);
   }
   private async leaveCall(client: Socket) {
-    const roomId = this.socketToRoom[client.id];
-    const meeting = this.meetings[roomId];
+    const callId = this.socketToRoom[client.id];
+    const meeting = this.meetings[callId];
     if (!meeting) return;
     // Stop doodle if this user start doodle
     if (meeting?.doodle?.socketId === client.id) {
-      delete this.meetings[roomId].doodle;
+      delete this.meetings[callId].doodle;
       const nameOfUser = meeting.participants.find(
-        (user: any) => user.id === client.id,
+        (user: ParticipantMeeting) => user.socketId === client.id,
       )?.user?.name;
       this.server
-        .to(roomId)
+        .to(callId)
         .emit(socketConfig.events.call.end_doodle, nameOfUser);
     }
     meeting.participants = meeting.participants.filter(
-      (user: any) => user.id !== client.id,
+      (user: ParticipantMeeting) => user.socketId !== client.id,
     );
-    this.meetings[roomId] = meeting;
+    this.meetings[callId] = meeting;
     // Leave room
-    client.leave(roomId);
+    client.leave(callId);
     this.server.emit(socketConfig.events.call.leave, client.id);
 
     // Check if room is empty then delete room
     delete this.socketToRoom[client.id];
+    const roomId = this.meetings[callId].room._id
     if (meeting?.participants.length === 0) {
       // const room = this.meetings[roomId]?.room;
       // const roomData = await this.roomService.findById(room);
@@ -629,11 +656,13 @@ export class EventsGateway
       // this.server
       //   // .to(socketIds)
       //   .emit(socketConfig.events.call.meeting_end, room);
-      delete this.meetings[roomId];
-      this.callService.endCall(roomId);
-      const meetingRoomIds = Object.values(this.meetings).map((m) => m.room);
-      this.server.emit(socketConfig.events.meeting.list, meetingRoomIds);
+      delete this.meetings[callId];
+      this.callService.endCall(callId);
     }
+    this.pushMeetingList({
+      type: 'room',
+      id: roomId
+    })
   }
 
   @OnEvent(socketConfig.events.call.update) // Update call event
@@ -647,6 +676,54 @@ export class EventsGateway
     this.leaveCall(client);
   }
 
+  private async pushMeetingList({ type, id }: {
+    type: 'user' | 'room',
+    id: string
+  }){
+    const response: Record<string, {
+      participantsIdJoined: string[],
+    }> = {};
+    switch (type) {
+      case 'user':
+        for (const key in this.meetings) {
+          const meeting = this.meetings[key];
+          const isHaveMe = meeting.room.participantIds.includes(id);
+          if(isHaveMe) {
+            response[meeting.room._id] = {
+              participantsIdJoined: meeting.participants.map((p) => p.user._id),
+            }
+          }
+        }
+        const userSocketIds = this.clients[id]?.socketIds || [];
+        this.server.to(userSocketIds).emit(socketConfig.events.meeting.list, response);
+        break;
+      case 'room':
+        let roomData = await this.roomService.findById(id);
+        if(!roomData) return;
+        // Get user socket id of room
+        let roomParticipantIds: string[] = roomData.participants.map((p: any) => p._id.toString());
+        let roomParticipantOnlineSocketIds: string[] = [];
+        for (const participantId of roomParticipantIds) {
+          const socketIds = this.clients[participantId]?.socketIds || [];
+          roomParticipantOnlineSocketIds.push(...socketIds);
+        }
+        const roomMeetings: Meeting[] = Object.values(this.meetings).filter((m) => m.room._id === id);
+        if(roomMeetings.length > 0) {
+          for (const meeting of roomMeetings) {
+            response[meeting.room._id] = {
+              participantsIdJoined: meeting.participants.map((p) => p.user._id),
+            }
+          }
+          this.server.to(roomParticipantOnlineSocketIds).emit(socketConfig.events.meeting.update, response);
+        } else { // If do not have meeting of room => meeting ended
+          this.server.to(roomParticipantOnlineSocketIds).emit(socketConfig.events.meeting.end, id);
+        }
+        break;
+      default:
+        break;
+    }
+    
+  }
   // End events for call
 
   // SPEECH TO TEXT

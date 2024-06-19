@@ -74,6 +74,8 @@ export const socketConfig = {
     },
     meeting: {
       list: 'meeting.list',
+      update: 'meeting.update',
+      end: 'meeting.end',
     },
     speech_to_text: {
       start: 'speech_to_text.start',

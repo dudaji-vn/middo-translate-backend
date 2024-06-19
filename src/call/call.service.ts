@@ -134,10 +134,10 @@ export class CallService {
     }
   }
 
-  async endCall(roomId: string) {
+  async endCall(callId: string) {
     try {
-      if (!roomId) return;
-      const call = await this.callModel.findById(roomId);
+      if (!callId) return;
+      const call = await this.callModel.findById(callId);
       if (!call) {
         return;
       }
