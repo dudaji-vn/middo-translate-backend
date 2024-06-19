@@ -82,6 +82,11 @@ export class StationsService {
       name: station.name,
     });
 
+    await this.userService.addMemberToStation(
+      user._id.toString(),
+      stationData._id.toString(),
+    );
+
     const memberPromises = members.map((member) =>
       this.processMember(user, member, stationData),
     );
