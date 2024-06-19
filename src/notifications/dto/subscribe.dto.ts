@@ -1,4 +1,6 @@
+export type SubscriptionType = 'extension' | 'other';
+
 export class SubscribeDto {
   token: string;
-  type?: 'extension' | 'other';
+  type?: SubscriptionType;
 }

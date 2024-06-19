@@ -7,6 +7,11 @@ import { envConfig } from 'src/configs/env.config';
 import { WatchingService } from 'src/watching/watching.service';
 import { Notification } from './schemas/notifications.schema';
 import { RoomNotification } from './schemas/room-notifications.schema';
+import { SubscriptionType } from './dto/subscribe.dto';
+import {
+  AndroidConfig,
+  ApnsConfig,
+} from 'firebase-admin/lib/messaging/messaging-api';
 
 @Injectable()
 export class NotificationService {
@@ -17,55 +22,26 @@ export class NotificationService {
     private notificationModel: Model<Notification>,
     private watchingService: WatchingService,
   ) {}
-  async notifyOnMobileApps({
-    body,
-    roomId,
-    title,
-    link,
-    messageId,
+  async notifyToExtensionMobile({
     tokens,
-    destinationApp,
+    data,
+    android,
+    apns,
   }: {
-    title: string;
-    body: string;
-    roomId: string;
-    link?: string;
-    messageId?: string;
-    message?: any;
     tokens: string[];
-    destinationApp?: 'extension' | 'other';
-  }) {
-    const nameField =
-      destinationApp === 'extension' ? 'extensionTokens' : 'tokens';
-    const data = {
-      title,
-      body,
-      url: link || envConfig.app.url,
-      messageId: messageId || '',
-      roomId,
+    data: {
+      [key: string]: string;
     };
+    android?: AndroidConfig;
+    apns?: ApnsConfig;
+  }) {
     try {
       if (tokens.length) {
         const response = await messaging().sendEachForMulticast({
           tokens: tokens || [],
           data,
-          android: {
-            data,
-            priority: 'high',
-          },
-          apns: {
-            payload: {
-              aps: {
-                alert: {
-                  title,
-                  body,
-                },
-                sound: 'default',
-                category: 'MESSAGE',
-                url: link || envConfig.app.url,
-              },
-            },
-          },
+          android,
+          apns,
         });
         response.responses.map(async (res, index) => {
           if (
@@ -74,8 +50,8 @@ export class NotificationService {
           ) {
             const token = tokens[index];
             await this.notificationModel.updateOne(
-              { [nameField]: { $in: [token] } },
-              { $pull: { [nameField]: token } },
+              { extensionTokens: { $in: [token] } },
+              { $pull: { extensionTokens: token } },
             );
           }
         });
@@ -104,61 +80,78 @@ export class NotificationService {
     link?: string;
     messageId?: string;
     message?: any;
-    destinationApp?: 'extension' | 'other';
+    destinationApp?: SubscriptionType;
   }) {
+    const forExtensionMobile = destinationApp === 'extension';
     const notifications = await this.notificationModel.find({
       userId: { $in: userIds },
     });
     if (!notifications.length) {
       return;
     }
-    let tokens: string[] = notifications
-      .reduce((acc, notification) => {
-        acc.push(...notification.tokens);
+
+    let { tokens, extensionTokens } = notifications.reduce(
+      (acc, curr) => {
+        acc.tokens.push(...curr.tokens);
+        acc.extensionTokens.push(...curr.extensionTokens);
         return acc;
-      }, [] as string[])
-      .filter((token) => !!token);
+      },
+      { tokens: [] as string[], extensionTokens: [] as string[] },
+    );
     const watchingList = await this.watchingService.getWatchingListByRoomId(
       roomId,
     );
     // not push notification to user who is watching the room
     watchingList.forEach((watching) => {
       tokens = tokens.filter((token) => token !== watching.notifyToken);
+      extensionTokens = extensionTokens.filter(
+        (token) => token !== watching.notifyToken,
+      );
     });
+    const url = link || envConfig.app.url;
     const data = {
       title,
       body,
-      url: link || envConfig.app.url,
+      url,
       messageId: messageId || '',
       roomId,
     };
-    const mobileAnouncementTokens =
-      destinationApp === 'extension'
-        ? notifications.reduce((acc, curr) => {
-            acc.push(...curr.extensionTokens);
-            return acc;
-          }, [] as string[])
-        : tokens;
-    this.notifyOnMobileApps({
-      title,
-      body,
-      roomId,
-      link,
-      messageId,
-      tokens: mobileAnouncementTokens,
-      destinationApp,
-    });
+    const android: AndroidConfig = {
+      data,
+      priority: 'high',
+    };
+    const apns: ApnsConfig = {
+      payload: {
+        aps: {
+          alert: {
+            title,
+            body,
+          },
+          url,
+          sound: 'default',
+          category: 'MESSAGE',
+        },
+      },
+    };
+    if (forExtensionMobile) {
+      this.notifyToExtensionMobile({
+        tokens: extensionTokens,
+        data,
+        android,
+        apns,
+      });
+    }
     try {
       if (tokens.length) {
-        // send notification to web apps
         const response = await messaging().sendEachForMulticast({
           tokens: tokens || [],
           data,
           webpush: {
             fcmOptions: {
-              link: link || envConfig.app.url,
+              link: url,
             },
           },
+          ...(forExtensionMobile ? {} : { android, apns }),
         });
         response.responses.map(async (res, index) => {
           if (
@@ -182,11 +175,7 @@ export class NotificationService {
     }
   }
 
-  async storageToken(
-    userId: string,
-    token: string,
-    type?: 'extension' | 'other',
-  ) {
+  async storageToken(userId: string, token: string, type?: SubscriptionType) {
     if (!token || !token?.trim().length) {
       logger.error(
         'StorageToken: Token cannot be empty',
@@ -224,7 +213,7 @@ export class NotificationService {
   async checkSubscription(
     userId: string,
     token: string,
-    type?: 'extension' | 'other',
+    type?: SubscriptionType,
   ) {
     const isExtension = type === 'extension';
     const storeKey = isExtension ? 'extensionTokens' : 'tokens';
