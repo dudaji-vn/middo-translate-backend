@@ -16,7 +16,7 @@ export class Station {
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
-    ref: User.name,
+    ref: 'User',
     required: true,
   })
   owner: User;

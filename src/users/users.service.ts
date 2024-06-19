@@ -1,6 +1,6 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { FilterQuery, Model, ObjectId, Types } from 'mongoose';
+import { Model, ObjectId, Types } from 'mongoose';
 import { FindParams } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
 import {
@@ -19,6 +19,7 @@ import { Space, StatusSpace } from 'src/help-desk/schemas/space.schema';
 import { MESSAGE_RESPONSE } from 'src/common/constants';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { socketConfig } from 'src/configs/socket.config';
+import { SearchQueryParams } from 'src/search/types';
 
 @Injectable()
 export class UsersService {
@@ -41,6 +42,7 @@ export class UsersService {
           'pinRoomIds',
           'username',
           'allowUnknown',
+          'defaultStation',
         ]),
       )
       .lean();
@@ -505,22 +507,13 @@ export class UsersService {
     return UserRelationType.NONE;
   }
 
-  search({
-    query,
-    params,
-  }: {
-    query?: FilterQuery<User>;
-    params: {
-      limit: number;
-      q: string;
-      spaceId?: string;
-    };
-  }) {
-    const { limit, q, spaceId } = params;
+  search({ query, params }: SearchQueryParams<User>) {
+    const { limit, q, spaceId, stationId } = params;
     return this.userModel
       .find({
         status: spaceId ? UserStatus.ANONYMOUS : UserStatus.ACTIVE,
         ...(spaceId && { space: spaceId }),
+        ...(stationId && { stations: stationId }),
         $or: [
           { name: { $regex: q, $options: 'i' } },
           {
@@ -544,5 +537,33 @@ export class UsersService {
         createdAt: true,
       })
       .lean();
+  }
+
+  async addMemberToStation(userId: string, stationId: string) {
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      { $addToSet: { stations: stationId } },
+      {
+        new: true,
+      },
+    );
+    if (!user) {
+      throw new HttpException(`User ${userId} not found`, 404);
+    }
+    return user;
+  }
+
+  async removeMemberFromStation(userId: string, stationId: string) {
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      { $pull: { stations: stationId } },
+      {
+        new: true,
+      },
+    );
+    if (!user) {
+      throw new HttpException(`User ${userId} not found`, 404);
+    }
+    return user;
   }
 }

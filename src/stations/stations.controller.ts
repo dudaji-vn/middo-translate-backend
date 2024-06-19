@@ -1,16 +1,9 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Patch,
-  Post,
-  Put,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Patch, Post } from '@nestjs/common';
 import { JwtUserId, ParamObjectId } from 'src/common/decorators';
 import { CreateOrEditStationDto } from './dto/create-or-edit-station.dto';
 import { StationsService } from './stations.service';
 import { RemoveMemberDto } from './dto/remove-member.dto';
+import { ValidateInviteDto } from './dto/validate-invite.dto';
 
 @Controller('stations')
 export class StationsController {
@@ -83,5 +76,32 @@ export class StationsController {
   ) {
     const result = await this.stationsService.leaveStation(id, userId);
     return { data: result };
+  }
+
+  @Post('members/validate-invite')
+  async validateInvite(
+    @Body() { token, status }: ValidateInviteDto,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.stationsService.validateInvite(
+      userId,
+      token,
+      status,
+    );
+
+    return {
+      data: result,
+    };
+  }
+
+  @Patch(':id/set-default')
+  async setDefault(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.stationsService.setDefaultStation(id, userId);
+    return {
+      data: result,
+    };
   }
 }
