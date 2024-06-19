@@ -16,7 +16,11 @@ export class NotificationController {
     @Body() subscribeDTo: SubscribeDto,
   ) {
     {
-      await this.notificationService.storageToken(userId, subscribeDTo.token);
+      await this.notificationService.storageToken(
+        userId,
+        subscribeDTo.token,
+        subscribeDTo.type,
+      );
       return {
         data: null,
         message: 'Subscribe successfully',
@@ -29,7 +33,11 @@ export class NotificationController {
     @Body() subscribeDTo: SubscribeDto,
   ) {
     {
-      await this.notificationService.deleteToken(userId, subscribeDTo.token);
+      await this.notificationService.deleteToken(
+        userId,
+        subscribeDTo.token,
+        subscribeDTo.type,
+      );
       return {
         data: null,
         message: 'Unsubscribe successfully',
@@ -55,6 +63,7 @@ export class NotificationController {
     const isSubscribed = await this.notificationService.checkSubscription(
       userId,
       checkSubscribedDto.token,
+      checkSubscribedDto.type,
     );
     return {
       data: isSubscribed,

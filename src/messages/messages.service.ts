@@ -753,6 +753,7 @@ export class MessagesService {
             roomId: room._id.toString(),
             messageId: message._id.toString(),
           },
+          destinationApp: room.isHelpDesk ? 'extension' : 'other',
         });
       }
       return;

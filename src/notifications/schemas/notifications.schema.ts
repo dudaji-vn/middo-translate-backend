@@ -15,6 +15,11 @@ export class Notification {
     default: [],
   })
   tokens: string[];
+  @Prop({
+    type: [String],
+    default: [],
+  })
+  extensionTokens: string[];
 }
 
 export const NotificationSchema = SchemaFactory.createForClass(Notification);

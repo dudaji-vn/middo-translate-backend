@@ -199,6 +199,7 @@ export class HelpDeskService {
       link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
       userIds: [space.owner.toString()],
       roomId: '',
+      destinationApp: 'extension',
     });
     return extension;
   }
@@ -294,6 +295,7 @@ export class HelpDeskService {
                     link: data.link,
                     userIds: [user._id.toString()],
                     roomId: '',
+                    destinationApp: 'extension',
                   });
                 }
               });
@@ -1616,6 +1618,7 @@ export class HelpDeskService {
                   link: data.link,
                   userIds: [user?._id.toString()],
                   roomId: '',
+                  destinationApp: 'extension',
                 });
               }
             })
@@ -1855,6 +1858,7 @@ export class HelpDeskService {
       link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
       userIds: otherMembers,
       roomId: '',
+      destinationApp: 'extension',
     });
     return space.tags;
   }
