@@ -1,7 +1,7 @@
 import { Provider, UserStatus } from 'src/users/schemas/user.schema';
 import { Strategy, VerifyCallback } from 'passport-google-oauth2';
 
-import { Injectable } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Profile } from 'passport';
 import { SUPPORTED_LANGUAGES } from 'src/configs/language';
@@ -37,6 +37,9 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     const user = await this.usersService.findByEmail(email, {
       ignoreNotFound: true,
     });
+    if (user?.provider && user.provider !== Provider.GOOGLE) {
+      throw new HttpException('Sign in using another method', 401);
+    }
 
     if (!user?._id) {
       const language = getLanguage(profile?.language);
