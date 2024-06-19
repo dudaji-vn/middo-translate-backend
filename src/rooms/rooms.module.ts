@@ -12,7 +12,7 @@ import {
   HelpDeskBusiness,
   HelpDeskBusinessSchema,
 } from 'src/help-desk/schemas/help-desk-business.schema';
-import { StationModule } from 'src/stations/stations.module';
+import { StationsModule } from 'src/stations/stations.module';
 
 @Module({
   imports: [
@@ -21,9 +21,9 @@ import { StationModule } from 'src/stations/stations.module';
       { name: HelpDeskBusiness.name, schema: HelpDeskBusinessSchema },
     ]),
     UsersModule,
-    StationModule,
     NotificationModule,
     HelpDeskModule,
+    StationsModule,
     forwardRef(() => MessagesModule),
   ],
   providers: [RoomsService],
