@@ -23,22 +23,23 @@ export class NotificationService {
     private watchingService: WatchingService,
   ) {}
   async notifyToExtensionMobile({
-    tokens,
+    extensionTokens,
     data,
     android,
     apns,
   }: {
-    tokens: string[];
+    extensionTokens: string[];
     data: {
       [key: string]: string;
     };
     android?: AndroidConfig;
     apns?: ApnsConfig;
   }) {
+    console.log('EXT-tokens::>', extensionTokens);
     try {
-      if (tokens.length) {
+      if (extensionTokens.length) {
         const response = await messaging().sendEachForMulticast({
-          tokens: tokens || [],
+          tokens: extensionTokens || [],
           data,
           android,
           apns,
@@ -48,7 +49,7 @@ export class NotificationService {
             res.error?.code === 'messaging/invalid-registration-token' ||
             res.error?.code === 'messaging/registration-token-not-registered'
           ) {
-            const token = tokens[index];
+            const token = extensionTokens[index];
             await this.notificationModel.updateOne(
               { extensionTokens: { $in: [token] } },
               { $pull: { extensionTokens: token } },
@@ -90,14 +91,12 @@ export class NotificationService {
       return;
     }
 
-    let { tokens, extensionTokens } = notifications.reduce(
-      (acc, curr) => {
-        acc.tokens.push(...curr.tokens);
-        acc.extensionTokens.push(...curr.extensionTokens);
-        return acc;
-      },
-      { tokens: [] as string[], extensionTokens: [] as string[] },
-    );
+    let tokens: string[] = notifications.reduce((acc, curr) => {
+      return acc.concat(curr.tokens || []);
+    }, [] as string[]);
+    let extensionTokens: string[] = notifications.reduce((acc, curr) => {
+      return acc.concat(curr.extensionTokens || []);
+    }, [] as string[]);
     const watchingList = await this.watchingService.getWatchingListByRoomId(
       roomId,
     );
@@ -133,9 +132,9 @@ export class NotificationService {
         },
       },
     };
-    if (forExtensionMobile) {
+    if (forExtensionMobile && extensionTokens.length) {
       this.notifyToExtensionMobile({
-        tokens: extensionTokens,
+        extensionTokens,
         data,
         android,
         apns,
@@ -143,6 +142,11 @@ export class NotificationService {
     }
     try {
       if (tokens.length) {
+        logger.info(
+          `Sending notification to ${tokens.length} users`,
+          '',
+          NotificationService.name,
+        );
         const response = await messaging().sendEachForMulticast({
           tokens: tokens || [],
           data,
