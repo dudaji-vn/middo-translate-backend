@@ -1,6 +1,8 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
+  GoneException,
   Injectable,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
@@ -19,6 +21,7 @@ import {
 import { RemoveMemberDto } from './dto/remove-member.dto';
 import { MemberStatus, ROLE } from './schemas/member.schema';
 import { Station, StationStatus } from './schemas/station.schema';
+import { ValidateInviteStatus } from './dto/validate-invite.dto';
 
 @Injectable()
 export class StationsService {
@@ -203,7 +206,9 @@ export class StationsService {
     stationData.members[index].status = MemberStatus.DELETED;
 
     await stationData.save();
-    if (!!stationData.members[index].user) {
+    const memberId = stationData.members[index]?.user?.toString();
+    if (memberId) {
+      this.userService.removeMemberFromStation(memberId, stationId);
       this.eventEmitter.emit(socketConfig.events.station.member.remove, {
         receiverIds: stationData.members
           .filter((member) => member.status === MemberStatus.JOINED)
@@ -238,7 +243,10 @@ export class StationsService {
     stationData.members[index].status = MemberStatus.DELETED;
 
     await stationData.save();
-    if (!!stationData.members[index].user) {
+
+    const memberId = stationData.members[index]?.user?.toString();
+    if (memberId) {
+      this.userService.removeMemberFromStation(memberId, stationId);
       this.eventEmitter.emit(socketConfig.events.station.member.leave, {
         receiverIds: stationData.members
           .filter((member) => member.status === MemberStatus.JOINED)
@@ -266,6 +274,67 @@ export class StationsService {
 
     station.status = StationStatus.DELETED;
     await station.save();
+
+    return true;
+  }
+
+  async validateInvite(
+    userId: string,
+    token: string,
+    status: ValidateInviteStatus,
+  ) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    const station = await this.stationModel.findOne({
+      members: {
+        $elemMatch: {
+          verifyToken: token,
+        },
+      },
+    });
+
+    if (!station) {
+      throw new BadRequestException('Token is invalid');
+    }
+    if (station.status === StationStatus.DELETED) {
+      throw new BadRequestException('This station is deleted');
+    }
+
+    const memberIndex = station.members.findIndex(
+      (item) => item.verifyToken === token,
+    );
+    const { email, expiredAt } = station.members[memberIndex];
+
+    if (email !== user.email) {
+      throw new ForbiddenException(
+        'You do not have permission to verify this invitation',
+      );
+    }
+    if (station.members[memberIndex].status === MemberStatus.JOINED) {
+      throw new ConflictException('You are joined this space');
+    }
+
+    if (moment().isAfter(expiredAt)) {
+      throw new GoneException('Token is expired');
+    }
+
+    if (
+      status === ValidateInviteStatus.DECLINE &&
+      station.members[memberIndex].status === MemberStatus.INVITED
+    ) {
+      station.members = station.members.filter(
+        (item) => item.verifyToken !== token,
+      );
+      await station.save();
+    } else {
+      station.members[memberIndex].status = MemberStatus.JOINED;
+      station.members[memberIndex].joinedAt = new Date();
+      station.members[memberIndex].user = userId;
+      await this.userService.addMemberToStation(userId, station._id.toString());
+      await station.save();
+    }
 
     return true;
   }
@@ -301,5 +370,18 @@ export class StationsService {
         receiverIds: [receiver._id.toString()],
       });
     }
+  }
+  async setDefaultStation(stationId: string, userId: string) {
+    const station = await this.stationModel.findOne({
+      _id: stationId,
+      status: StationStatus.ACTIVE,
+    });
+    if (!station) {
+      throw new BadRequestException('station not found');
+    }
+    await this.userService.update(userId, {
+      defaultStation: station._id,
+    });
+    return true;
   }
 }

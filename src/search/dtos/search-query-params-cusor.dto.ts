@@ -25,4 +25,8 @@ export class SearchQueryParamsCursorDto {
   @IsOptional()
   @IsMongoId()
   spaceId: string;
+
+  @IsOptional()
+  @IsMongoId()
+  stationId: string;
 }
