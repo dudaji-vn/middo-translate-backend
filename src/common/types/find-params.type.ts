@@ -6,4 +6,5 @@ export type FindParams = {
   type?: SearchType;
   currentPage?: number;
   spaceId?: string;
+  stationId?: string;
 };
