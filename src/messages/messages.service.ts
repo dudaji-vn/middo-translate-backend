@@ -1518,11 +1518,12 @@ export class MessagesService {
       limit: number;
       userId: string;
       q: string;
+      language: string;
     };
     select?: string;
   }) {
-    const translationsKey = `translations.en`;
-    const { limit, userId, q } = params;
+    const { limit, userId, q, language } = params;
+    const translationsKey = `translations.${language}`;
     return this.messageModel
       .find({
         removedFor: { $nin: userId },
@@ -1530,9 +1531,11 @@ export class MessagesService {
         parent: { $exists: false },
         $or: [
           {
+            sender: { $ne: userId },
             [translationsKey]: { $regex: q, $options: 'i' },
           },
           {
+            sender: userId,
             content: { $regex: q, $options: 'i' },
           },
         ],

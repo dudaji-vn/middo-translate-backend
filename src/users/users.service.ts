@@ -97,6 +97,7 @@ export class UsersService {
         status: true,
         blacklist: true,
         allowUnknown: true,
+        language: true,
       })
       .lean();
     if (!user) {

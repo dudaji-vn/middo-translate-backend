@@ -1,5 +1,5 @@
 @SERVER_URL = http://localhost:8080
-@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxODc5MDYwOCwiZXhwIjoxNzE4ODc3MDA4fQ.QIojhPd2lR8VYjKSh0vuztXMR3GCjJzE57JGOlIgJhs
+@ACCESS_TOKEN = 
 ###
 POST  {{SERVER_URL}}/api/search/keywords
 Authorization: Bearer {{ACCESS_TOKEN}}
@@ -54,5 +54,5 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 ###
-GET {{SERVER_URL}}/api/search/conversations?q=&type=user&limit=7&stationId=6662d3336c2bd7cc71563677
+GET {{SERVER_URL}}/api/search/conversations?q=Bài kiểm tra&type=message&limit=7
 Authorization: Bearer {{ACCESS_TOKEN}}

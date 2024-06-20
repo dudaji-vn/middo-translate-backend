@@ -33,6 +33,7 @@ export class SearchService {
     { q, limit, spaceId, stationId }: FindParams,
     userId: string,
   ): Promise<SearchMainResult> {
+    const user = await this.usersService.findById(userId);
     const users = await this.usersService
       .search({
         params: {
@@ -105,6 +106,7 @@ export class SearchService {
           q,
           userId,
           limit,
+          language: user?.language,
         },
       })
       .sort({ _id: -1 });
@@ -138,6 +140,8 @@ export class SearchService {
     userId: string,
   ): Promise<Pagination<Room | User | Message, CursorPaginationInfo>> {
     const { limit, cursor, type, q, spaceId, stationId } = queryParams;
+
+    const user = await this.usersService.findById(userId);
 
     const cursorDate = cursor
       ? new Date(cursor).toDateString()
@@ -242,6 +246,7 @@ export class SearchService {
               q,
               userId,
               limit,
+              language: user?.language,
             },
           })
           .sort({ _id: -1 });
@@ -267,6 +272,7 @@ export class SearchService {
     { q, limit, spaceId, stationId }: FindParams,
     userId: string,
   ): Promise<SearchCountResult> {
+    const user = await this.usersService.findById(userId);
     if (q.trim().length === 0) {
       return {
         totalUsers: 0,
@@ -342,6 +348,7 @@ export class SearchService {
         q,
         userId,
         limit,
+        language: user?.language,
       },
     });
 
@@ -365,6 +372,7 @@ export class SearchService {
     userId: string,
     { q, limit }: FindParams,
   ): Promise<Message[]> {
+    const user = await this.usersService.findById(userId);
     return await this.messagesService
       .search({
         query: {
@@ -374,6 +382,7 @@ export class SearchService {
           q,
           userId,
           limit,
+          language: user?.language,
         },
       })
       .sort({ _id: -1 });
