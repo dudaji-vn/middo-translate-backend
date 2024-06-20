@@ -6,7 +6,7 @@ import { Model } from 'mongoose';
 import { STATUS } from './constants/call-status';
 import { CALL_TYPE, JOIN_TYPE } from './constants/call-type';
 import { MessagesService } from 'src/messages/messages.service';
-import { MessageType } from 'src/messages/schemas/messages.schema';
+import { MessageType, SenderType } from 'src/messages/schemas/messages.schema';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { socketConfig } from 'src/configs/socket.config';
 import { logger } from 'src/common/utils/logger';
@@ -89,6 +89,7 @@ export class CallService {
           media: [],
           callId: newCallObj._id.toString(),
           clientTempId: '',
+          senderType: SenderType.ANONYMOUS
         },
         payload.id,
       );
