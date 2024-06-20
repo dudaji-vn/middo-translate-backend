@@ -114,9 +114,7 @@ export class User {
   })
   stations: Station[];
 
-  @Prop({
-    type: { type: mongoose.Schema.Types.ObjectId, ref: Station.name },
-  })
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Station.name })
   defaultStation: ObjectId;
 }
 

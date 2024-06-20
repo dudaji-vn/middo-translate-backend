@@ -20,6 +20,7 @@ import { MESSAGE_RESPONSE } from 'src/common/constants';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { socketConfig } from 'src/configs/socket.config';
 import { SearchQueryParams } from 'src/search/types';
+import { Station } from 'src/stations/schemas/station.schema';
 
 @Injectable()
 export class UsersService {
@@ -31,6 +32,10 @@ export class UsersService {
   async getProfile(id: string) {
     const user = await this.userModel
       .findById(id)
+      .populate(
+        'defaultStation',
+        selectPopulateField<Station>(['name', 'avatar']),
+      )
       .select(
         selectPopulateField<User>([
           '_id',
