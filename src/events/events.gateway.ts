@@ -27,7 +27,7 @@ import { WatchingService } from 'src/watching/watching.service';
 import speech from '@google-cloud/speech';
 // import { Logger } from '@nestjs/common';
 import { logger } from 'src/common/utils/logger';
-import { User } from 'src/users/schemas/user.schema';
+import { User, UserStatus } from 'src/users/schemas/user.schema';
 process.env.GOOGLE_APPLICATION_CREDENTIALS = './speech-to-text-key.json';
 const speechClient = new speech.SpeechClient();
 @WebSocketGateway({
@@ -282,12 +282,22 @@ export class EventsGateway
     { callId, user, roomId }: { callId: string; user: User; roomId: string },
   ) {
     if (this.meetings[callId]) {
+      // Check if user already joined call
+      const isUserJoined = this.meetings[callId].participants.some(
+        (p: ParticipantMeeting) => p.user._id === user._id.toString(),
+      );
+      if (isUserJoined && this.meetings[callId]?.room?.type == 'HELP_DESK') {
+        this.server.to(client.id).emit(socketConfig.events.meeting.block, roomId);
+        return;
+      }
+
       this.meetings[callId].participants.push({ 
         socketId: client.id, 
         user: {
           _id: user._id.toString(),
           name: user.name,
           avatar: user.avatar,
+          status: user.status,
         } 
       });
       let startTime = this.meetings[callId].startTime;
@@ -308,12 +318,14 @@ export class EventsGateway
               _id: user._id.toString(),
               name: user.name,
               avatar: user.avatar,
+              status: user.status,
             }
           }
         ],
         room: {
           _id: roomId,
-          participantIds: participantsIds || []
+          participantIds: participantsIds || [],
+          type: roomData?.isHelpDesk ? 'HELP_DESK' : 'NORMAL',
         },
       };
       this.server.emit(socketConfig.events.call.start, roomId);
@@ -632,38 +644,40 @@ export class EventsGateway
         .to(callId)
         .emit(socketConfig.events.call.end_doodle, nameOfUser);
     }
+    const memberLeave = meeting.participants.find((p) => p.socketId === client.id);
+    delete this.socketToRoom[client.id];
+    const roomId = this.meetings[callId].room._id
+    client.leave(callId);
+    this.server.emit(socketConfig.events.call.leave, client.id);
+    if(meeting.room.type === 'HELP_DESK' && memberLeave?.user.status == UserStatus.ANONYMOUS) {
+      this.endMeeting(callId)
+      return;
+    }
     meeting.participants = meeting.participants.filter(
       (user: ParticipantMeeting) => user.socketId !== client.id,
     );
     this.meetings[callId] = meeting;
-    // Leave room
-    client.leave(callId);
-    this.server.emit(socketConfig.events.call.leave, client.id);
-
     // Check if room is empty then delete room
-    delete this.socketToRoom[client.id];
-    const roomId = this.meetings[callId].room._id
-    if (meeting?.participants.length === 0) {
-      // const room = this.meetings[roomId]?.room;
-      // const roomData = await this.roomService.findById(room);
-      // const participants = roomData?.participants?.filter((p: any) =>
-      //   p._id.toString(),
-      // );
-      // const socketIds =
-      //   participants
-      //     ?.map((p: any) => this.clients[p.toString()]?.socketIds || [])
-      //     .flat() || [];
-      // this.server
-      //   // .to(socketIds)
-      //   .emit(socketConfig.events.call.meeting_end, room);
-      delete this.meetings[callId];
-      this.callService.endCall(callId);
+    if (meeting?.participants?.length === 0) {
+      this.endMeeting(callId)
+      return;
     }
     this.pushMeetingList({
       type: 'room',
       id: roomId
     })
   }
+
+  private async endMeeting(callId: string) {
+    const roomId = this.meetings[callId]?.room?._id
+    delete this.meetings[callId];
+    this.callService.endCall(callId);
+    this.pushMeetingList({
+      type: 'room',
+      id: roomId
+    })
+  }
+
 
   @OnEvent(socketConfig.events.call.update) // Update call event
   handleUpdateCall(@MessageBody() call: any) {

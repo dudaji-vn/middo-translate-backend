@@ -1,4 +1,3 @@
-import { User } from "src/users/schemas/user.schema";
 
 export interface ParticipantMeeting {
   socketId: string;
@@ -6,6 +5,7 @@ export interface ParticipantMeeting {
     _id: string;
     name: string;
     avatar: string;
+    status: string;
   }
 }
 export default interface Meeting {
@@ -13,6 +13,7 @@ export default interface Meeting {
   room: {
     _id: string;
     participantIds: string[];
+    type: 'HELP_DESK' | 'NORMAL';
   }
   startTime?: Date;
   doodle?: {

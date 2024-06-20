@@ -11,6 +11,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { socketConfig } from 'src/configs/socket.config';
 import { logger } from 'src/common/utils/logger';
 import { UsersService } from 'src/users/users.service';
+import { Space } from 'src/help-desk/schemas/space.schema';
 @Injectable()
 export class CallService {
   constructor(
@@ -23,6 +24,7 @@ export class CallService {
   async joinVideoCallRoom(payload: { id: string; roomId: string }) {
     try {
       const room = await this.roomService.findById(payload.roomId);
+      console.log(room)
       if (!room) {
         return { status: STATUS.ROOM_NOT_FOUND };
       }
@@ -47,6 +49,10 @@ export class CallService {
       let roomName = '';
       if (room) {
         if (room.name) roomName = room.name;
+        else if(room.isHelpDesk) {
+          let space = room.space as Space;
+          roomName =  space?.name;
+        }
         else if (room.participants.length < 3) {
           const participants = room.participants;
           participants.forEach((participant, index) => {
@@ -60,8 +66,6 @@ export class CallService {
               roomName += participant.name + ', ';
             else roomName += participant.name;
           });
-          // roomName = participants[0].name + ', ' + participants[1].name;
-          // roomName += ' and ' + (participants.length - 2) + ' others';
         }
       }
       let type = CALL_TYPE.DIRECT;
