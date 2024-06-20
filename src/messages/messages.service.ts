@@ -1568,7 +1568,12 @@ export class MessagesService {
           populate: [
             {
               path: 'participants',
-              select: selectPopulateField<User>(['_id']),
+              select: selectPopulateField<User>([
+                '_id',
+                'avatar',
+                'name',
+                'username',
+              ]),
             },
           ],
         },
