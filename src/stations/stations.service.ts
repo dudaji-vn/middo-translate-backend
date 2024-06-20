@@ -19,7 +19,7 @@ import {
   MemberDto,
 } from './dto/create-or-edit-station.dto';
 import { RemoveMemberDto } from './dto/remove-member.dto';
-import { MemberStatus, ROLE } from './schemas/member.schema';
+import { Member, MemberStatus, ROLE } from './schemas/member.schema';
 import { Station, StationStatus } from './schemas/station.schema';
 import { ValidateInviteStatus } from './dto/validate-invite.dto';
 import { envConfig } from 'src/configs/env.config';
@@ -388,7 +388,16 @@ export class StationsService {
       });
     }
   }
+  async isMember(station: Station, userId: string) {
+    return station.members.find(
+      (member) => member?.user?.toString() === userId,
+    );
+  }
   async setDefaultStation(stationId: string, userId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
     const station = await this.stationModel.findOne({
       _id: stationId,
       status: StationStatus.ACTIVE,
@@ -396,6 +405,11 @@ export class StationsService {
     if (!station) {
       throw new BadRequestException('station not found');
     }
+    const isMember = await this.isMember(station, userId);
+    if (!isMember) {
+      throw new BadRequestException('You are not in the station');
+    }
+
     await this.userService.update(userId, {
       defaultStation: station._id,
     });

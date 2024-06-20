@@ -96,3 +96,8 @@ PATCH {{SERVER_URL}}/api/stations/{{STATION_ID}}/set-default
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 
+//Call this api to get default station
+###
+GET {{SERVER_URL}}/api/auth/me
+Authorization: Bearer {{ACCESS_TOKEN}}
+
