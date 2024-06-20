@@ -394,4 +394,25 @@ export class RoomsController {
     await this.roomsService.deleteContact(id, userId);
     return { message: 'Contact deleted', data: null };
   }
+
+  @Post('stations/:stationId')
+  async createStationRoom(
+    @Body() createRoomDto: CreateRoomDto,
+    @JwtUserId() userId: string,
+    @ParamObjectId('stationId') stationId: string,
+  ): Promise<Response<Room>> {
+    const room = await this.roomsService.create(
+      createRoomDto,
+      userId,
+      stationId,
+    );
+    if (room.isGroup) {
+      this.messagesService.createAction({
+        roomId: room._id.toString(),
+        action: ActionTypes.CREATE_GROUP,
+        senderId: userId,
+      });
+    }
+    return { data: room, message: 'Station room created' };
+  }
 }

@@ -70,7 +70,11 @@ export class RoomsService {
     @InjectModel(HelpDeskBusiness.name)
     private readonly helpDeskBusinessModel: Model<HelpDeskBusiness>,
   ) {}
-  async create(createRoomDto: CreateRoomDto, creatorId: string) {
+  async create(
+    createRoomDto: CreateRoomDto,
+    creatorId: string,
+    stationId?: string,
+  ) {
     const participants = await Promise.all(
       [...new Set([creatorId, ...createRoomDto.participants])].map((id) =>
         this.usersService.findById(id),
@@ -88,7 +92,7 @@ export class RoomsService {
     if (!isGroup) {
       const room = await this.findByParticipantIdsAndStationId(
         participants.map((p) => p._id),
-        createRoomDto.stationId,
+        stationId,
       );
       if (room) {
         return room;
@@ -96,9 +100,9 @@ export class RoomsService {
     }
 
     const newRoom = new this.roomModel(createRoomDto);
-    if (createRoomDto.stationId) {
+    if (stationId) {
       const station = await this.stationService.findStationByIdAndUserId(
-        createRoomDto.stationId,
+        stationId,
         creatorId,
       );
       newRoom.station = station;
