@@ -520,11 +520,6 @@ export class UsersService {
           {
             username: { $regex: q, $options: 'i' },
           },
-          {
-            ...(spaceId
-              ? { tempEmail: { $regex: q, $options: 'i' } }
-              : { email: { $regex: q, $options: 'i' } }),
-          },
         ],
         ...query,
       })
