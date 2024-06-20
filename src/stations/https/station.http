@@ -1,4 +1,4 @@
-@SERVER_URL =
+@SERVER_URL = http://localhost:8080
 @ACCESS_TOKEN = 
 
 @STATION_ID=6662d3336c2bd7cc71563677
@@ -63,7 +63,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY2NjdjNzMzY
 
 
 ###
-POST  {{SERVER_URL}}/api/rooms
+POST  {{SERVER_URL}}/api/rooms/stations/66739c11ee8195dc93d82a56
 Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
@@ -71,18 +71,17 @@ Content-Type: application/json
    "participants": [
         "65eec7b605903d94f07797ae",
         "66616c2e223048e94d801234"
-    ],
-    "stationId":"66612953cd1e1f62aeb42587"
+    ]
 }
 
 ###
-GET {{SERVER_URL}}/api/rooms?stationId=66612953cd1e1f62aeb42587
+GET {{SERVER_URL}}/api/rooms?stationId={{STATION_ID}}
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 ###
 POST {{SERVER_URL}}/api/stations/members/validate-invite
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY2NjdjNzMzYmE2YTFlZjExYTk5OTI4MSIsImlhdCI6MTcxODYwNDY1NywiZXhwIjoxNzE4NjkxMDU3fQ.IwFWjCbGz49_epPKYU4KDBGn1zHQenTV0JkdUQJNWdQ
+Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
@@ -93,7 +92,7 @@ Content-Type: application/json
 
 ###
 
-PATCH {{SERVER_URL}}/api/stations/6662d3336c2bd7cc71563677/set-default
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY2NjdjNzMzYmE2YTFlZjExYTk5OTI4MSIsImlhdCI6MTcxODYwNDY1NywiZXhwIjoxNzE4NjkxMDU3fQ.IwFWjCbGz49_epPKYU4KDBGn1zHQenTV0JkdUQJNWdQ
+PATCH {{SERVER_URL}}/api/stations/{{STATION_ID}}/set-default
+Authorization: Bearer {{ACCESS_TOKEN}}
 
 
