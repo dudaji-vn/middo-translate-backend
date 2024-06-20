@@ -22,6 +22,8 @@ import { RemoveMemberDto } from './dto/remove-member.dto';
 import { MemberStatus, ROLE } from './schemas/member.schema';
 import { Station, StationStatus } from './schemas/station.schema';
 import { ValidateInviteStatus } from './dto/validate-invite.dto';
+import { envConfig } from 'src/configs/env.config';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class StationsService {
@@ -31,6 +33,7 @@ export class StationsService {
     private userService: UsersService,
     private appNotificationsService: AppNotificationsService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly mailService: MailService,
   ) {}
 
   async createStation(userId: string, station: CreateOrEditStationDto) {
@@ -356,7 +359,16 @@ export class StationsService {
     member: MemberDto,
     stationData: Station,
   ) {
-    // Find user by email
+    this.mailService.sendMail(
+      member.email,
+      `${sender.name} has invited you to join the ${stationData.name} station`,
+      'verify-member',
+      {
+        title: `Join the ${stationData.name} station`,
+        verifyUrl: `${envConfig.app.url}/${member.verifyUrl}`,
+      },
+    );
+
     const receiver = await this.userService.findByEmail(member.email, {
       ignoreNotFound: true,
     });

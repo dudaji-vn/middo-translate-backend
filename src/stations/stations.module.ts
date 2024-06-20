@@ -5,12 +5,14 @@ import { UsersModule } from 'src/users/users.module';
 import { Station, StationSchema } from './schemas/station.schema';
 import { StationsController } from './stations.controller';
 import { StationsService } from './stations.service';
+import { MailModule } from 'src/mail/mail.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: Station.name, schema: StationSchema }]),
     AppNotificationsModule,
     UsersModule,
+    MailModule,
   ],
 
   controllers: [StationsController],
