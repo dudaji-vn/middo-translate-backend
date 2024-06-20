@@ -10,17 +10,21 @@ import { MessageType } from 'src/messages/schemas/messages.schema';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { socketConfig } from 'src/configs/socket.config';
 import { logger } from 'src/common/utils/logger';
+import { UsersService } from 'src/users/users.service';
+import { Space } from 'src/help-desk/schemas/space.schema';
 @Injectable()
 export class CallService {
   constructor(
     private roomService: RoomsService,
     private messageService: MessagesService,
+    private userService: UsersService,
     private readonly eventEmitter: EventEmitter2,
     @InjectModel(Call.name) private readonly callModel: Model<Call>,
   ) {}
   async joinVideoCallRoom(payload: { id: string; roomId: string }) {
     try {
       const room = await this.roomService.findById(payload.roomId);
+      console.log(room)
       if (!room) {
         return { status: STATUS.ROOM_NOT_FOUND };
       }
@@ -45,6 +49,10 @@ export class CallService {
       let roomName = '';
       if (room) {
         if (room.name) roomName = room.name;
+        else if(room.isHelpDesk) {
+          let space = room.space as Space;
+          roomName =  space?.name;
+        }
         else if (room.participants.length < 3) {
           const participants = room.participants;
           participants.forEach((participant, index) => {
@@ -58,16 +66,20 @@ export class CallService {
               roomName += participant.name + ', ';
             else roomName += participant.name;
           });
-          // roomName = participants[0].name + ', ' + participants[1].name;
-          // roomName += ' and ' + (participants.length - 2) + ' others';
         }
+      }
+      let type = CALL_TYPE.DIRECT;
+      if (room.isHelpDesk) {
+        type = CALL_TYPE.HELP_DESK;
+      } else if (room.isGroup) {
+        type = CALL_TYPE.GROUP;
       }
       const newCall = {
         roomId: payload.roomId,
         name: roomName,
         avatar: room?.avatar,
         createdBy: payload.id,
-        type: room.participants.length > 2 ? CALL_TYPE.GROUP : CALL_TYPE.DIRECT,
+        type,
       };
       const newCallObj = await this.callModel.create(newCall);
       this.messageService.create(
@@ -126,10 +138,10 @@ export class CallService {
     }
   }
 
-  async endCall(roomId: string) {
+  async endCall(callId: string) {
     try {
-      if (!roomId) return;
-      const call = await this.callModel.findById(roomId);
+      if (!callId) return;
+      const call = await this.callModel.findById(callId);
       if (!call) {
         return;
       }
@@ -167,5 +179,32 @@ export class CallService {
 
   async findById(id: string) {
     return await this.callModel.findById(id);
+  }
+
+  async getHelpDeskCallData(payload: { roomId: string; userId: string }) {
+    try {
+      const room = await this.roomService.findById(payload.roomId);
+      if (!room) {
+        return { status: STATUS.ROOM_NOT_FOUND };
+      }
+      if (!room.isHelpDesk) return { status: STATUS.MEETING_NOT_FOUND };
+      const isUserInRoom = room.participants.some(
+        (p) => p._id.toString() === payload.userId,
+      );
+      if (!isUserInRoom) {
+        return { status: STATUS.USER_NOT_IN_ROOM };
+      }
+      const call = await this.callModel.findOne({
+        roomId: payload.roomId,
+        endTime: null,
+      });
+      const user = await this.userService.findById(payload.userId);
+      if (!call || !user) {
+        return { status: STATUS.MEETING_NOT_FOUND };
+      }
+      return { status: STATUS.MEETING_STARTED, call: call, user };
+    } catch (error) {
+      return { status: STATUS.USER_NOT_IN_ROOM };
+    }
   }
 }

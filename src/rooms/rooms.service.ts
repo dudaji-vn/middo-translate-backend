@@ -729,6 +729,9 @@ export class RoomsService {
           'targetUsers',
           'sender',
         ]),
+      ).populate(
+        selectPopulateField<Room>(['space']),
+        selectPopulateField<Space>(['name']),
       );
     return room;
   }
