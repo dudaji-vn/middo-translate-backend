@@ -1,20 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsEmail, IsEnum, ValidateNested } from 'class-validator';
-import { MemberStatus, ROLE } from '../schemas/member.schema';
+import { ValidateNested } from 'class-validator';
+import { MemberDto } from './member.dto';
 
-export class MemberDto {
-  @IsEnum(ROLE)
-  role: ROLE;
-  @IsEmail()
-  email: string;
-  verifyToken: string;
-  status: MemberStatus;
-  invitedAt?: Date;
-  joinedAt?: Date;
-  expiredAt?: Date;
-  verifyUrl: string;
-}
 export class CreateOrEditStationDto {
   @ApiProperty()
   name: string;

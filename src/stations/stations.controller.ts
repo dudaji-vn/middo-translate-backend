@@ -4,6 +4,7 @@ import { CreateOrEditStationDto } from './dto/create-or-edit-station.dto';
 import { StationsService } from './stations.service';
 import { RemoveMemberDto } from './dto/remove-member.dto';
 import { ValidateInviteDto } from './dto/validate-invite.dto';
+import { InviteMemberDto, InviteMemberWithLink } from './dto/invite-member.dto';
 
 @Controller('stations')
 export class StationsController {
@@ -59,6 +60,33 @@ export class StationsController {
     return { data: result };
   }
 
+  @Patch(':id/set-default')
+  async setDefault(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.stationsService.setDefaultStation(id, userId);
+    return {
+      data: result,
+    };
+  }
+
+  @Post(':id/members')
+  async inviteMembers(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+    @Body() members: InviteMemberDto,
+  ) {
+    const result = await this.stationsService.inviteMembers(
+      id,
+      userId,
+      members,
+    );
+    return {
+      data: result,
+    };
+  }
+
   @Delete(':id/members')
   async removeMember(
     @ParamObjectId('id') id: string,
@@ -78,6 +106,30 @@ export class StationsController {
     return { data: result };
   }
 
+  @Patch(':id/members/invite-link')
+  async inviteMemberWithLink(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+    @Body() member: InviteMemberWithLink,
+  ) {
+    const result = await this.stationsService.inviterMemberWithLink(
+      id,
+      userId,
+      member,
+    );
+    return {
+      data: result,
+    };
+  }
+
+  @Patch('members/generate-link')
+  async generateLink() {
+    const result = await this.stationsService.generateLink();
+    return {
+      data: result,
+    };
+  }
+
   @Post('members/validate-invite')
   async validateInvite(
     @Body() { token, status }: ValidateInviteDto,
@@ -89,17 +141,6 @@ export class StationsController {
       status,
     );
 
-    return {
-      data: result,
-    };
-  }
-
-  @Patch(':id/set-default')
-  async setDefault(
-    @ParamObjectId('id') id: string,
-    @JwtUserId() userId: string,
-  ) {
-    const result = await this.stationsService.setDefaultStation(id, userId);
     return {
       data: result,
     };
