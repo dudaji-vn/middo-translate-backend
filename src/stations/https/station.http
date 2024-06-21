@@ -1,5 +1,5 @@
 @SERVER_URL = http://localhost:8080
-@ACCESS_TOKEN = 
+@ACCESS_TOKEN =
 
 @STATION_ID=6662d3336c2bd7cc71563677
 
@@ -111,13 +111,13 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 ###
-PATCH  {{SERVER_URL}}/api/stations/6662d3336c2bd7cc71563677/invite-member-with-link
+PATCH  {{SERVER_URL}}/api/stations/6662d3336c2bd7cc71563677/members/invite-link
 Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
-   "verifyUrl":"http://localhost:3000/station-verify?token=vgz-fvv-jol-89k-u5b-pz",
-   "email":"19521750@gm.uit.edu.vn"
+   "verifyUrl":"http://localhost:3000/station-verify?token=z1e-iau-2hv-aja-d7k-481",
+   "email":"hoquanglinh2710@gmail.com"
 }
 
 ###

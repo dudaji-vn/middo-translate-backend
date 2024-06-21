@@ -106,7 +106,7 @@ export class StationsController {
     return { data: result };
   }
 
-  @Patch(':id/invite-member-with-link')
+  @Patch(':id/members/invite-link')
   async inviteMemberWithLink(
     @JwtUserId() userId: string,
     @ParamObjectId('id') id: string,
