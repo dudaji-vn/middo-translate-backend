@@ -1,4 +1,12 @@
-import { Body, Controller, Delete, Get, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { JwtUserId, ParamObjectId } from 'src/common/decorators';
 import { CreateOrEditStationDto } from './dto/create-or-edit-station.dto';
 import { StationsService } from './stations.service';
@@ -23,6 +31,17 @@ export class StationsController {
   ) {
     const result = await this.stationsService.createStation(userId, station);
     return { data: result };
+  }
+
+  @Get('station-verify/:token')
+  async spaceVerify(
+    @Param('token') token: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.stationsService.stationVerify(userId, token);
+    return {
+      data: result,
+    };
   }
 
   @Get(':id')

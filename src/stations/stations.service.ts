@@ -126,6 +126,55 @@ export class StationsService {
     return data;
   }
 
+  async stationVerify(userId: string, token: string) {
+    const user = await this.userService.findById(userId);
+    const station = await this.stationModel
+      .findOne({
+        'members.verifyToken': token,
+      })
+      .populate('owner', 'email')
+      .select('name avatar backgroundImage members owner')
+      .lean();
+
+    if (!station) {
+      throw new BadRequestException('Token is invalid');
+    }
+
+    if (station.status === StationStatus.DELETED) {
+      throw new BadRequestException('This station is deleted');
+    }
+
+    const member = station.members.find((item) => item.verifyToken === token);
+
+    if (!member || member.email !== user.email) {
+      throw new ForbiddenException(
+        'You do not have permission to view this invitation',
+      );
+    }
+
+    if (member.status === MemberStatus.JOINED) {
+      throw new ConflictException('You have already joined this station');
+    }
+    if (
+      moment().isAfter(member.expiredAt) ||
+      member.status !== MemberStatus.INVITED
+    ) {
+      throw new GoneException('Token is expired');
+    }
+    return {
+      station: {
+        _id: station._id,
+        avatar: station.avatar,
+        backgroundImage: station.backgroundImage,
+        name: station.name,
+        owner: station.owner,
+      },
+      email: member.email,
+      verifyToken: member.verifyToken,
+      invitedAt: member.invitedAt,
+      isExpired: moment().isAfter(member.expiredAt),
+    };
+  }
   async findStationByIdAndUserId(id: string, userId: string) {
     const query = {
       _id: id,
@@ -175,10 +224,14 @@ export class StationsService {
     });
   }
 
-  async inviteMembers(spaceId: string, userId: string, data: InviteMemberDto) {
+  async inviteMembers(
+    stationId: string,
+    userId: string,
+    data: InviteMemberDto,
+  ) {
     const user = await this.userService.findById(userId);
     const stationData = await this.stationModel.findOne({
-      _id: spaceId,
+      _id: stationId,
       status: { $ne: StationStatus.DELETED },
     });
 
@@ -369,7 +422,7 @@ export class StationsService {
       );
     }
     if (station.members[memberIndex].status === MemberStatus.JOINED) {
-      throw new ConflictException('You are joined this space');
+      throw new ConflictException('You are joined this station');
     }
 
     if (moment().isAfter(expiredAt)) {
