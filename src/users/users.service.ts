@@ -19,6 +19,8 @@ import { Space, StatusSpace } from 'src/help-desk/schemas/space.schema';
 import { MESSAGE_RESPONSE } from 'src/common/constants';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { socketConfig } from 'src/configs/socket.config';
+import { SearchQueryParams } from 'src/search/types';
+import { Station } from 'src/stations/schemas/station.schema';
 
 @Injectable()
 export class UsersService {
@@ -30,6 +32,10 @@ export class UsersService {
   async getProfile(id: string) {
     const user = await this.userModel
       .findById(id)
+      .populate(
+        'defaultStation',
+        selectPopulateField<Station>(['name', 'avatar']),
+      )
       .select(
         selectPopulateField<User>([
           '_id',
@@ -41,6 +47,7 @@ export class UsersService {
           'pinRoomIds',
           'username',
           'allowUnknown',
+          'defaultStation',
         ]),
       )
       .lean();
@@ -95,6 +102,7 @@ export class UsersService {
         status: true,
         blacklist: true,
         allowUnknown: true,
+        language: true,
       })
       .lean();
     if (!user) {
@@ -428,15 +436,21 @@ export class UsersService {
   }
 
   async updateAllUsername() {
-    const users = await this.userModel.find();
-    for (const user of users) {
-      if (!user.username) {
-        const username = await this.generateUsernameByEmail(user.email);
-        await this.userModel.findByIdAndUpdate(user._id, {
-          username: username,
-        });
-      }
-    }
+    // const users = await this.userModel.find();
+    // for (const user of users) {
+    //   if (!user.username) {
+    //     const username = await this.generateUsernameByEmail(user.email);
+    //     await this.userModel.findByIdAndUpdate(user._id, {
+    //       username: username,
+    //     });
+    //   }
+    // }
+    await this.userModel.updateMany(
+      {},
+      {
+        allowUnknown: true,
+      },
+    );
   }
 
   async deleteSpacesIfExistByOwner(userId: string) {
@@ -503,5 +517,60 @@ export class UsersService {
       return UserRelationType.BLOCKED;
     }
     return UserRelationType.NONE;
+  }
+
+  search({ query, params }: SearchQueryParams<User>) {
+    const { limit, q, spaceId, stationId } = params;
+    return this.userModel
+      .find({
+        status: spaceId ? UserStatus.ANONYMOUS : UserStatus.ACTIVE,
+        ...(spaceId && { space: spaceId }),
+        ...(stationId && { stations: stationId }),
+        $or: [
+          { name: { $regex: q, $options: 'i' } },
+          {
+            username: { $regex: q, $options: 'i' },
+          },
+        ],
+        ...query,
+      })
+      .limit(limit)
+      .select({
+        name: true,
+        username: true,
+        avatar: true,
+        email: true,
+        tempEmail: true,
+        createdAt: true,
+      })
+      .lean();
+  }
+
+  async addMemberToStation(userId: string, stationId: string) {
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      { $addToSet: { stations: stationId } },
+      {
+        new: true,
+      },
+    );
+    if (!user) {
+      throw new HttpException(`User ${userId} not found`, 404);
+    }
+    return user;
+  }
+
+  async removeMemberFromStation(userId: string, stationId: string) {
+    const user = await this.userModel.findByIdAndUpdate(
+      userId,
+      { $pull: { stations: stationId } },
+      {
+        new: true,
+      },
+    );
+    if (!user) {
+      throw new HttpException(`User ${userId} not found`, 404);
+    }
+    return user;
   }
 }

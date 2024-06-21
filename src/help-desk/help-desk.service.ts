@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
-import mongoose, { Model, ObjectId, Types } from 'mongoose';
+import mongoose, { Model, ObjectId, PipelineStage, Types } from 'mongoose';
 import { selectPopulateField } from 'src/common/utils';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import {
@@ -61,6 +61,7 @@ import { SpaceNotification } from './schemas/space-notifications.schema';
 import { Member, Script, Space, StatusSpace } from './schemas/space.schema';
 import { Visitor } from './schemas/visitor.schema';
 import { pivotChartByType } from 'src/common/utils/date-report';
+import { NotificationService } from 'src/notifications/notifications.service';
 
 @Injectable()
 export class HelpDeskService {
@@ -81,6 +82,7 @@ export class HelpDeskService {
     private roomsService: RoomsService,
     private messagesService: MessagesService,
     private mailService: MailService,
+    private notificationService: NotificationService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -183,7 +185,6 @@ export class HelpDeskService {
     } else {
       info.currentScript = null;
     }
-
     const extension = await this.helpDeskBusinessModel.findOneAndUpdate(
       {
         space: spaceId,
@@ -191,6 +192,15 @@ export class HelpDeskService {
       info,
       { new: true, upsert: true },
     );
+    const who = await this.userService.findById(userId);
+    this.notificationService.sendNotification({
+      body: `${who?.name} updated the Extension`,
+      title: `${envConfig.app.extension_name} - ${space.name}`,
+      link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
+      userIds: [space.owner.toString()],
+      roomId: '',
+      destinationApp: 'extension',
+    });
     return extension;
   }
 
@@ -242,7 +252,6 @@ export class HelpDeskService {
         email: `${slug}@gmail.com`,
         username: slug,
         name: space.name,
-        language: user.language,
         avatar: space.avatar,
       });
 
@@ -257,7 +266,7 @@ export class HelpDeskService {
 
       // get all userId from members
 
-      await members.forEach((data) => {
+      members.forEach((data) => {
         this.spaceNotificationModel
           .create({
             space: spaceData._id,
@@ -280,6 +289,14 @@ export class HelpDeskService {
                       receiverIds: [user?._id.toString()],
                     },
                   );
+                  this.notificationService.sendNotification({
+                    body: `${user.name} has invited you to join the "${spaceData.name}" space`,
+                    title: `${envConfig.app.extension_name}`,
+                    link: data.link,
+                    userIds: [user._id.toString()],
+                    roomId: '',
+                    destinationApp: 'extension',
+                  });
                 }
               });
           });
@@ -548,7 +565,7 @@ export class HelpDeskService {
       );
     }
 
-    const extension = await this.helpDeskBusinessModel
+    const extensionPromise = this.helpDeskBusinessModel
       .findOne({
         space: new Types.ObjectId(spaceId),
         status: { $ne: StatusBusiness.DELETED },
@@ -556,12 +573,20 @@ export class HelpDeskService {
       .select('-space')
       .lean();
 
-    const countries = await this.userModel
+    const countriesPromise = this.userModel
       .find({
-        business: extension?._id,
+        space: space?._id,
       })
       .select('language')
       .lean();
+    const totalNewMessagesPromise =
+      this.roomsService.getTotalNewMessagesBySpaceIdAndUserId(spaceId, userId);
+
+    const [extension, countries, totalNewMessages] = await Promise.all([
+      extensionPromise,
+      countriesPromise,
+      totalNewMessagesPromise,
+    ]);
 
     space.members = space.members
       ?.filter((user) => user.status !== MemberStatus.DELETED)
@@ -574,10 +599,12 @@ export class HelpDeskService {
         };
       });
     space.tags = space.tags?.filter((tag) => !tag.isDeleted);
+
     return {
       ...space,
       extension: extension,
       countries: [...new Set(countries.map((item) => item.language))],
+      totalNewMessages: totalNewMessages,
     };
   }
 
@@ -969,31 +996,22 @@ export class HelpDeskService {
     };
   }
   async analystByLanguage(filter: AnalystFilterDto) {
-    const { spaceId, fromDomain } = filter;
-
     const dataWithTime = await this.userModel.aggregate(
       queryGroupByLanguage(filter),
     );
-    const data = await this.userModel.aggregate(
-      queryGroupByLanguage({
-        spaceId: spaceId,
-        fromDomain: fromDomain,
-      }),
-    );
-    if (!data.length) {
+
+    if (!dataWithTime.length) {
       return [];
     }
-    return data
+    return dataWithTime
       .map((item) => {
         return {
           ...item,
-          count:
-            dataWithTime.find((subItem) => subItem?.language === item?.language)
-              ?.count || 0,
-          total: item?.count,
+          count: item?.count,
         };
       })
-      .sort((a, b) => b.count - a.count);
+      .filter((item) => item?.count > 0)
+      .sort((a, b) => b?.count - a?.count);
   }
 
   async getChartConversationLanguage(filter: AnalystFilterDto) {
@@ -1281,6 +1299,11 @@ export class HelpDeskService {
           updatedAt: 1,
         },
       },
+      {
+        $sort: {
+          _id: -1,
+        },
+      } as PipelineStage,
     ];
     const dataPromise = this.scriptModel.aggregate(query) as any;
     const [allItems, data] = await Promise.all([allItemsPromise, dataPromise]);
@@ -1531,7 +1554,8 @@ export class HelpDeskService {
 
     data.members.forEach((member) => {
       const user = spaceData.members.find(
-        (item) => item.email === member.email,
+        (item) =>
+          item.email === member.email && item.status !== MemberStatus.DELETED,
       );
       if (user?.status === MemberStatus.INVITED) {
         throw new BadRequestException(`Email ${user.email} already invited!`);
@@ -1588,12 +1612,21 @@ export class HelpDeskService {
                     receiverIds: [user?._id.toString()],
                   },
                 );
+                this.notificationService.sendNotification({
+                  body: `${user.name} has invited you to join the "${spaceData.name}" space`,
+                  title: `${envConfig.app.extension_name} - ${spaceData.name}`,
+                  link: data.link,
+                  userIds: [user?._id.toString()],
+                  roomId: '',
+                  destinationApp: 'extension',
+                });
               }
             })
             .catch(() => {
               console.log('User not found');
             });
         });
+
       this.mailService.sendMail(
         data.email,
         `${user.name} has invited you to join the ${spaceData.name} space`,
@@ -1737,7 +1770,9 @@ export class HelpDeskService {
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
     }
-    if (!this.isAdminSpace(spaceData.members, userId)) {
+
+    const isOwnerSpace = this.isOwnerSpace(spaceData, userId);
+    if (!isOwnerSpace) {
       throw new ForbiddenException('You do not have permission to change role');
     }
 
@@ -1747,6 +1782,11 @@ export class HelpDeskService {
     );
     if (index === -1) {
       throw new BadRequestException('This user is not in space');
+    }
+    const member = spaceData.members[index];
+
+    if (member?.user?.toString() === userId.toString()) {
+      throw new BadRequestException('You cannot change role of your self');
     }
 
     spaceData.members[index].role = data.role;
@@ -1776,6 +1816,7 @@ export class HelpDeskService {
         'You do not have permission to create or edit tag',
       );
     }
+    let action = 'created';
     const item: any = {
       color: color,
       name: name,
@@ -1787,6 +1828,7 @@ export class HelpDeskService {
       }
       space.tags.push(item);
     } else {
+      action = 'edited';
       const index = space.tags.findIndex(
         (item) => item._id.toString() === tagId,
       );
@@ -1800,6 +1842,24 @@ export class HelpDeskService {
       space.tags[index].color = color;
     }
     await space.save();
+    const who = await this.userService.findById(userId);
+    const otherMembers = space.members
+      .filter(
+        (item) =>
+          item.user?.toString() !== userId.toString() &&
+          item.status === MemberStatus.JOINED &&
+          item.role !== ROLE.MEMBER,
+      )
+      ?.map((item) => String(item.user));
+
+    this.notificationService.sendNotification({
+      body: `${who?.name} ${action} a tag named "${name}"`,
+      title: `${envConfig.app.extension_name} - ${space.name}`,
+      link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
+      userIds: otherMembers,
+      roomId: '',
+      destinationApp: 'extension',
+    });
     return space.tags;
   }
 

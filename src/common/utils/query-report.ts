@@ -172,7 +172,7 @@ export function queryOpenedConversation(filter: AnalystFilterDto) {
 }
 
 export function queryResponseTime(filter: AnalystFilterDto) {
-  const { spaceId, fromDate, toDate, fromDomain, memberId } = filter;
+  const { spaceId, fromDate, toDate, fromDomain, memberId, type } = filter;
   return [
     {
       $match: {
@@ -224,6 +224,32 @@ export function queryResponseTime(filter: AnalystFilterDto) {
     {
       $addFields: {
         secondMessage: { $arrayElemAt: ['$messages', 0] },
+      },
+    },
+    {
+      $project: {
+        day: {
+          $dayOfMonth: '$createdAt',
+        },
+        month: {
+          $month: '$createdAt',
+        },
+        year: {
+          $year: '$createdAt',
+        },
+        timeDifference: {
+          $subtract: ['$secondMessage.createdAt', '$createdAt'],
+        },
+      },
+    },
+    {
+      $group: {
+        _id: {
+          ...(type !== AnalystType.LAST_YEAR && { day: '$day' }),
+          year: '$year',
+          month: '$month',
+        },
+        averageDifference: { $avg: '$timeDifference' },
       },
     },
   ];
@@ -340,7 +366,14 @@ export function queryResponseMessage(filter: AnalystFilterDto) {
 }
 
 export function queryGroupByLanguage(filter: AnalystFilterDto) {
-  const { spaceId, fromDate, toDate, fromDomain, hour, dayOfWeek } = filter;
+  const {
+    spaceId,
+    fromDate,
+    toDate,
+    fromDomain,
+    hour = -1,
+    dayOfWeek = -1,
+  } = filter;
 
   return [
     {
@@ -354,8 +387,8 @@ export function queryGroupByLanguage(filter: AnalystFilterDto) {
               $lte: toDate,
             },
           }),
-        ...(hour &&
-          dayOfWeek && {
+        ...(hour >= 0 &&
+          dayOfWeek >= 0 && {
             $expr: {
               $and: [
                 { $eq: [{ $hour: '$createdAt' }, hour] },

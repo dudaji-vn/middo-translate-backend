@@ -24,6 +24,8 @@ import { envConfig } from './configs/env.config';
 import { GoogleApiStatController } from './google-api-stat/google-api-stat.controller';
 import { WatchingModule } from './watching/watching.module';
 import { HelpDeskModule } from './help-desk/help-desk.module';
+import { StationsModule } from './stations/stations.module';
+import { AppNotificationsModule } from './app-notifications/app-notifications.module';
 
 @Module({
   imports: [
@@ -46,6 +48,8 @@ import { HelpDeskModule } from './help-desk/help-desk.module';
     NotificationModule,
     WatchingModule,
     HelpDeskModule,
+    StationsModule,
+    AppNotificationsModule,
   ],
   controllers: [AppController, GoogleApiStatController],
   providers: [

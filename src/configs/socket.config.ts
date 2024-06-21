@@ -25,6 +25,7 @@ export const socketConfig = {
       leave: 'room.leave',
       delete: 'room.delete',
       new: 'room.new',
+      delete_contact: 'room.delete_contact',
     },
     inbox: {
       new: 'inbox.new',
@@ -71,6 +72,12 @@ export const socketConfig = {
         mic_change: 'call.status.mic_change',
       },
     },
+    meeting: {
+      list: 'meeting.list',
+      update: 'meeting.update',
+      end: 'meeting.end',
+      block: 'meeting.block',
+    },
     speech_to_text: {
       start: 'speech_to_text.start',
       stop: 'speech_to_text.stop',
@@ -96,6 +103,17 @@ export const socketConfig = {
       relationship: {
         update: 'user.relationship.update',
       },
+    },
+    station: {
+      update: 'station.update',
+      member: {
+        remove: 'station.member.remove',
+        leave: 'station.member.leave',
+        update: 'station.member.update',
+      },
+    },
+    app: {
+      notification: 'app.notification',
     },
   },
 };
