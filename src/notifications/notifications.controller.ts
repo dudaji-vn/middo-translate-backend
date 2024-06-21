@@ -5,7 +5,8 @@ import { SubscribeDto } from './dto/subscribe.dto';
 import { CheckSubscribedDto } from './dto/check-subscribed.dto';
 import { Response } from 'src/common/types';
 import { ToggleRoomNotificationDto } from './dto/toggle-room-notification';
-
+import { ApiTags } from '@nestjs/swagger';
+@ApiTags('Notifications')
 @Controller('notifications')
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}

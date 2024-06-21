@@ -10,7 +10,7 @@ export class ListQueryParamsCursorDto {
 
   @IsOptional()
   readonly cursor: string;
-
+  direction: 'forward' | 'backward';
   @IsOptional()
   @IsString({ each: true })
   @Transform(({ value }: { value: string }) => {

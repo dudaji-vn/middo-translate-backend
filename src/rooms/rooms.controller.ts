@@ -26,7 +26,9 @@ import {
 } from './dto/update-room.dto';
 import { HelpDeskService } from 'src/help-desk/help-desk.service';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
-
+import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+@ApiBearerAuth()
+@ApiTags('Rooms')
 @Controller('rooms')
 export class RoomsController {
   constructor(
@@ -145,7 +147,9 @@ export class RoomsController {
     );
     return { data, message: 'Room found' };
   }
-
+  @ApiParam({ name: 'id', required: true, description: 'Room id' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Limit' })
+  @ApiQuery({ name: 'next', required: false, description: 'Next' })
   @Get(':id/messages')
   async getMessages(
     @ParamObjectId('id') id: string,
@@ -155,6 +159,22 @@ export class RoomsController {
     const data = await this.messagesService.findByRoomIdWithCursorPaginate(
       id,
       userId,
+      query,
+    );
+    return { data, message: 'Room found' };
+  }
+
+  @Get(':id/messages/:messageId')
+  async getMessagesAroundMessage(
+    @ParamObjectId('id') id: string,
+    @ParamObjectId('messageId') messageId: string,
+    @JwtUserId() userId: string,
+    @Query() query: { limit: number },
+  ): Promise<Response<Pagination<Message, CursorPaginationInfo>>> {
+    const data = await this.messagesService.findByIdAndRoomIdWithCursorPaginate(
+      id,
+      userId,
+      messageId,
       query,
     );
     return { data, message: 'Room found' };

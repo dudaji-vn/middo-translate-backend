@@ -19,7 +19,8 @@ import { convertMessageRemoved } from './utils/convert-message-removed';
 import { CreateHelpDeskMessageDto } from './dto/create-help-desk-message.dto';
 import { UpdateContentDto } from './dto/update-content.dto';
 import { EndConversationDto } from './dto/end-conversation-dto';
-
+import { ApiTags } from '@nestjs/swagger';
+@ApiTags('Messages')
 @Controller('messages')
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
