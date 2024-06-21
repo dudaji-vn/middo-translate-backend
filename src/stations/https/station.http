@@ -1,5 +1,5 @@
 @SERVER_URL = http://localhost:8080
-@ACCESS_TOKEN =
+@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcxODg3NzI3OCwiZXhwIjoxNzE4OTYzNjc4fQ.CN9O0wuOvmbcejMqP6HVBoBghLwpfy3qnb9O0EXO04Q
 
 @STATION_ID=6662d3336c2bd7cc71563677
 
@@ -130,6 +130,10 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 //Call this api to get default station
 ###
 GET {{SERVER_URL}}/api/auth/me
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET  {{SERVER_URL}}/api/stations/station-verify/z1e-iau-2hv-aja-d7k-481
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 
