@@ -8,7 +8,7 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
-  "name":"Dev 123",
+  "name":"Dev space",
   "avatar":"hrkrkr",
   "backgroundImage":"sss",
   "members":[
@@ -90,6 +90,37 @@ Content-Type: application/json
   "status":"accept"
 }
 
+POST  {{SERVER_URL}}/api/stations/6662d3336c2bd7cc71563677/members
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  "members":[
+    {
+      "email":"hoquanghao2710@gmail.com"
+    },
+    {
+      "email":"linh@dudaji.vn"
+    }
+  ]
+}
+
+###
+PATCH {{SERVER_URL}}/api/stations/members/generate-link
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+###
+PATCH  {{SERVER_URL}}/api/stations/6662d3336c2bd7cc71563677/invite-member-with-link
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+   "verifyUrl":"http://localhost:3000/station-verify?token=vgz-fvv-jol-89k-u5b-pz",
+   "email":"19521750@gm.uit.edu.vn"
+}
+
+###
 ###
 
 PATCH {{SERVER_URL}}/api/stations/{{STATION_ID}}/set-default
@@ -100,4 +131,7 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 ###
 GET {{SERVER_URL}}/api/auth/me
 Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+
 

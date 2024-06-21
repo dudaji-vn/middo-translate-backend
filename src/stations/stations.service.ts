@@ -14,16 +14,15 @@ import { generateSlug } from 'src/common/utils/generate-slug';
 import { socketConfig } from 'src/configs/socket.config';
 import { User } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import {
-  CreateOrEditStationDto,
-  MemberDto,
-} from './dto/create-or-edit-station.dto';
+import { CreateOrEditStationDto } from './dto/create-or-edit-station.dto';
 import { RemoveMemberDto } from './dto/remove-member.dto';
 import { Member, MemberStatus, ROLE } from './schemas/member.schema';
 import { Station, StationStatus } from './schemas/station.schema';
 import { ValidateInviteStatus } from './dto/validate-invite.dto';
 import { envConfig } from 'src/configs/env.config';
 import { MailService } from 'src/mail/mail.service';
+import { InviteMemberDto, InviteMemberWithLink } from './dto/invite-member.dto';
+import { MemberDto } from './dto/member.dto';
 
 @Injectable()
 export class StationsService {
@@ -64,18 +63,9 @@ export class StationsService {
         return false;
       });
 
-    const members = station.members.map((item) => {
-      const token = `${generateSlug()}-${generateSlug()}`;
-      return {
-        email: item.email,
-        role: item.role,
-        verifyToken: token,
-        invitedAt: new Date(),
-        expiredAt: moment().add('7', 'day').toDate(),
-        status: MemberStatus.INVITED,
-        verifyUrl: this.createVerifyUrl(token),
-      };
-    });
+    const members = station.members.map((item) =>
+      this.convertMemberDtoToMember(item),
+    );
 
     const stationData = await this.stationModel.create({
       owner: user._id,
@@ -181,6 +171,64 @@ export class StationsService {
         ...rest,
         isOwner: isOwner,
         totalMembers: members.length,
+      };
+    });
+  }
+
+  async inviteMembers(spaceId: string, userId: string, data: InviteMemberDto) {
+    const user = await this.userService.findById(userId);
+    const stationData = await this.stationModel.findOne({
+      _id: spaceId,
+      status: { $ne: StationStatus.DELETED },
+    });
+
+    if (!stationData) {
+      throw new BadRequestException('Station not found!');
+    }
+
+    if (!this.isOwnerStation(stationData, userId)) {
+      throw new ForbiddenException(
+        'You do not have permission to invite people to the station!',
+      );
+    }
+
+    data.members.forEach((member) => {
+      const user = stationData.members.find(
+        (item) =>
+          item.email === member.email && item.status !== MemberStatus.DELETED,
+      );
+      if (user?.status === MemberStatus.INVITED) {
+        throw new BadRequestException(`Email ${user.email} already invited!`);
+      }
+      if (user?.status === MemberStatus.JOINED) {
+        throw new BadRequestException(`Email ${user.email} already joined!`);
+      }
+    });
+
+    const uniqueEmails = new Set();
+    const newMembers = data.members
+      .filter((member) => {
+        if (!uniqueEmails.has(member.email)) {
+          uniqueEmails.add(member.email);
+          return true;
+        }
+        return false;
+      })
+      .map((item) => this.convertMemberDtoToMember(item));
+
+    stationData.members.push(...newMembers);
+    await stationData.save();
+
+    const memberPromises = newMembers.map((member) =>
+      this.processMember(user, member, stationData),
+    );
+    await Promise.all(memberPromises);
+    return stationData.members.map((item) => {
+      return {
+        email: item.email,
+        status: item.status,
+        invitedAt: item.invitedAt,
+        expiredAt: item.expiredAt,
       };
     });
   }
@@ -347,8 +395,70 @@ export class StationsService {
     return true;
   }
 
+  async generateLink() {
+    const token = `${generateSlug()}-${generateSlug()}`;
+    const verifyUrl = this.createVerifyUrl(token);
+
+    return {
+      verifyUrl: verifyUrl,
+      expiredAt: moment().add('7', 'day').toDate(),
+    };
+  }
+
+  async inviterMemberWithLink(
+    stationId: string,
+    userId: string,
+    newMember: InviteMemberWithLink,
+  ) {
+    const { verifyUrl, email } = newMember;
+    const urlObj = new URL(verifyUrl);
+    const sender = await this.userService.findById(userId);
+
+    const token = urlObj.searchParams.get('token');
+    if (!token) {
+      throw new BadRequestException('Token is invalid');
+    }
+    const stationData = await this.stationModel.findOne({
+      _id: stationId,
+      status: StationStatus.ACTIVE,
+    });
+    if (!stationData) {
+      throw new BadRequestException('station not found');
+    }
+    const members = stationData.members;
+
+    const isMember = members.find(
+      (item) => item.email === email && item.status === MemberStatus.JOINED,
+    );
+    if (isMember) {
+      throw new BadRequestException('Member has joined this station');
+    }
+    const indexMember = stationData.members.findIndex(
+      (item) => item.email === email && item.status === MemberStatus.INVITED,
+    );
+    const member = {
+      email: email,
+      role: ROLE.MEMBER,
+      verifyToken: token,
+      invitedAt: new Date(),
+      expiredAt: moment().add('7', 'day').toDate(),
+      status: MemberStatus.INVITED,
+    };
+    if (indexMember > -1) {
+      stationData.members[indexMember] = member;
+      await stationData.save();
+      await this.processMember(sender, member, stationData);
+    } else {
+      stationData.members.push(member);
+      await stationData.save();
+      await this.processMember(sender, member, stationData);
+    }
+
+    return true;
+  }
+
   private createVerifyUrl(token: string) {
-    return `/station-verify?token=${token}`;
+    return `${envConfig.app.url}/station-verify?token=${token}`;
   }
   private isOwnerStation(station: Station, userId: string) {
     return station.owner?.toString() === userId.toString();
@@ -356,16 +466,23 @@ export class StationsService {
 
   private async processMember(
     sender: User,
-    member: MemberDto,
+    member: Member,
     stationData: Station,
   ) {
+    if (!member.verifyToken) {
+      throw new BadRequestException(
+        `verifyToken not found in user ${sender._id}`,
+      );
+    }
+
+    const verifyUrl = this.createVerifyUrl(member.verifyToken);
     this.mailService.sendMail(
       member.email,
       `${sender.name} has invited you to join the ${stationData.name} station`,
       'verify-member',
       {
         title: `Join the ${stationData.name} station`,
-        verifyUrl: `${envConfig.app.url}/${member.verifyUrl}`,
+        verifyUrl: `${verifyUrl}`,
       },
     );
 
@@ -378,7 +495,7 @@ export class StationsService {
       await this.appNotificationsService.create({
         from: sender._id.toString(),
         to: receiver._id.toString(),
-        link: member.verifyUrl,
+        link: verifyUrl,
         description: `You've been invited to join station ${stationData.name}`,
         stationId: stationData._id.toString(),
       });
@@ -414,5 +531,17 @@ export class StationsService {
       defaultStation: station._id,
     });
     return true;
+  }
+
+  convertMemberDtoToMember(item: MemberDto): Member {
+    const token = `${generateSlug()}-${generateSlug()}`;
+    return {
+      email: item.email,
+      role: ROLE.MEMBER,
+      verifyToken: token,
+      invitedAt: new Date(),
+      expiredAt: moment().add('7', 'day').toDate(),
+      status: MemberStatus.INVITED,
+    };
   }
 }
