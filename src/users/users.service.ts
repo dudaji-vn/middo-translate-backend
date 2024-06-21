@@ -436,15 +436,21 @@ export class UsersService {
   }
 
   async updateAllUsername() {
-    const users = await this.userModel.find();
-    for (const user of users) {
-      if (!user.username) {
-        const username = await this.generateUsernameByEmail(user.email);
-        await this.userModel.findByIdAndUpdate(user._id, {
-          username: username,
-        });
-      }
-    }
+    // const users = await this.userModel.find();
+    // for (const user of users) {
+    //   if (!user.username) {
+    //     const username = await this.generateUsernameByEmail(user.email);
+    //     await this.userModel.findByIdAndUpdate(user._id, {
+    //       username: username,
+    //     });
+    //   }
+    // }
+    await this.userModel.updateMany(
+      {},
+      {
+        allowUnknown: true,
+      },
+    );
   }
 
   async deleteSpacesIfExistByOwner(userId: string) {
