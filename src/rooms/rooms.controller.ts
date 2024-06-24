@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -26,11 +27,13 @@ import {
 } from './dto/update-room.dto';
 import { HelpDeskService } from 'src/help-desk/help-desk.service';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
+import { StationsService } from 'src/stations/stations.service';
 
 @Controller('rooms')
 export class RoomsController {
   constructor(
     private readonly roomsService: RoomsService,
+    private readonly stationService: StationsService,
     private readonly messagesService: MessagesService,
     private readonly helpDeskService: HelpDeskService,
   ) {}
@@ -401,6 +404,17 @@ export class RoomsController {
     @JwtUserId() userId: string,
     @ParamObjectId('stationId') stationId: string,
   ): Promise<Response<Room>> {
+    const { participants } = createRoomDto;
+
+    const isMemberByParticipants =
+      await this.stationService.isMemberByParticipants(stationId, participants);
+
+    if (!isMemberByParticipants) {
+      throw new BadRequestException(
+        'There are participants who are not members in this station',
+      );
+    }
+
     const room = await this.roomsService.create(
       createRoomDto,
       userId,
