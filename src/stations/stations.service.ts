@@ -23,6 +23,7 @@ import { envConfig } from 'src/configs/env.config';
 import { MailService } from 'src/mail/mail.service';
 import { InviteMemberDto, InviteMemberWithLink } from './dto/invite-member.dto';
 import { MemberDto } from './dto/member.dto';
+import { RoomStatus } from 'src/rooms/schemas/room.schema';
 
 @Injectable()
 export class StationsService {
@@ -199,19 +200,83 @@ export class StationsService {
   }
 
   async getStations(userId: string) {
-    const query = {
-      status: StationStatus.ACTIVE,
-      members: {
-        $elemMatch: {
-          user: new Types.ObjectId(userId),
-          status: MemberStatus.JOINED,
+    const query = [
+      {
+        $match: {
+          status: StationStatus.ACTIVE,
+          members: {
+            $elemMatch: {
+              user: new Types.ObjectId(userId),
+              status: MemberStatus.JOINED,
+            },
+          },
         },
       },
-    };
+      {
+        $lookup: {
+          from: 'rooms',
+          let: { stationId: '$_id' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ['$$stationId', '$station'] },
+                    { $eq: [RoomStatus.ACTIVE, '$status'] },
+                    {
+                      $eq: [
+                        {
+                          $indexOfArray: [
+                            '$readBy',
+                            new Types.ObjectId(userId),
+                          ],
+                        },
+                        -1,
+                      ],
+                    },
+                    {
+                      $eq: [
+                        {
+                          $indexOfArray: [
+                            '$deleteFor',
+                            new Types.ObjectId(userId),
+                          ],
+                        },
+                        -1,
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+          ],
+          as: 'rooms',
+        },
+      },
+      {
+        $addFields: {
+          totalNewMessages: { $size: '$rooms' },
+        },
+      },
+      {
+        $project: {
+          name: 1,
+          avatar: 1,
+          backgroundImage: 1,
+          joinedAt: 1,
+          createdAt: 1,
+          owner: 1,
+          'members.email': 1,
+          'members.joinedAt': 1,
+          'members.status': 1,
+          totalNewMessages: 1,
+        },
+      },
+    ];
 
-    const data = await this.stationModel.find(query).lean().sort({ _id: -1 });
+    const data = await this.stationModel.aggregate(query).sort({ _id: -1 });
     return data.map((item) => {
-      const members = item.members.filter(
+      const members = (item.members as Member[]).filter(
         (user) => user.status === MemberStatus.JOINED,
       );
       const isOwner = item.owner.toString() === userId;

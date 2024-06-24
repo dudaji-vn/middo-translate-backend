@@ -368,6 +368,7 @@ export class MessagesService {
       lastMessage: newMessageWithSender,
       newMessageAt: new Date(),
       status: roomNewStatus,
+      readBy: createMessageDto.senderType === SenderType.BOT ? [] : [senderId],
       deleteFor: [],
       archiveFor: [],
     });
