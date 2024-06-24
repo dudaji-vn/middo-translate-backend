@@ -8,7 +8,7 @@ import {
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
-import { Model, Types } from 'mongoose';
+import { Model, ObjectId, Types } from 'mongoose';
 import { AppNotificationsService } from 'src/app-notifications/app-notifications.service';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import { socketConfig } from 'src/configs/socket.config';
@@ -584,6 +584,23 @@ export class StationsService {
       defaultStation: station._id,
     });
     return true;
+  }
+
+  async isMemberByParticipants(stationId: string, participants: ObjectId[]) {
+    const station = await this.stationModel.findOne({
+      _id: stationId,
+      status: StationStatus.ACTIVE,
+    });
+
+    if (!station) {
+      throw new BadRequestException('station not found');
+    }
+    const memberIds = station.members
+      .filter((item) => item.user && item.status === MemberStatus.JOINED)
+      .map((item) => item.user?.toString());
+    return participants.every((participant) =>
+      memberIds.includes(participant.toString()),
+    );
   }
 
   convertMemberDtoToMember(item: MemberDto): Member {
