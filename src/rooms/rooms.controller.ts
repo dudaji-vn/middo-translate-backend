@@ -9,7 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
-import { ListQueryParamsCursorDto } from 'src/common/dto';
+import { ListQueryParamsCursorDto, QueryRoomsDto } from 'src/common/dto';
 import { CursorPaginationInfo, Pagination, Response } from 'src/common/types';
 import { CreateRoomDto } from './dto';
 import { RoomsService } from './rooms.service';
@@ -109,9 +109,9 @@ export class RoomsController {
   @Get('pin')
   async getPinRooms(
     @JwtUserId() userId: string,
-    @Query('spaceId') spaceId: string,
+    @Query() query: QueryRoomsDto,
   ): Promise<Response<Room[]>> {
-    const rooms = await this.roomsService.getPinnedRooms(userId, spaceId);
+    const rooms = await this.roomsService.getPinnedRooms(userId, query);
     return { message: 'Rooms found', data: rooms };
   }
 

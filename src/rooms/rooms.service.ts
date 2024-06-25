@@ -49,6 +49,7 @@ import * as moment from 'moment';
 import { envConfig } from 'src/configs/env.config';
 import { pivotChartByType } from 'src/common/utils/date-report';
 import { StationsService } from 'src/stations/stations.service';
+import { QueryRoomsDto } from 'src/common/dto';
 
 const userSelectFieldsString = selectPopulateField<User>([
   '_id',
@@ -733,7 +734,8 @@ export class RoomsService {
           'targetUsers',
           'sender',
         ]),
-      ).populate(
+      )
+      .populate(
         selectPopulateField<Room>(['space']),
         selectPopulateField<Space>(['name']),
       );
@@ -945,10 +947,14 @@ export class RoomsService {
         ...(notGroup ? { isGroup: false } : {}),
         waitingUsers: { $nin: [userId] },
         status: RoomStatus.ACTIVE,
-        isHelpDesk: { $ne: true },
-        ...(query?.type === 'help-desk'
-          ? { isHelpDesk: true, space: { $exists: true, $eq: query.spaceId } }
-          : {}),
+        space: { $exists: false },
+        station: { $exists: false },
+        ...(query?.spaceId && {
+          space: { $exists: true, $eq: query.spaceId },
+        }),
+        ...(query?.stationId && {
+          station: { $exists: true, $eq: query.stationId },
+        }),
       })
       .sort({ newMessageAt: -1 })
       .limit(10)
@@ -1069,21 +1075,27 @@ export class RoomsService {
       });
     }
   }
-  async getPinnedRooms(userId: string, spaceId: string) {
+  async getPinnedRooms(userId: string, query: QueryRoomsDto) {
+    const { spaceId, stationId } = query;
     const user = await this.usersService.findById(userId);
     const rooms = await this.roomModel
       .find({
         _id: {
           $in: user.pinRoomIds,
         },
-        isHelpDesk: { $ne: true },
+        space: { $exists: false },
+        station: { $exists: false },
         status: RoomStatus.ACTIVE,
         participants: userId,
         deleteFor: { $nin: [userId] },
         archiveFor: { $nin: [userId] },
-        ...(spaceId
-          ? { isHelpDesk: true, space: { $exists: true, $eq: spaceId } }
-          : {}),
+        ...(spaceId && {
+          isHelpDesk: true,
+          space: { $exists: true, $eq: spaceId },
+        }),
+        ...(stationId && {
+          station: { $exists: true, $eq: stationId },
+        }),
       })
       .populate({
         path: 'lastMessage',
