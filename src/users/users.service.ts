@@ -572,4 +572,17 @@ export class UsersService {
     }
     return user;
   }
+
+  async removeStationFromUser(stationId: string) {
+    await this.userModel.updateMany(
+      { defaultStation: stationId },
+      { defaultStation: null },
+    );
+
+    await this.userModel.updateMany(
+      { stations: stationId },
+      { $pull: { stations: stationId } },
+    );
+    return null;
+  }
 }
