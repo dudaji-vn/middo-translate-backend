@@ -190,6 +190,7 @@ export class StationsService {
     const data = await this.stationModel
       .findOne(query)
       .populate('owner', '_id name avatar username')
+      .select('-members.verifyToken')
       .lean();
     if (!data) {
       throw new BadRequestException(
