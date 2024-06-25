@@ -359,12 +359,8 @@ export class SearchService {
     };
   }
 
-  async searchUsers({ q, limit, type }: FindParams): Promise<User[]> {
-    const users = await this.usersService.find({
-      q,
-      limit,
-      type,
-    });
+  async searchUsers(query: FindParams): Promise<User[]> {
+    const users = await this.usersService.find(query);
     return users;
   }
   async searchMessageInRoom(
