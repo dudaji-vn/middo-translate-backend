@@ -1175,7 +1175,7 @@ export class MessagesService {
       .populate('parent');
 
     if (!message) {
-      throw new Error('Message not found');
+      throw new BadRequestException('Message not found');
     }
     await this.roomsService.updateReadByLastMessageInRoom(
       message.room._id,
@@ -1191,13 +1191,18 @@ export class MessagesService {
     });
     const room = await this.roomsService.findById(message.room._id.toString());
     if (!room) {
-      throw new NotFoundException('Room not found');
+      throw new BadRequestException('Room not found');
     }
     if (room.lastMessage?._id.toString() === message._id.toString()) {
       this.roomsService.updateRoom(String(message.room._id), {
         lastMessage: message,
       });
     }
+  }
+
+  async seenMessages(ids: string[], userId: string): Promise<void> {
+    const seenMessagesPromise = ids.map((id) => this.seen(id, userId));
+    await Promise.all(seenMessagesPromise);
   }
 
   async checkSeen(id: string, userId: string): Promise<boolean> {

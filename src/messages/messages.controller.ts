@@ -19,6 +19,8 @@ import { convertMessageRemoved } from './utils/convert-message-removed';
 import { CreateHelpDeskMessageDto } from './dto/create-help-desk-message.dto';
 import { UpdateContentDto } from './dto/update-content.dto';
 import { EndConversationDto } from './dto/end-conversation-dto';
+import { SeenMessagesDto } from './dto/seen-message.dto';
+import { SeenMessagesHelpDeskDto } from './dto/seen-message-help-desk.dto';
 
 @Controller('messages')
 export class MessagesController {
@@ -84,6 +86,18 @@ export class MessagesController {
     };
   }
 
+  @Patch('seens')
+  async seenMessages(
+    @Body() { ids }: SeenMessagesDto,
+    @JwtUserId() userId: string,
+  ) {
+    await this.messagesService.seenMessages(ids, userId);
+    return {
+      data: null,
+      message: 'Message seen',
+    };
+  }
+
   @Public()
   @Patch('help-desk/:id/seen')
   async seenMessageHelpDesk(
@@ -91,6 +105,16 @@ export class MessagesController {
     @Body() { userId }: { userId: string },
   ) {
     await this.messagesService.seen(id, userId);
+    return {
+      data: null,
+      message: 'Message seen',
+    };
+  }
+
+  @Public()
+  @Patch('help-desk/seens')
+  async seenMessagesHelpDesk(@Body() { ids, userId }: SeenMessagesHelpDeskDto) {
+    await this.messagesService.seenMessages(ids, userId);
     return {
       data: null,
       message: 'Message seen',
