@@ -447,9 +447,9 @@ export class StationsService {
     }
 
     station.status = StationStatus.DELETED;
+    await this.userService.removeStationFromUser(stationId);
     await station.save();
-
-    return true;
+    return null;
   }
 
   async validateInvite(
@@ -519,7 +519,7 @@ export class StationsService {
 
     return {
       verifyUrl: verifyUrl,
-      expiredAt: moment().add('7', 'day').toDate(),
+      expiredAt: moment().add('1', 'day').toDate(),
     };
   }
 
@@ -625,7 +625,9 @@ export class StationsService {
   }
   async isMember(station: Station, userId: string) {
     return station.members.find(
-      (member) => member?.user?.toString() === userId,
+      (member) =>
+        member?.user?.toString() === userId &&
+        member.status === MemberStatus.JOINED,
     );
   }
   async setDefaultStation(stationId: string, userId: string) {

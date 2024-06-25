@@ -7,4 +7,7 @@ export class RecommendQueryDto {
 
   @IsOptional()
   spaceId: string;
+
+  @IsOptional()
+  stationId: string;
 }
