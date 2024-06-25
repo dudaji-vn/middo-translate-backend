@@ -187,7 +187,10 @@ export class StationsService {
         },
       },
     };
-    const data = await this.stationModel.findOne(query).lean();
+    const data = await this.stationModel
+      .findOne(query)
+      .populate('owner', '_id name avatar username')
+      .lean();
     if (!data) {
       throw new BadRequestException(
         `Station ${id} not found or you are not a member is this station.`,
@@ -519,7 +522,9 @@ export class StationsService {
 
     return {
       verifyUrl: verifyUrl,
-      expiredAt: moment().add('1', 'day').toDate(),
+      expiredAt: moment()
+        .add(envConfig.station.invite.expireIn, 'day')
+        .toDate(),
     };
   }
 
@@ -559,7 +564,9 @@ export class StationsService {
       role: ROLE.MEMBER,
       verifyToken: token,
       invitedAt: new Date(),
-      expiredAt: moment().add('7', 'day').toDate(),
+      expiredAt: moment()
+        .add(envConfig.station.invite.expireIn, 'day')
+        .toDate(),
       status: MemberStatus.INVITED,
     };
     if (indexMember > -1) {
@@ -677,7 +684,9 @@ export class StationsService {
       role: ROLE.MEMBER,
       verifyToken: token,
       invitedAt: new Date(),
-      expiredAt: moment().add('7', 'day').toDate(),
+      expiredAt: moment()
+        .add(envConfig.station.invite.expireIn, 'day')
+        .toDate(),
       status: MemberStatus.INVITED,
     };
   }
