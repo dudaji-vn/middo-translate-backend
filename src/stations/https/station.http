@@ -1,7 +1,6 @@
 @SERVER_URL = http://localhost:8080
 @ACCESS_TOKEN = 
-
-@STATION_ID=6662d3336c2bd7cc71563677
+@STATION_ID=
 
 POST  {{SERVER_URL}}/api/stations
 Authorization: Bearer {{ACCESS_TOKEN}}
@@ -28,11 +27,11 @@ GET {{SERVER_URL}}/api/stations
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
-GET {{SERVER_URL}}/api/stations/66612953cd1e1f62aeb42587
+GET {{SERVER_URL}}/api/stations/{{STATION_ID}}
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
-PATCH  {{SERVER_URL}}/api/stations/66612953cd1e1f62aeb42587
+PATCH  {{SERVER_URL}}/api/stations/{{STATION_ID}}
 Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
@@ -44,7 +43,7 @@ Content-Type: application/json
 
 
 ###
-DELETE  {{SERVER_URL}}/api/stations/66612953cd1e1f62aeb42587
+DELETE  {{SERVER_URL}}/api/stations/{{STATION_ID}}
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 
@@ -59,18 +58,18 @@ Content-Type: application/json
 
 ###
 DELETE  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members/leave
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY2NjdjNzMzYmE2YTFlZjExYTk5OTI4MSIsImlhdCI6MTcxODYwNDY1NywiZXhwIjoxNzE4NjkxMDU3fQ.IwFWjCbGz49_epPKYU4KDBGn1zHQenTV0JkdUQJNWdQ
+Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 ###
-POST  {{SERVER_URL}}/api/rooms/stations/66739c11ee8195dc93d82a56
+POST  {{SERVER_URL}}/api/rooms/stations/{{STATION_ID}}
 Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
    "participants": [
         "65eec7b605903d94f07797ae",
-        "66616c2e223048e94d801234"
+        "65e56cfb9cd38aca6cd26d3c"
     ]
 }
 
@@ -86,11 +85,14 @@ Content-Type: application/json
 
 {
   //status: accept|decline
-  "token":"4dv-lut-1lr-73p-ni1-pzp",
+  "token":"z1e-iau-2hv-aja-d7k-481",
   "status":"accept"
 }
 
-POST  {{SERVER_URL}}/api/stations/6662d3336c2bd7cc71563677/members
+
+###
+
+POST  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members
 Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
@@ -111,7 +113,7 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 ###
-PATCH  {{SERVER_URL}}/api/stations/6662d3336c2bd7cc71563677/members/invite-link
+PATCH  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members/invite-link
 Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
@@ -123,7 +125,7 @@ Content-Type: application/json
 ###
 ###
 
-PATCH {{SERVER_URL}}/api/stations/{{STATION_ID}}/set-default
+PATCH {{SERVER_URL}}/api/stations/6679380d322b8781778efae9/set-default
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 
@@ -133,8 +135,22 @@ GET {{SERVER_URL}}/api/auth/me
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
-GET  {{SERVER_URL}}/api/stations/station-verify/z1e-iau-2hv-aja-d7k-481
+GET {{SERVER_URL}}/api/stations/station-verify/z1e-iau-2hv-aja-d7k-481
 Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/rooms/pin?stationId={{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/search/users?q=&stationId={{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/recommendation/chat?stationId={{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
 
 
 

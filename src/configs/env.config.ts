@@ -59,4 +59,9 @@ export const envConfig = {
       expireIn: process.env.HELP_DESK_ROOM_EXPIRES_IN || 60 * 60 * 24,
     },
   },
+  station: {
+    invite: {
+      expireIn: process.env.STATION_INVITE_EXPIRE_IN || 1, //Unit day
+    },
+  },
 };
