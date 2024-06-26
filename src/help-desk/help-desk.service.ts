@@ -1090,21 +1090,21 @@ export class HelpDeskService {
       );
       await space.save();
     } else {
+      const memberIdsToNotify = space.members
+        .filter(
+          (item) =>
+            item.status === MemberStatus.JOINED && item.role !== ROLE.MEMBER, // notify to others ADMIN, MODERATOR
+        )
+        .map((item) => String(item.user));
+
       space.members[memberIndex].status = MemberStatus.JOINED;
       space.members[memberIndex].joinedAt = new Date();
       space.members[memberIndex].user = userId;
       await space.save();
 
-      const memberIdsToNotify = space.members
-        .filter(
-          (item) =>
-            item.status === MemberStatus.JOINED && item.role !== ROLE.MEMBER,
-        )
-        .map((item) => String(item.user));
-
       if (memberIdsToNotify?.length) {
         this.notificationService.sendNotification({
-          body: `${user.name} has joined the "${space.name}" space`,
+          body: `${user.name} has joined "${space.name}"`,
           title: `${envConfig.app.extension_name} - ${space.name}`,
           link: `${envConfig.app.url}/spaces/${space._id}/settings`,
           userIds: memberIdsToNotify,
@@ -1796,7 +1796,7 @@ export class HelpDeskService {
       const userRemove = await this.userService.findById(userId);
       this.notificationService.sendNotification({
         title: `${envConfig.app.extension_name} - ${spaceData.name}`,
-        body: `${userRemove.name} has removed "${removedUser.email}" from the space`,
+        body: `${userRemove.name} has removed "${removedUser.email}" from "${spaceData.name}"`,
         link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
         userIds: usersToNotify,
         roomId: '',
