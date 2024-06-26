@@ -1,6 +1,6 @@
 @SERVER_URL = http://localhost:8080
 @ACCESS_TOKEN = 
-@STATION_ID=
+@STATION_ID=6662d3336c2bd7cc71563677
 
 POST  {{SERVER_URL}}/api/stations
 Authorization: Bearer {{ACCESS_TOKEN}}
@@ -118,8 +118,8 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
-   "verifyUrl":"http://localhost:3000/station-verify?token=z1e-iau-2hv-aja-d7k-481",
-   "email":"hoquanglinh2710@gmail.com"
+   "verifyUrl":"http://localhost:3000/station-verify?token=fqp-rp7-3pu-889-nf3-1xz",
+   "email":"hoquanglinh2910@gmail.com"
 }
 
 ###
@@ -148,6 +148,10 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
 GET {{SERVER_URL}}/api/recommendation/chat?stationId={{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/recommendation/chat/users?stationId={{STATION_ID}}
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 
