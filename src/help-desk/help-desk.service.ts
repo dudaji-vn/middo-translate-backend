@@ -1094,6 +1094,24 @@ export class HelpDeskService {
       space.members[memberIndex].joinedAt = new Date();
       space.members[memberIndex].user = userId;
       await space.save();
+
+      const memberIdsToNotify = space.members
+        .filter(
+          (item) =>
+            item.status === MemberStatus.JOINED && item.role !== ROLE.MEMBER,
+        )
+        .map((item) => String(item.user));
+
+      if (memberIdsToNotify?.length) {
+        this.notificationService.sendNotification({
+          body: `${user.name} has joined the "${space.name}" space`,
+          title: `${envConfig.app.extension_name} - ${space.name}`,
+          link: `${envConfig.app.url}/spaces/${space._id}/settings`,
+          userIds: memberIdsToNotify,
+          roomId: '',
+          destinationApp: 'extension',
+        });
+      }
       this.roomsService.addHelpDeskParticipant(
         space._id.toString(),
         space.owner.toString(),
@@ -1741,7 +1759,6 @@ export class HelpDeskService {
       _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
     });
-
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
     }
@@ -1766,6 +1783,24 @@ export class HelpDeskService {
       this.eventEmitter.emit(socketConfig.events.space.member.remove, {
         data,
         receiverIds: [spaceData.members[index].user?.toString()],
+      });
+      const usersToNotify = spaceData.members
+        .filter(
+          (item) =>
+            item.status === MemberStatus.JOINED && // joined
+            item.role !== ROLE.MEMBER && // admin or owner
+            item.user?.toString() !== userId.toString(), // not the user who remove
+        )
+        .map((item) => String(item.user));
+      const removedUser = spaceData.members[index];
+      const userRemove = await this.userService.findById(userId);
+      this.notificationService.sendNotification({
+        title: `${envConfig.app.extension_name} - ${spaceData.name}`,
+        body: `${userRemove.name} has removed "${removedUser.email}" from the space`,
+        link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
+        userIds: usersToNotify,
+        roomId: '',
+        destinationApp: 'extension',
       });
     }
 
