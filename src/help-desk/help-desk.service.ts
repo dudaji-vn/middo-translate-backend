@@ -1887,24 +1887,6 @@ export class HelpDeskService {
       space.tags[index].color = color;
     }
     await space.save();
-    const who = await this.userService.findById(userId);
-    const otherMembers = space.members
-      .filter(
-        (item) =>
-          item.user?.toString() !== userId.toString() &&
-          item.status === MemberStatus.JOINED &&
-          item.role !== ROLE.MEMBER,
-      )
-      ?.map((item) => String(item.user));
-
-    this.notificationService.sendNotification({
-      body: `${who?.name} ${action} a tag named "${name}"`,
-      title: `${envConfig.app.extension_name} - ${space.name}`,
-      link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
-      userIds: otherMembers,
-      roomId: '',
-      destinationApp: 'extension',
-    });
     return space.tags;
   }
 
