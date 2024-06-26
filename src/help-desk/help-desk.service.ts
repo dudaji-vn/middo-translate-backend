@@ -207,6 +207,7 @@ export class HelpDeskService {
 
   async createOrEditSpace(userId: string, space: CreateOrEditSpaceDto) {
     const user = await this.userService.findById(userId);
+    const senderName = user?.name;
     if (!user) {
       throw new BadRequestException('User not found');
     }
@@ -266,7 +267,6 @@ export class HelpDeskService {
       });
 
       // get all userId from members
-      const ownerName = user.name;
       members.forEach((data) => {
         this.spaceNotificationModel
           .create({
@@ -291,7 +291,7 @@ export class HelpDeskService {
                     },
                   );
                   this.notificationService.sendNotification({
-                    body: `${ownerName} has invited you to join the "${spaceData.name}" space`,
+                    body: `${senderName} has invited you to join the "${spaceData.name}" space`,
                     title: `${envConfig.app.extension_name}`,
                     link: data.link,
                     userIds: [user._id.toString()],
@@ -303,7 +303,7 @@ export class HelpDeskService {
           });
         this.mailService.sendMail(
           data.email,
-          `${user.name} has invited you to join the ${spaceData.name} space`,
+          `${senderName} has invited you to join the ${spaceData.name} space`,
           'verify-member',
           {
             title: `Join the ${spaceData.name} space`,
@@ -1540,6 +1540,7 @@ export class HelpDeskService {
 
   async inviteMembers(spaceId: string, userId: string, data: InviteMemberDto) {
     const user = await this.userService.findById(userId);
+    const senderName = user?.name;
     const spaceData = await this.spaceModel.findOne({
       _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
@@ -1632,7 +1633,7 @@ export class HelpDeskService {
                   },
                 );
                 this.notificationService.sendNotification({
-                  body: `${user.name} has invited you to join the "${spaceData.name}" space`,
+                  body: `${senderName} has invited you to join the "${spaceData.name}" space`,
                   title: `${envConfig.app.extension_name} - ${spaceData.name}`,
                   link: data.link,
                   userIds: [user?._id.toString()],
@@ -1679,6 +1680,7 @@ export class HelpDeskService {
     });
 
     const user = await this.userService.findById(userId);
+    const senderName = user?.name;
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
     }
@@ -1708,7 +1710,6 @@ export class HelpDeskService {
         link: verifyUrl,
       })
       .then((data) => {
-        const ownerName = user.name;
         this.userService
           .findByEmail(data.to, {
             ignoreNotFound: true,
@@ -1723,7 +1724,7 @@ export class HelpDeskService {
                 },
               );
               this.notificationService.sendNotification({
-                body: `${ownerName} has invited you to join the "${spaceData.name}" space`,
+                body: `${senderName} has invited you to join the "${spaceData.name}" space`,
                 title: `${envConfig.app.extension_name}`,
                 link: data.link,
                 userIds: [user?._id.toString()],
