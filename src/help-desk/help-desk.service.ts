@@ -193,14 +193,15 @@ export class HelpDeskService {
       { new: true, upsert: true },
     );
     const who = await this.userService.findById(userId);
-    this.notificationService.sendNotification({
-      body: `${who?.name} updated the Extension`,
-      title: `${envConfig.app.extension_name} - ${space.name}`,
-      link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
-      userIds: [space.owner.toString()],
-      roomId: '',
-      destinationApp: 'extension',
-    });
+    if (String(who?._id) != String(space.owner))
+      this.notificationService.sendNotification({
+        body: `${who?.name} updated the Extension`,
+        title: `${envConfig.app.extension_name} - ${space.name}`,
+        link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
+        userIds: [space.owner.toString()],
+        roomId: '',
+        destinationApp: 'extension',
+      });
     return extension;
   }
 
