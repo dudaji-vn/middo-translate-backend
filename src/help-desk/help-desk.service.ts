@@ -1837,6 +1837,17 @@ export class HelpDeskService {
     spaceData.members[index].role = data.role;
 
     await spaceData.save();
+    this.notificationService.sendNotification({
+      body: `You have been changed to ${data.role}`,
+      title: `${envConfig.app.extension_name} - ${spaceData.name}`,
+      link:
+        data.role === ROLE.ADMIN
+          ? `${envConfig.app.url}/spaces/${spaceId}/settings`
+          : `${envConfig.app.url}/spaces/${spaceId}/conversations`,
+      userIds: [String(member.user)],
+      roomId: '',
+      destinationApp: 'extension',
+    });
     return true;
   }
 
