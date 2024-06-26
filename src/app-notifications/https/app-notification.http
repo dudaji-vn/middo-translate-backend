@@ -1,0 +1,17 @@
+@SERVER_URL = http://localhost:8080
+@ACCESS_TOKEN =
+
+###
+GET {{SERVER_URL}}/api/app-notifications
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+###
+DELETE  {{SERVER_URL}}/api/app-notifications/667551a27b972a8f713f7c4f
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+###
+PATCH {{SERVER_URL}}/api/app-notifications/read/667551a27b972a8f713f7c4f
+Authorization: Bearer {{ACCESS_TOKEN}}
+
