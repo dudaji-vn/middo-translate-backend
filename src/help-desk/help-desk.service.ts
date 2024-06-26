@@ -1885,7 +1885,6 @@ export class HelpDeskService {
         'You do not have permission to create or edit tag',
       );
     }
-    let action = 'created';
     const item: any = {
       color: color,
       name: name,
@@ -1897,7 +1896,6 @@ export class HelpDeskService {
       }
       space.tags.push(item);
     } else {
-      action = 'edited';
       const index = space.tags.findIndex(
         (item) => item._id.toString() === tagId,
       );
