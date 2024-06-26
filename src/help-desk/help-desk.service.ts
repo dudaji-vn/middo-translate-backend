@@ -414,9 +414,9 @@ export class HelpDeskService {
         const action = scriptId ? 'updated' : 'created';
         const doer = await this.userService.findById(userId);
         this.notificationService.sendNotification({
-          body: `${doer?.name} has ${action} the flow of script ${name}`,
+          body: `${doer?.name} has ${action} the script ${name}`,
           title: `${envConfig.app.extension_name} - ${space.name}`,
-          link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
+          link: `${envConfig.app.url}/spaces/${spaceId}/scripts`,
           userIds: [space.owner.toString()],
           roomId: '',
           destinationApp: 'extension',
