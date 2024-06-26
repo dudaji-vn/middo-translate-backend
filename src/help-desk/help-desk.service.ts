@@ -374,7 +374,6 @@ export class HelpDeskService {
         'You do not have permission to create or edit script',
       );
     }
-
     if (!scriptId) {
       const item: Partial<Script> = {
         name: name,
@@ -410,6 +409,19 @@ export class HelpDeskService {
           .filter((item) => item.status === MemberStatus.JOINED)
           .map((item) => item.user?.toString()),
       });
+
+      if (space.owner !== userId) {
+        const action = scriptId ? 'updated' : 'created';
+        const doer = await this.userService.findById(userId);
+        this.notificationService.sendNotification({
+          body: `${doer?.name} has ${action} the flow of script ${name}`,
+          title: `${envConfig.app.extension_name} - ${space.name}`,
+          link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
+          userIds: [space.owner.toString()],
+          roomId: '',
+          destinationApp: 'extension',
+        });
+      }
     }
 
     return true;
