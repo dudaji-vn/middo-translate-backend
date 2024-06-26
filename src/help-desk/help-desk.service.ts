@@ -1689,6 +1689,7 @@ export class HelpDeskService {
         link: verifyUrl,
       })
       .then((data) => {
+        const ownerName = user.name;
         this.userService
           .findByEmail(data.to, {
             ignoreNotFound: true,
@@ -1702,6 +1703,14 @@ export class HelpDeskService {
                   receiverIds: [user?._id.toString()],
                 },
               );
+              this.notificationService.sendNotification({
+                body: `${ownerName} has invited you to join the "${spaceData.name}" space`,
+                title: `${envConfig.app.extension_name}`,
+                link: data.link,
+                userIds: [user?._id.toString()],
+                roomId: '',
+                destinationApp: 'extension',
+              });
             }
           });
       });
