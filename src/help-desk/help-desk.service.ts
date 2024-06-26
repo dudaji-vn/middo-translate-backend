@@ -1801,7 +1801,7 @@ export class HelpDeskService {
         .filter(
           (item) =>
             item.status === MemberStatus.JOINED && // joined
-            item.role !== ROLE.MEMBER && // admin or owner
+            item.role === ROLE.ADMIN && // admin only
             item.user?.toString() !== userId.toString(), // not the user who remove
         )
         .map((item) => String(item.user));
