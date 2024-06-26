@@ -265,7 +265,7 @@ export class HelpDeskService {
       });
 
       // get all userId from members
-
+      const ownerName = user.name;
       members.forEach((data) => {
         this.spaceNotificationModel
           .create({
@@ -290,7 +290,7 @@ export class HelpDeskService {
                     },
                   );
                   this.notificationService.sendNotification({
-                    body: `${user.name} has invited you to join the "${spaceData.name}" space`,
+                    body: `${ownerName} has invited you to join the "${spaceData.name}" space`,
                     title: `${envConfig.app.extension_name}`,
                     link: data.link,
                     userIds: [user._id.toString()],
