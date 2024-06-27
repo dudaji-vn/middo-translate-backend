@@ -12,7 +12,11 @@ import { CreateOrEditStationDto } from './dto/create-or-edit-station.dto';
 import { StationsService } from './stations.service';
 import { RemoveMemberDto } from './dto/remove-member.dto';
 import { ValidateInviteDto } from './dto/validate-invite.dto';
-import { InviteMemberDto, InviteMemberWithLink } from './dto/invite-member.dto';
+import {
+  InviteMemberByUserDto,
+  InviteMemberDto,
+  InviteMemberWithLink,
+} from './dto/invite-member.dto';
 import { JoinByLinkDto } from './dto/join-by-link.dto';
 
 @Controller('stations')
@@ -91,13 +95,29 @@ export class StationsController {
     };
   }
 
-  @Post(':id/members')
-  async inviteMembers(
+  @Post(':id/members/emails')
+  async inviteMembersByEmail(
     @JwtUserId() userId: string,
     @ParamObjectId('id') id: string,
     @Body() members: InviteMemberDto,
   ) {
-    const result = await this.stationsService.inviteMembers(
+    const result = await this.stationsService.inviteMembersWithEmails(
+      id,
+      userId,
+      members,
+    );
+    return {
+      data: result,
+    };
+  }
+
+  @Post(':id/members/users')
+  async inviteMembersWithUserIds(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+    @Body() members: InviteMemberByUserDto,
+  ) {
+    const result = await this.stationsService.inviteMembersWithUserIds(
       id,
       userId,
       members,
