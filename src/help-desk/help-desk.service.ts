@@ -193,19 +193,21 @@ export class HelpDeskService {
       { new: true, upsert: true },
     );
     const who = await this.userService.findById(userId);
-    this.notificationService.sendNotification({
-      body: `${who?.name} updated the Extension`,
-      title: `${envConfig.app.extension_name} - ${space.name}`,
-      link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
-      userIds: [space.owner.toString()],
-      roomId: '',
-      destinationApp: 'extension',
-    });
+    if (String(who?._id) != String(space.owner))
+      this.notificationService.sendNotification({
+        body: `${who?.name} updated the Extension`,
+        title: `${envConfig.app.extension_name} - ${space.name}`,
+        link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
+        userIds: [space.owner.toString()],
+        roomId: '',
+        destinationApp: 'extension',
+      });
     return extension;
   }
 
   async createOrEditSpace(userId: string, space: CreateOrEditSpaceDto) {
     const user = await this.userService.findById(userId);
+    const senderName = user?.name;
     if (!user) {
       throw new BadRequestException('User not found');
     }
@@ -265,7 +267,6 @@ export class HelpDeskService {
       });
 
       // get all userId from members
-
       members.forEach((data) => {
         this.spaceNotificationModel
           .create({
@@ -290,7 +291,7 @@ export class HelpDeskService {
                     },
                   );
                   this.notificationService.sendNotification({
-                    body: `${user.name} has invited you to join the "${spaceData.name}" space`,
+                    body: `${senderName} has invited you to join the "${spaceData.name}" space`,
                     title: `${envConfig.app.extension_name}`,
                     link: data.link,
                     userIds: [user._id.toString()],
@@ -302,7 +303,7 @@ export class HelpDeskService {
           });
         this.mailService.sendMail(
           data.email,
-          `${user.name} has invited you to join the ${spaceData.name} space`,
+          `${senderName} has invited you to join the ${spaceData.name} space`,
           'verify-member',
           {
             title: `Join the ${spaceData.name} space`,
@@ -373,7 +374,6 @@ export class HelpDeskService {
         'You do not have permission to create or edit script',
       );
     }
-
     if (!scriptId) {
       const item: Partial<Script> = {
         name: name,
@@ -409,6 +409,19 @@ export class HelpDeskService {
           .filter((item) => item.status === MemberStatus.JOINED)
           .map((item) => item.user?.toString()),
       });
+
+      if (space.owner !== userId) {
+        const action = scriptId ? 'updated' : 'created';
+        const doer = await this.userService.findById(userId);
+        this.notificationService.sendNotification({
+          body: `${doer?.name} has ${action} the script ${name}`,
+          title: `${envConfig.app.extension_name} - ${space.name}`,
+          link: `${envConfig.app.url}/spaces/${spaceId}/scripts`,
+          userIds: [space.owner.toString()],
+          roomId: '',
+          destinationApp: 'extension',
+        });
+      }
     }
 
     return true;
@@ -1089,10 +1102,28 @@ export class HelpDeskService {
       );
       await space.save();
     } else {
+      const memberIdsToNotify = space.members
+        .filter(
+          (item) =>
+            item.status === MemberStatus.JOINED && item.role !== ROLE.MEMBER, // notify to others ADMIN, MODERATOR
+        )
+        .map((item) => String(item.user));
+
       space.members[memberIndex].status = MemberStatus.JOINED;
       space.members[memberIndex].joinedAt = new Date();
       space.members[memberIndex].user = userId;
       await space.save();
+
+      if (memberIdsToNotify?.length) {
+        this.notificationService.sendNotification({
+          body: `${user.name} has joined "${space.name}"`,
+          title: `${envConfig.app.extension_name} - ${space.name}`,
+          link: `${envConfig.app.url}/spaces/${space._id}/settings`,
+          userIds: memberIdsToNotify,
+          roomId: '',
+          destinationApp: 'extension',
+        });
+      }
       this.roomsService.addHelpDeskParticipant(
         space._id.toString(),
         space.owner.toString(),
@@ -1521,6 +1552,7 @@ export class HelpDeskService {
 
   async inviteMembers(spaceId: string, userId: string, data: InviteMemberDto) {
     const user = await this.userService.findById(userId);
+    const senderName = user?.name;
     const spaceData = await this.spaceModel.findOne({
       _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
@@ -1613,7 +1645,7 @@ export class HelpDeskService {
                   },
                 );
                 this.notificationService.sendNotification({
-                  body: `${user.name} has invited you to join the "${spaceData.name}" space`,
+                  body: `${senderName} has invited you to join the "${spaceData.name}" space`,
                   title: `${envConfig.app.extension_name} - ${spaceData.name}`,
                   link: data.link,
                   userIds: [user?._id.toString()],
@@ -1660,6 +1692,7 @@ export class HelpDeskService {
     });
 
     const user = await this.userService.findById(userId);
+    const senderName = user?.name;
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
     }
@@ -1702,6 +1735,14 @@ export class HelpDeskService {
                   receiverIds: [user?._id.toString()],
                 },
               );
+              this.notificationService.sendNotification({
+                body: `${senderName} has invited you to join the "${spaceData.name}" space`,
+                title: `${envConfig.app.extension_name}`,
+                link: data.link,
+                userIds: [user?._id.toString()],
+                roomId: '',
+                destinationApp: 'extension',
+              });
             }
           });
       });
@@ -1731,7 +1772,6 @@ export class HelpDeskService {
       _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
     });
-
     if (!spaceData) {
       throw new BadRequestException('Space not found!');
     }
@@ -1756,6 +1796,24 @@ export class HelpDeskService {
       this.eventEmitter.emit(socketConfig.events.space.member.remove, {
         data,
         receiverIds: [spaceData.members[index].user?.toString()],
+      });
+      const usersToNotify = spaceData.members
+        .filter(
+          (item) =>
+            item.status === MemberStatus.JOINED && // joined
+            item.role === ROLE.ADMIN && // admin only
+            item.user?.toString() !== userId.toString(), // not the user who remove
+        )
+        .map((item) => String(item.user));
+      const removedUser = spaceData.members[index];
+      const userRemove = await this.userService.findById(userId);
+      this.notificationService.sendNotification({
+        title: `${envConfig.app.extension_name} - ${spaceData.name}`,
+        body: `${userRemove.name} has removed "${removedUser.email}" from "${spaceData.name}"`,
+        link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
+        userIds: usersToNotify,
+        roomId: '',
+        destinationApp: 'extension',
       });
     }
 
@@ -1792,6 +1850,17 @@ export class HelpDeskService {
     spaceData.members[index].role = data.role;
 
     await spaceData.save();
+    this.notificationService.sendNotification({
+      body: `You have been changed to ${data.role}`,
+      title: `${envConfig.app.extension_name} - ${spaceData.name}`,
+      link:
+        data.role === ROLE.ADMIN
+          ? `${envConfig.app.url}/spaces/${spaceId}/settings`
+          : `${envConfig.app.url}/spaces/${spaceId}/conversations`,
+      userIds: [String(member.user)],
+      roomId: '',
+      destinationApp: 'extension',
+    });
     return true;
   }
 
@@ -1816,7 +1885,6 @@ export class HelpDeskService {
         'You do not have permission to create or edit tag',
       );
     }
-    let action = 'created';
     const item: any = {
       color: color,
       name: name,
@@ -1828,7 +1896,6 @@ export class HelpDeskService {
       }
       space.tags.push(item);
     } else {
-      action = 'edited';
       const index = space.tags.findIndex(
         (item) => item._id.toString() === tagId,
       );
@@ -1842,24 +1909,6 @@ export class HelpDeskService {
       space.tags[index].color = color;
     }
     await space.save();
-    const who = await this.userService.findById(userId);
-    const otherMembers = space.members
-      .filter(
-        (item) =>
-          item.user?.toString() !== userId.toString() &&
-          item.status === MemberStatus.JOINED &&
-          item.role !== ROLE.MEMBER,
-      )
-      ?.map((item) => String(item.user));
-
-    this.notificationService.sendNotification({
-      body: `${who?.name} ${action} a tag named "${name}"`,
-      title: `${envConfig.app.extension_name} - ${space.name}`,
-      link: `${envConfig.app.url}/spaces/${spaceId}/settings`,
-      userIds: otherMembers,
-      roomId: '',
-      destinationApp: 'extension',
-    });
     return space.tags;
   }
 

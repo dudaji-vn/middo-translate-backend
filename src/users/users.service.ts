@@ -56,7 +56,7 @@ export class UsersService {
     }
     return user;
   }
-  async find({ q, limit, type }: FindParams): Promise<User[]> {
+  async find({ q, limit, stationId }: FindParams): Promise<User[]> {
     const users = await this.userModel
       .find({
         $or: [
@@ -64,16 +64,11 @@ export class UsersService {
           {
             username: { $regex: q, $options: 'i' },
           },
-          {
-            ...(type === 'help-desk'
-              ? { tempEmail: { $regex: q, $options: 'i' } }
-              : { email: { $regex: q, $options: 'i' } }),
-          },
         ],
-        status:
-          type === 'help-desk'
-            ? { $in: [UserStatus.ANONYMOUS, UserStatus.ACTIVE] }
-            : UserStatus.ACTIVE,
+        status: UserStatus.ACTIVE,
+        ...(stationId && {
+          stations: stationId,
+        }),
       })
       .limit(limit)
       .select({
@@ -85,10 +80,25 @@ export class UsersService {
         pinRoomIds: true,
       })
       .lean();
-    return users.map((item) => ({
-      ...item,
-      email: type === 'help-desk' ? item.tempEmail : item.email,
-    }));
+    return users;
+  }
+
+  async findByUsername({ q, limit, stationId }: FindParams): Promise<User[]> {
+    const users = await this.userModel
+      .find({
+        username: q,
+        status: UserStatus.ACTIVE,
+      })
+      .limit(limit)
+      .select({
+        name: true,
+        username: true,
+        avatar: true,
+        email: true,
+        pinRoomIds: true,
+      })
+      .lean();
+    return users;
   }
   async findById(id: ObjectId | string) {
     const user = await this.userModel
@@ -572,5 +582,18 @@ export class UsersService {
       throw new HttpException(`User ${userId} not found`, 404);
     }
     return user;
+  }
+
+  async removeStationFromUser(stationId: string) {
+    await this.userModel.updateMany(
+      { defaultStation: stationId },
+      { defaultStation: null },
+    );
+
+    await this.userModel.updateMany(
+      { stations: stationId },
+      { $pull: { stations: stationId } },
+    );
+    return null;
   }
 }

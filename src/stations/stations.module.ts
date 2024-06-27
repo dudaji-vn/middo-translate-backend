@@ -6,10 +6,17 @@ import { Station, StationSchema } from './schemas/station.schema';
 import { StationsController } from './stations.controller';
 import { StationsService } from './stations.service';
 import { MailModule } from 'src/mail/mail.module';
+import {
+  InvitationStation,
+  InvitationStationSchema,
+} from './schemas/invitation-station.schema';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: Station.name, schema: StationSchema }]),
+    MongooseModule.forFeature([
+      { name: Station.name, schema: StationSchema },
+      { name: InvitationStation.name, schema: InvitationStationSchema },
+    ]),
     AppNotificationsModule,
     UsersModule,
     MailModule,

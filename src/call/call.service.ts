@@ -1,12 +1,13 @@
+import { CallSchema } from 'src/call/schemas/call.schema';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { Call } from './schemas/call.schema';
-import { Model } from 'mongoose';
+import { Model, ObjectId, Types } from 'mongoose';
 import { STATUS } from './constants/call-status';
 import { CALL_TYPE, JOIN_TYPE } from './constants/call-type';
 import { MessagesService } from 'src/messages/messages.service';
-import { MessageType } from 'src/messages/schemas/messages.schema';
+import { MessageType, SenderType } from 'src/messages/schemas/messages.schema';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { socketConfig } from 'src/configs/socket.config';
 import { logger } from 'src/common/utils/logger';
@@ -24,7 +25,6 @@ export class CallService {
   async joinVideoCallRoom(payload: { id: string; roomId: string }) {
     try {
       const room = await this.roomService.findById(payload.roomId);
-      console.log(room)
       if (!room) {
         return { status: STATUS.ROOM_NOT_FOUND };
       }
@@ -39,9 +39,21 @@ export class CallService {
         endTime: null,
       });
       if (call) {
+        const newCall = await this.callModel.findByIdAndUpdate(
+          call._id,
+          {
+            $addToSet: { participants: payload.id },
+          },
+          { new: true },
+        );
+        const message = await this.messageService.getMessageByCallId(call._id.toString());
+        this.eventEmitter.emit(socketConfig.events.message.update, {
+          roomId: payload.roomId,
+          message: message
+        });
         return {
           status: STATUS.JOIN_SUCCESS,
-          call: call,
+          call: newCall,
           room: room,
           type: JOIN_TYPE.JOIN_ROOM,
         };
@@ -80,6 +92,7 @@ export class CallService {
         avatar: room?.avatar,
         createdBy: payload.id,
         type,
+        participants: [payload.id]
       };
       const newCallObj = await this.callModel.create(newCall);
       this.messageService.create(
@@ -89,6 +102,7 @@ export class CallService {
           media: [],
           callId: newCallObj._id.toString(),
           clientTempId: '',
+          senderType: SenderType.ANONYMOUS
         },
         payload.id,
       );

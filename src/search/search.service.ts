@@ -59,6 +59,9 @@ export class SearchService {
           ...(spaceId && {
             space: { $exists: true, $eq: spaceId },
           }),
+          ...(stationId && {
+            station: { $exists: true, $eq: stationId },
+          }),
           $or: [
             {
               name: { $regex: q, $options: 'i' },
@@ -93,6 +96,9 @@ export class SearchService {
         station: { $exists: false },
         ...(spaceId && {
           space: { $exists: true, $eq: spaceId },
+        }),
+        ...(stationId && {
+          station: { $exists: true, $eq: stationId },
         }),
       },
     });
@@ -359,12 +365,12 @@ export class SearchService {
     };
   }
 
-  async searchUsers({ q, limit, type }: FindParams): Promise<User[]> {
-    const users = await this.usersService.find({
-      q,
-      limit,
-      type,
-    });
+  async searchUsers(query: FindParams): Promise<User[]> {
+    const users = await this.usersService.find(query);
+    return users;
+  }
+  async searchByUsername(query: FindParams): Promise<User[]> {
+    const users = await this.usersService.findByUsername(query);
     return users;
   }
   async searchMessageInRoom(

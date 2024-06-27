@@ -11,12 +11,19 @@ export class RecommendationService {
     private readonly userService: UsersService,
     private readonly roomSerVice: RoomsService,
   ) {}
-  async getRecommendUsersBasedRecentlyChat(userId: string): Promise<User[]> {
+  async getRecommendUsersBasedRecentlyChat(
+    userId: string,
+    query: RecommendQueryDto,
+  ): Promise<User[]> {
     const user = await this.userService.findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
-    const rooms = await this.roomSerVice.findRecentChatRooms(userId, true);
+    const rooms = await this.roomSerVice.findRecentChatRooms(
+      userId,
+      true,
+      query,
+    );
     const users: User[] = [];
     rooms.map((room) => {
       const participants = room.participants.filter(

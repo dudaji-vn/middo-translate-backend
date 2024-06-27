@@ -8,10 +8,14 @@ import { ApiTags } from '@nestjs/swagger';
 export class RecommendationController {
   constructor(private readonly recommendationService: RecommendationService) {}
   @Get('/chat/users')
-  async getRecommendUsersBasedRecentlyChat(@JwtUserId() userId: string) {
+  async getRecommendUsersBasedRecentlyChat(
+    @JwtUserId() userId: string,
+    @Query() query: RecommendQueryDto,
+  ) {
     const users =
       await this.recommendationService.getRecommendUsersBasedRecentlyChat(
         userId,
+        query,
       );
     return {
       data: users,

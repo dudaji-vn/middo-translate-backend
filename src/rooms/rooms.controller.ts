@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,7 +9,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
-import { ListQueryParamsCursorDto } from 'src/common/dto';
+import { ListQueryParamsCursorDto, QueryRoomsDto } from 'src/common/dto';
 import { CursorPaginationInfo, Pagination, Response } from 'src/common/types';
 import { CreateRoomDto } from './dto';
 import { RoomsService } from './rooms.service';
@@ -27,12 +28,15 @@ import {
 import { HelpDeskService } from 'src/help-desk/help-desk.service';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+
+import { StationsService } from 'src/stations/stations.service';
 @ApiBearerAuth()
 @ApiTags('Rooms')
 @Controller('rooms')
 export class RoomsController {
   constructor(
     private readonly roomsService: RoomsService,
+    private readonly stationService: StationsService,
     private readonly messagesService: MessagesService,
     private readonly helpDeskService: HelpDeskService,
   ) {}
@@ -108,9 +112,9 @@ export class RoomsController {
   @Get('pin')
   async getPinRooms(
     @JwtUserId() userId: string,
-    @Query('spaceId') spaceId: string,
+    @Query() query: QueryRoomsDto,
   ): Promise<Response<Room[]>> {
-    const rooms = await this.roomsService.getPinnedRooms(userId, spaceId);
+    const rooms = await this.roomsService.getPinnedRooms(userId, query);
     return { message: 'Rooms found', data: rooms };
   }
 
@@ -118,8 +122,11 @@ export class RoomsController {
   async getRoomById(
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
+    @Query('stationId') stationId: string,
   ): Promise<Response<Room>> {
-    const room = await this.roomsService.findByIdAndUserId(id, userId);
+    const room = await this.roomsService.findByIdAndUserId(id, userId, {
+      stationId: stationId,
+    });
     return { data: room, message: 'Room found' };
   }
 
@@ -129,7 +136,9 @@ export class RoomsController {
     @ParamObjectId('id') id: string,
     @Query('userId') userId: string,
   ) {
-    const room = await this.roomsService.findByIdAndUserId(id, userId, true);
+    const room = await this.roomsService.findByIdAndUserId(id, userId, {
+      checkExpiredAt: true,
+    });
     return { data: room, message: 'Room found' };
   }
 
@@ -421,6 +430,17 @@ export class RoomsController {
     @JwtUserId() userId: string,
     @ParamObjectId('stationId') stationId: string,
   ): Promise<Response<Room>> {
+    const { participants } = createRoomDto;
+
+    const isMemberByParticipants =
+      await this.stationService.isMemberByParticipants(stationId, participants);
+
+    if (!isMemberByParticipants) {
+      throw new BadRequestException(
+        'There are participants who are not members in this station',
+      );
+    }
+
     const room = await this.roomsService.create(
       createRoomDto,
       userId,
