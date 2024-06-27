@@ -82,6 +82,24 @@ export class UsersService {
       .lean();
     return users;
   }
+
+  async findByUsername({ q, limit, stationId }: FindParams): Promise<User[]> {
+    const users = await this.userModel
+      .find({
+        username: q,
+        status: UserStatus.ACTIVE,
+      })
+      .limit(limit)
+      .select({
+        name: true,
+        username: true,
+        avatar: true,
+        email: true,
+        pinRoomIds: true,
+      })
+      .lean();
+    return users;
+  }
   async findById(id: ObjectId | string) {
     const user = await this.userModel
       .findById(id)
