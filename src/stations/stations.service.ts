@@ -24,12 +24,15 @@ import { MailService } from 'src/mail/mail.service';
 import { InviteMemberDto, InviteMemberWithLink } from './dto/invite-member.dto';
 import { MemberDto } from './dto/member.dto';
 import { RoomStatus } from 'src/rooms/schemas/room.schema';
+import { InvitationStation } from './schemas/invitation-station.schema';
 
 @Injectable()
 export class StationsService {
   constructor(
     @InjectModel(Station.name)
     private stationModel: Model<Station>,
+    @InjectModel(InvitationStation.name)
+    private invitationStationModel: Model<InvitationStation>,
     private userService: UsersService,
     private appNotificationsService: AppNotificationsService,
     private readonly eventEmitter: EventEmitter2,
@@ -309,12 +312,6 @@ export class StationsService {
       throw new BadRequestException('Station not found!');
     }
 
-    if (!this.isOwnerStation(stationData, userId)) {
-      throw new ForbiddenException(
-        'You do not have permission to invite people to the station!',
-      );
-    }
-
     data.members.forEach((member) => {
       const user = stationData.members.find(
         (item) =>
@@ -518,18 +515,105 @@ export class StationsService {
     return true;
   }
 
-  async generateLink() {
+  async activeInvitationLink(userId: string, stationId: string) {
+    const isExist = await this.getInvitationLink(stationId);
+    if (isExist) {
+      throw new BadRequestException(
+        `Station has exist link, please remove it before active`,
+      );
+    }
+    const station = await this.stationModel.findOne({
+      _id: stationId,
+      status: StationStatus.ACTIVE,
+    });
+    if (!station) {
+      throw new BadRequestException('Station not found');
+    }
+    if (!this.isOwnerStation(station, userId)) {
+      throw new BadRequestException(
+        'Only owner has permission to generate link',
+      );
+    }
     const token = `${generateSlug()}-${generateSlug()}`;
-    const verifyUrl = this.createVerifyUrl(token);
+    const invitationLink = this.createInvitationLinkUrl(stationId, token);
+    const data = await this.invitationStationModel.create({
+      station: stationId,
+      link: invitationLink,
+    });
 
-    return {
-      verifyUrl: verifyUrl,
-      expiredAt: moment()
-        .add(envConfig.station.invite.expireIn, 'day')
-        .toDate(),
-    };
+    return data;
   }
 
+  async deleteInvitationLink(userId: string, stationId: string) {
+    const station = await this.stationModel.findOne({
+      _id: stationId,
+      status: StationStatus.ACTIVE,
+    });
+    if (!station) {
+      throw new BadRequestException('Station not found');
+    }
+    if (!this.isOwnerStation(station, userId)) {
+      throw new BadRequestException('Only owner has permission to delete link');
+    }
+    await this.invitationStationModel.findOneAndDelete({
+      station: stationId,
+    });
+    return null;
+  }
+
+  async joinByLink(userId: string, stationId: string, link: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    const isValidLink = await this.invitationStationModel.findOne({
+      link: link,
+      station: stationId,
+    });
+    if (!isValidLink) {
+      throw new BadRequestException('Link is invalid');
+    }
+    const station = await this.stationModel.findOne({
+      _id: stationId,
+      status: StationStatus.ACTIVE,
+    });
+    if (!station) {
+      throw new BadRequestException('Station not found');
+    }
+
+    const existMember = station.members.find(
+      (member) =>
+        member.email === user.email && member.status === MemberStatus.JOINED,
+    );
+
+    if (existMember) {
+      throw new ConflictException('You are joined this station');
+    }
+
+    const member: Member = {
+      status: MemberStatus.JOINED,
+      joinedAt: new Date(),
+      user: userId,
+      role: ROLE.MEMBER,
+      email: user.email,
+    };
+
+    const index = station.members.findIndex(
+      (member) =>
+        member.email === user.email && member.status === MemberStatus.INVITED,
+    );
+    if (index > -1) {
+      station.members[index] = member;
+    } else {
+      station.members.push(member);
+    }
+    await station.save();
+    return true;
+  }
+
+  async getInvitationLink(stationId: string) {
+    return await this.invitationStationModel.findOne({ station: stationId });
+  }
   async inviterMemberWithLink(
     stationId: string,
     userId: string,
@@ -586,6 +670,10 @@ export class StationsService {
 
   private createVerifyUrl(token: string) {
     return `${envConfig.app.url}/station-verify?token=${token}`;
+  }
+
+  private createInvitationLinkUrl(stationId: string, token: string) {
+    return `${envConfig.app.url}/station-invitation?stationId=${stationId}&token=${token}`;
   }
   private isOwnerStation(station: Station, userId: string) {
     return station.owner?.toString() === userId.toString();

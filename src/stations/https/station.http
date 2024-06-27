@@ -156,6 +156,26 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 
+###
+GET  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members/invitation-link
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+POST  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members/invitation-link
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+####
+DELETE  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members/invitation-link
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+POST {{SERVER_URL}}/api/stations/{{STATION_ID}}/members/invitation-link/join
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY2NjdjNzMzYmE2YTFlZjExYTk5OTI4MSIsImlhdCI6MTcxOTQ3MDM3MiwiZXhwIjoxNzIyMDYyMzcyfQ.iuIDb5oDZcRlUe84PvSckvi2NB52wI5a1YboV8z22_0
+Content-Type: application/json
+
+{
+   "link":"http://localhost:3000/station-invitation?stationId=6662d3336c2bd7cc71563677&token=yz7-9yc-9wu-a0z-wim-y2f"
+}
 
 
 
