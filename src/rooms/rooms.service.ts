@@ -356,7 +356,16 @@ export class RoomsService {
     return room;
   }
 
-  async findByIdAndUserId(id: string, userId: string, checkExpiredAt = false) {
+  async findByIdAndUserId(
+    id: string,
+    userId: string,
+    params?: {
+      checkExpiredAt?: boolean;
+      stationId?: string;
+    },
+  ) {
+    const stationId = params?.stationId;
+    const checkExpiredAt = params?.checkExpiredAt;
     const user = await this.usersService.findById(userId);
     let room = await this.roomModel.findOne({
       _id: id,
@@ -376,12 +385,18 @@ export class RoomsService {
           $size: participantIds.length,
         },
         status: RoomStatus.ACTIVE,
+        ...(stationId && {
+          station: stationId,
+        }),
       });
     }
     // CASE: Delete contact P2P
     if (!room) {
       const participantIds = [...new Set([userId, id])];
       room = await this.roomModel.findOne({
+        ...(stationId && {
+          station: stationId,
+        }),
         $or: [
           {
             waitingUsers: {
@@ -406,6 +421,9 @@ export class RoomsService {
         );
         room.participants = participants;
         room.status = RoomStatus.TEMPORARY;
+        if (stationId) {
+          room.station = stationId;
+        }
         room.admin = user;
       } catch (error) {
         throw new NotFoundException('Room not found');
