@@ -119,8 +119,11 @@ export class RoomsController {
   async getRoomById(
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
+    @Query('stationId') stationId: string,
   ): Promise<Response<Room>> {
-    const room = await this.roomsService.findByIdAndUserId(id, userId);
+    const room = await this.roomsService.findByIdAndUserId(id, userId, {
+      stationId: stationId,
+    });
     return { data: room, message: 'Room found' };
   }
 
@@ -130,7 +133,9 @@ export class RoomsController {
     @ParamObjectId('id') id: string,
     @Query('userId') userId: string,
   ) {
-    const room = await this.roomsService.findByIdAndUserId(id, userId, true);
+    const room = await this.roomsService.findByIdAndUserId(id, userId, {
+      checkExpiredAt: true,
+    });
     return { data: room, message: 'Room found' };
   }
 
