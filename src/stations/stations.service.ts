@@ -202,7 +202,7 @@ export class StationsService {
       );
     }
     data.members = data.members.filter(
-      (user) => user.status === MemberStatus.JOINED,
+      (user) => user.status !== MemberStatus.DELETED,
     );
     return data;
   }
