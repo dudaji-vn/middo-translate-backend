@@ -90,6 +90,18 @@ export class SearchController {
     };
   }
 
+  @Get('users/username')
+  async searchByUserName(
+    @Query() query: SearchQueryParamsDto,
+  ): Promise<Response<User[]>> {
+    query.limit = query.limit || 20;
+    const users = await this.searchService.searchByUsername(query);
+    return {
+      data: users,
+      message: 'Users found',
+    };
+  }
+
   @Post('keywords')
   async addKeyword(
     @JwtUserId() userId: string,

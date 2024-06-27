@@ -369,6 +369,10 @@ export class SearchService {
     const users = await this.usersService.find(query);
     return users;
   }
+  async searchByUsername(query: FindParams): Promise<User[]> {
+    const users = await this.usersService.findByUsername(query);
+    return users;
+  }
   async searchMessageInRoom(
     roomId: string,
     userId: string,
