@@ -13,6 +13,7 @@ import { StationsService } from './stations.service';
 import { RemoveMemberDto } from './dto/remove-member.dto';
 import { ValidateInviteDto } from './dto/validate-invite.dto';
 import { InviteMemberDto, InviteMemberWithLink } from './dto/invite-member.dto';
+import { JoinByLinkDto } from './dto/join-by-link.dto';
 
 @Controller('stations')
 export class StationsController {
@@ -141,9 +142,43 @@ export class StationsController {
     };
   }
 
-  @Patch('members/generate-link')
-  async generateLink() {
-    const result = await this.stationsService.generateLink();
+  @Get(':id/members/invitation-link')
+  async getInvitationLink(@ParamObjectId('id') id: string) {
+    const result = await this.stationsService.getInvitationLink(id);
+    return {
+      data: result,
+    };
+  }
+
+  @Post(':id/members/invitation-link')
+  async activeLinkInvitation(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+  ) {
+    const result = await this.stationsService.activeInvitationLink(userId, id);
+    return {
+      data: result,
+    };
+  }
+
+  @Delete(':id/members/invitation-link')
+  async deleteLinkInvitation(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+  ) {
+    const result = await this.stationsService.deleteInvitationLink(userId, id);
+    return {
+      data: result,
+    };
+  }
+
+  @Post(':id/members/invitation-link/join')
+  async joinByLink(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+    @Body() { link }: JoinByLinkDto,
+  ) {
+    const result = await this.stationsService.joinByLink(userId, id, link);
     return {
       data: result,
     };
