@@ -569,9 +569,7 @@ export class StationsService {
       status === ValidateInviteStatus.DECLINE &&
       station.members[memberIndex].status === MemberStatus.INVITED
     ) {
-      station.members = station.members.filter(
-        (item) => item.verifyToken !== token,
-      );
+      station.members[memberIndex].status = MemberStatus.REJECTED;
       await station.save();
     } else {
       station.members[memberIndex].status = MemberStatus.JOINED;

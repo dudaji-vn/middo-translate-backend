@@ -6,6 +6,7 @@ export enum MemberStatus {
   INVITED = 'invited',
   JOINED = 'joined',
   DELETED = 'deleted',
+  REJECTED = 'rejected',
 }
 
 export enum ROLE {
