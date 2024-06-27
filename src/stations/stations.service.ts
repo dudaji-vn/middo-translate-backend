@@ -21,10 +21,15 @@ import { Station, StationStatus } from './schemas/station.schema';
 import { ValidateInviteStatus } from './dto/validate-invite.dto';
 import { envConfig } from 'src/configs/env.config';
 import { MailService } from 'src/mail/mail.service';
-import { InviteMemberDto, InviteMemberWithLink } from './dto/invite-member.dto';
-import { MemberDto } from './dto/member.dto';
+import {
+  InviteMemberByUserDto,
+  InviteMemberDto,
+  InviteMemberWithLink,
+} from './dto/invite-member.dto';
+import { MemberDto, MemberWithUserDto } from './dto/member.dto';
 import { RoomStatus } from 'src/rooms/schemas/room.schema';
 import { InvitationStation } from './schemas/invitation-station.schema';
+import { userInfo } from 'os';
 
 @Injectable()
 export class StationsService {
@@ -297,7 +302,7 @@ export class StationsService {
     });
   }
 
-  async inviteMembers(
+  async inviteMembersWithEmails(
     stationId: string,
     userId: string,
     data: InviteMemberDto,
@@ -345,6 +350,70 @@ export class StationsService {
     await Promise.all(memberPromises);
     return stationData.members.map((item) => {
       return {
+        user: item.user,
+        email: item.email,
+        status: item.status,
+        invitedAt: item.invitedAt,
+        expiredAt: item.expiredAt,
+      };
+    });
+  }
+
+  async inviteMembersWithUserIds(
+    stationId: string,
+    userId: string,
+    data: InviteMemberByUserDto,
+  ) {
+    const user = await this.userService.findById(userId);
+    const stationData = await this.stationModel.findOne({
+      _id: stationId,
+      status: { $ne: StationStatus.DELETED },
+    });
+
+    if (!stationData) {
+      throw new BadRequestException('Station not found!');
+    }
+
+    for (const member of data.members) {
+      const userInfo = await this.userService.findById(member.userId);
+      if (!userInfo) {
+        throw new BadRequestException(`User ${member.userId} not found`);
+      }
+
+      const user = stationData.members.find(
+        (item) =>
+          item.email === userInfo.email && item.status !== MemberStatus.DELETED,
+      );
+      if (user?.status === MemberStatus.INVITED) {
+        throw new BadRequestException(`Email ${user.email} already invited!`);
+      }
+      if (user?.status === MemberStatus.JOINED) {
+        throw new BadRequestException(`Email ${user.email} already joined!`);
+      }
+    }
+
+    const uniqueIds = new Set();
+    const newMembersPromise = data.members
+      .filter((member) => {
+        if (!uniqueIds.has(member.userId)) {
+          uniqueIds.add(member.userId);
+          return true;
+        }
+        return false;
+      })
+      .map((item) => this.convertMemberDtoToMemberWithUser(item));
+    const newMembers = await Promise.all(newMembersPromise);
+
+    stationData.members.push(...newMembers);
+    await stationData.save();
+
+    const memberPromises = newMembers.map((member) =>
+      this.processMember(user, member, stationData),
+    );
+    await Promise.all(memberPromises);
+    return stationData.members.map((item) => {
+      return {
+        user: item.user,
         email: item.email,
         status: item.status,
         invitedAt: item.invitedAt,
@@ -778,6 +847,24 @@ export class StationsService {
         .add(envConfig.station.invite.expireIn, 'day')
         .toDate(),
       status: MemberStatus.INVITED,
+    };
+  }
+
+  async convertMemberDtoToMemberWithUser(
+    item: MemberWithUserDto,
+  ): Promise<Member> {
+    const token = `${generateSlug()}-${generateSlug()}`;
+    const userInfo = await this.userService.findById(item.userId);
+    return {
+      email: userInfo.email,
+      role: ROLE.MEMBER,
+      verifyToken: token,
+      invitedAt: new Date(),
+      expiredAt: moment()
+        .add(envConfig.station.invite.expireIn, 'day')
+        .toDate(),
+      status: MemberStatus.INVITED,
+      user: item.userId,
     };
   }
 }

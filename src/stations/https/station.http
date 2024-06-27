@@ -7,17 +7,13 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
-  "name":"Dev space",
+  "name":"Linh station",
   "avatar":"hrkrkr",
   "backgroundImage":"sss",
   "members":[
+    
     {
-      "email":"19521750@gm.uit.edu.vn",
-      "role":"admin"
-    },
-    {
-      "email":"linh@dudaji.vn",
-      "role":"member"
+      "email":"linh@dudaji.vn"
     }
   ]
 }
@@ -92,24 +88,20 @@ Content-Type: application/json
 
 ###
 
-POST  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members
+POST  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members/users
 Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
   "members":[
     {
-      "email":"hoquanghao2710@gmail.com"
+      "userId":"6667c733ba6a1ef11a999281"
     },
     {
-      "email":"linh@dudaji.vn"
+      "userId":"65e56cfb9cd38aca6cd26d3c"
     }
   ]
 }
-
-###
-PATCH {{SERVER_URL}}/api/stations/members/generate-link
-Authorization: Bearer {{ACCESS_TOKEN}}
 
 
 ###
