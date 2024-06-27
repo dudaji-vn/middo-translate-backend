@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { HydratedDocument } from 'mongoose';
+import mongoose, { HydratedDocument, ObjectId } from 'mongoose';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { CallType } from '../constants/call-type';
 
@@ -26,6 +26,11 @@ export class Call {
   type: CallType;
   @Prop({ type: String })
   name: string;
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
+    default: [],
+  })
+  participants: ObjectId[] | string[];
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',

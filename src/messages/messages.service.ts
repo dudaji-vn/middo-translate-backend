@@ -139,7 +139,10 @@ export class MessagesService {
       },
       {
         path: 'call',
-        select: selectPopulateField<Call>(['endTime', '_id', 'type']),
+        populate: {
+          path: 'participants',
+          select: selectPopulateField<User>(['_id', 'name', 'status']),
+        },
       },
       {
         path: 'mentions',
@@ -900,7 +903,13 @@ export class MessagesService {
           'language',
         ]),
       )
-      .populate('call')
+      .populate({
+        path: 'call',
+        populate: {
+          path: 'participants',
+          select: selectPopulateField<User>(['_id', 'name', 'status']),
+        },
+      })
       .populate(
         'reactions.user',
         selectPopulateField<User>([
@@ -1408,6 +1417,10 @@ export class MessagesService {
             },
             {
               path: 'call',
+              populate: {
+                path: 'participants',
+                select: selectPopulateField<User>(['_id', 'name', 'status']),
+              },
             },
             {
               path: 'mentions',
@@ -1435,6 +1448,49 @@ export class MessagesService {
       };
     });
     return pinMessagesWithRemoved;
+  }
+
+
+  async getMessageByCallId(callId: string) {
+    const message = await this.messageModel.findOne({ call: callId }).populate([
+      {
+        path: 'sender',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
+      },
+      {
+        path: 'room',
+        select: selectPopulateField<Room>([
+          '_id',
+          'name',
+          'participants',
+          'isGroup',
+        ]),
+        populate: [
+          {
+            path: 'participants',
+            select: selectPopulateField<User>(['_id']),
+          },
+        ],
+      },
+      {
+        path: 'call',
+        populate: {
+          path: 'participants',
+          select: selectPopulateField<User>(['_id', 'name', 'status']),
+        },
+      },
+      {
+        path: 'mentions',
+        select: selectPopulateField<User>(['_id', 'name', 'email']),
+      }
+    ]);
+    return message;
   }
 
   async initHelpDeskConversation(
