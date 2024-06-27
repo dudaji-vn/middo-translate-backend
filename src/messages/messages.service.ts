@@ -662,7 +662,21 @@ export class MessagesService {
           body = ` ${message.sender.name} left the conversation`;
           break;
         default:
-          body = `${message.sender.name} from ${room?.fromDomain}`;
+          {
+            const anonymousUser = room.participants.find(
+              (p) => p.status === 'anonymous',
+            );
+            body = `${message.sender.name} sent message to ${anonymousUser?.name}`;
+            console.log('anonymousUser', anonymousUser);
+            console.log('message.sender', message.sender);
+            if (
+              message.sender._id.toString() === anonymousUser?._id.toString()
+            ) {
+              body = `${message.sender.name} ${
+                room?.fromDomain ? `from ${room?.fromDomain}` : ''
+              }`;
+            }
+          }
           break;
       }
     }
