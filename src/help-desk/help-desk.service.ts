@@ -1140,7 +1140,7 @@ export class HelpDeskService {
         'members.verifyToken': token,
       })
       .populate('owner', 'email')
-      .select('name avatar backgroundImage members owner')
+      .select('name avatar backgroundImage members owner status')
       .lean();
 
     if (!space) {
