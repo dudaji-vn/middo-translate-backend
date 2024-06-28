@@ -674,6 +674,7 @@ export class StationsService {
     } else {
       station.members.push(member);
     }
+    await this.userService.addMemberToStation(userId, stationId);
     await station.save();
     return true;
   }
