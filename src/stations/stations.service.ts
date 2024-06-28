@@ -29,7 +29,6 @@ import {
 import { MemberDto, MemberWithUserDto } from './dto/member.dto';
 import { RoomStatus } from 'src/rooms/schemas/room.schema';
 import { InvitationStation } from './schemas/invitation-station.schema';
-import { userInfo } from 'os';
 
 @Injectable()
 export class StationsService {
@@ -142,7 +141,7 @@ export class StationsService {
         'members.verifyToken': token,
       })
       .populate('owner', 'email')
-      .select('name avatar backgroundImage members owner')
+      .select('name avatar backgroundImage members owner status')
       .lean();
 
     if (!station) {
