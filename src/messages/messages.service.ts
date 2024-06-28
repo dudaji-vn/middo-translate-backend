@@ -531,7 +531,13 @@ export class MessagesService {
           'language',
         ]),
       )
-      .populate('call', selectPopulateField<Call>(['endTime', '_id', 'type']))
+      .populate({
+        path: 'call',
+        populate: {
+          path: 'participants',
+          select: selectPopulateField<User>(['_id', 'name', 'status']),
+        },
+      })
       .populate('parent', selectPopulateField<Message>(['_id']))
       .populate(
         'reactions.user',
@@ -931,7 +937,13 @@ export class MessagesService {
           'language',
         ]),
       )
-      .populate('call')
+      .populate({
+        path: 'call',
+        populate: {
+          path: 'participants',
+          select: selectPopulateField<User>(['_id', 'name', 'status']),
+        },
+      })
       .populate(
         'reactions.user',
         selectPopulateField<User>([
@@ -1102,7 +1114,13 @@ export class MessagesService {
           'language',
         ]),
       )
-      .populate('call')
+      .populate({
+        path: 'call',
+        populate: {
+          path: 'participants',
+          select: selectPopulateField<User>(['_id', 'name', 'status']),
+        },
+      })
       .populate(
         'reactions.user',
         selectPopulateField<User>([
