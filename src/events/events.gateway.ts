@@ -901,7 +901,7 @@ export class EventsGateway
   }
 
   //App notification
-  @OnEvent(socketConfig.events.app.notification)
+  @OnEvent(socketConfig.events.app.notification.new)
   async handleNotify({
     data,
     receiverIds,
@@ -916,7 +916,7 @@ export class EventsGateway
     console.log('socketIds', socketIds);
     this.server
       .to(socketIds)
-      .emit(socketConfig.events.space.notification.new, data);
+      .emit(socketConfig.events.app.notification.new, data);
   }
 }
 

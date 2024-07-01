@@ -113,7 +113,9 @@ export const socketConfig = {
       },
     },
     app: {
-      notification: 'app.notification',
+      notification: {
+        new: 'app.notification.new',
+      },
     },
   },
 };
