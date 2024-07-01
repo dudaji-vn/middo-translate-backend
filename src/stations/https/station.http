@@ -114,12 +114,6 @@ Content-Type: application/json
    "email":"hoquanglinh2910@gmail.com"
 }
 
-###
-###
-
-PATCH {{SERVER_URL}}/api/stations/6679380d322b8781778efae9/set-default
-Authorization: Bearer {{ACCESS_TOKEN}}
-
 
 //Call this api to get default station
 ###
@@ -169,5 +163,14 @@ Content-Type: application/json
    "link":"http://localhost:3000/station-invitation?stationId=6662d3336c2bd7cc71563677&token=yz7-9yc-9wu-a0z-wim-y2f"
 }
 
+###
 
+
+PATCH {{SERVER_URL}}/api/stations/667d1c79a4ebe77f550a9fe7/set-default
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+
+DELETE  {{SERVER_URL}}/api/stations/667d1c79a4ebe77f550a9fe7/remove-default
+Authorization: Bearer {{ACCESS_TOKEN}}
 

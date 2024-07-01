@@ -817,6 +817,29 @@ export class StationsService {
     return true;
   }
 
+  async removeDefaultStation(stationId: string, userId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    const station = await this.stationModel.findOne({
+      _id: stationId,
+      status: StationStatus.ACTIVE,
+    });
+    if (!station) {
+      throw new BadRequestException('Station not found');
+    }
+    const isMember = await this.isMember(station, userId);
+    if (!isMember) {
+      throw new BadRequestException('You are not in the station');
+    }
+
+    await this.userService.update(userId, {
+      defaultStation: null,
+    });
+    return null;
+  }
+
   async isMemberByParticipants(stationId: string, participants: ObjectId[]) {
     const station = await this.stationModel.findOne({
       _id: stationId,

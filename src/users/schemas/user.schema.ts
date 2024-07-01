@@ -115,7 +115,7 @@ export class User {
   stations: Station[];
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Station.name })
-  defaultStation: ObjectId;
+  defaultStation: ObjectId | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
