@@ -1,7 +1,6 @@
 import { IsMongoId, IsOptional, IsString, Min } from 'class-validator';
 
 import { Transform } from 'class-transformer';
-import { ParseArrayPipe, Query } from '@nestjs/common';
 
 export class ListQueryParamsCursorDto {
   @IsOptional()
@@ -11,7 +10,7 @@ export class ListQueryParamsCursorDto {
 
   @IsOptional()
   readonly cursor: string;
-
+  direction: 'forward' | 'backward';
   @IsOptional()
   @IsString({ each: true })
   @Transform(({ value }: { value: string }) => {

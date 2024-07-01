@@ -6,3 +6,8 @@ export type UpdateRoomPayload = {
   participants: string[] | ObjectId[];
   data: Partial<Room>;
 };
+
+export type DeleteContactPayload = {
+  participants: string[] | ObjectId[];
+  data: Partial<Room>;
+};

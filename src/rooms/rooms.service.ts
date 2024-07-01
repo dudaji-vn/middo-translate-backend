@@ -34,7 +34,7 @@ import { convertMessageRemoved } from 'src/messages/utils/convert-message-remove
 import { RecommendQueryDto } from 'src/recommendation/dto/recommend-query-dto';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import { HelpDeskBusiness } from '../help-desk/schemas/help-desk-business.schema';
+import { HelpDeskBusiness } from 'src/help-desk/schemas/help-desk-business.schema';
 import { CreateRoomDto } from './dto';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 import { UpdateRoomDto } from './dto/update-room.dto';
@@ -48,6 +48,8 @@ import {
 import * as moment from 'moment';
 import { envConfig } from 'src/configs/env.config';
 import { pivotChartByType } from 'src/common/utils/date-report';
+import { StationsService } from 'src/stations/stations.service';
+import { QueryRoomsDto } from 'src/common/dto';
 
 const userSelectFieldsString = selectPopulateField<User>([
   '_id',
@@ -63,12 +65,17 @@ const userSelectFieldsString = selectPopulateField<User>([
 export class RoomsService {
   constructor(
     private readonly usersService: UsersService,
+    private readonly stationService: StationsService,
     private readonly eventEmitter: EventEmitter2,
     @InjectModel(Room.name) private readonly roomModel: Model<Room>,
     @InjectModel(HelpDeskBusiness.name)
     private readonly helpDeskBusinessModel: Model<HelpDeskBusiness>,
   ) {}
-  async create(createRoomDto: CreateRoomDto, creatorId: string) {
+  async create(
+    createRoomDto: CreateRoomDto,
+    creatorId: string,
+    stationId?: string,
+  ) {
     const participants = await Promise.all(
       [...new Set([creatorId, ...createRoomDto.participants])].map((id) =>
         this.usersService.findById(id),
@@ -84,8 +91,9 @@ export class RoomsService {
     }
 
     if (!isGroup) {
-      const room = await this.findByParticipantIds(
+      const room = await this.findByParticipantIdsAndStationId(
         participants.map((p) => p._id),
+        stationId,
       );
       if (room) {
         return room;
@@ -93,6 +101,13 @@ export class RoomsService {
     }
 
     const newRoom = new this.roomModel(createRoomDto);
+    if (stationId) {
+      const station = await this.stationService.findStationByIdAndUserId(
+        stationId,
+        creatorId,
+      );
+      newRoom.station = station;
+    }
     const admin =
       participants.find((p) => p._id.toString() === creatorId) || ({} as User);
 
@@ -104,8 +119,14 @@ export class RoomsService {
         if (p._id.toString() === creatorId) return;
         if (!p.allowUnknown) {
           newRoom.waitingUsers.push(p);
-        } else {
+        }
+
+        if (!isGroup || p.allowUnknown) {
           newRoom.participants.push(p);
+        }
+
+        if (!isGroup && !p.allowUnknown) {
+          newRoom.status = RoomStatus.WAITING;
         }
       });
     } else {
@@ -119,7 +140,7 @@ export class RoomsService {
     }
     newRoom.isGroup = isGroup;
     newRoom.admin = admin;
-
+    console.log(newRoom);
     const room = await this.roomModel.create(newRoom);
     const responseRoom = await room.populate([
       {
@@ -143,7 +164,7 @@ export class RoomsService {
     return responseRoom;
   }
 
-  async accept(roomId: string, userId: string) {
+  async accept(roomId: string, userId: string, roomStatus?: RoomStatus) {
     const room = await this.roomModel.findOne({
       _id: roomId,
       waitingUsers: userId,
@@ -155,10 +176,13 @@ export class RoomsService {
     room.waitingUsers = room.waitingUsers.filter(
       (p) => String(p._id) !== userId,
     );
-    room.participants = [...room.participants, user];
+    if (!room.participants.some((p) => String(p._id) === userId)) {
+      room.participants = [...room.participants, user];
+    }
     await this.updateRoom(roomId, {
       waitingUsers: room.waitingUsers,
       participants: room.participants,
+      status: roomStatus || RoomStatus.ACTIVE,
     });
   }
 
@@ -242,7 +266,28 @@ export class RoomsService {
     });
     return room;
   }
-
+  async deleteContact(roomId: string, userId: string) {
+    const room = await this.findByIdAndUserId(roomId, userId);
+    const otherUser = room.participants.find(
+      (p) => p._id.toString() !== userId,
+    );
+    await this.roomModel.updateOne(
+      {
+        _id: room._id,
+      },
+      {
+        status: RoomStatus.WAITING,
+        waitingUsers: [...room.waitingUsers, otherUser, userId],
+        participants: [],
+      },
+    );
+    const newRoom = await this.findByIdAndUserId(roomId, userId);
+    this.eventEmitter.emit(socketConfig.events.room.delete_contact, {
+      participants: [...room.participants.map((p: User) => p._id)],
+      data: newRoom,
+    });
+    return room;
+  }
   async leaveRoom(id: string, userId: string) {
     const room = await this.findGroupByIdAndUserId(id, userId);
     if (!room.isGroup) {
@@ -286,19 +331,17 @@ export class RoomsService {
     return room;
   }
 
-  async findByParticipantIds(
+  async findByParticipantIdsAndStationId(
     participantIds: ObjectId[] | string[],
-    inCludeDeleted = false,
-    isHelpDesk = false,
+    stationId?: string,
   ) {
     const room = await this.roomModel
       .findOne({
+        ...(stationId && { station: stationId }),
         participants: {
           $all: participantIds,
           $size: participantIds.length,
         },
-        ...(inCludeDeleted ? {} : { status: RoomStatus.ACTIVE }),
-        ...(isHelpDesk && { isHelpDesk: isHelpDesk }),
       })
       .populate({
         path: 'lastMessage',
@@ -313,17 +356,27 @@ export class RoomsService {
     return room;
   }
 
-  async findByIdAndUserId(id: string, userId: string, checkExpiredAt = false) {
+  async findByIdAndUserId(
+    id: string,
+    userId: string,
+    params?: {
+      checkExpiredAt?: boolean;
+      stationId?: string;
+    },
+  ) {
+    const stationId = params?.stationId;
+    const checkExpiredAt = params?.checkExpiredAt;
     const user = await this.usersService.findById(userId);
     let room = await this.roomModel.findOne({
       _id: id,
       $or: [{ waitingUsers: userId }, { participants: userId }],
 
       status: {
-        $in: [RoomStatus.ACTIVE, RoomStatus.ARCHIVED],
+        $in: [RoomStatus.ACTIVE, RoomStatus.ARCHIVED, RoomStatus.WAITING],
       },
     });
 
+    // CASE: Search room by user ID
     if (!room) {
       const participantIds = [...new Set([userId, id])];
       room = await this.roomModel.findOne({
@@ -332,6 +385,31 @@ export class RoomsService {
           $size: participantIds.length,
         },
         status: RoomStatus.ACTIVE,
+        ...(stationId && {
+          station: stationId,
+        }),
+      });
+    }
+    // CASE: Delete contact P2P
+    if (!room) {
+      const participantIds = [...new Set([userId, id])];
+      room = await this.roomModel.findOne({
+        ...(stationId && {
+          station: stationId,
+        }),
+        $or: [
+          {
+            waitingUsers: {
+              $all: participantIds,
+            },
+          },
+          {
+            $and: [{ participants: userId }, { waitingUsers: id }],
+          },
+          {
+            $and: [{ participants: id }, { waitingUsers: userId }],
+          },
+        ],
       });
     }
     if (!room) {
@@ -343,6 +421,9 @@ export class RoomsService {
         );
         room.participants = participants;
         room.status = RoomStatus.TEMPORARY;
+        if (stationId) {
+          room.station = stationId;
+        }
         room.admin = user;
       } catch (error) {
         throw new NotFoundException('Room not found');
@@ -420,21 +501,24 @@ export class RoomsService {
       type?:
         | 'all'
         | 'group'
+        | 'contact'
         | 'individual'
         | 'help-desk'
         | 'unread-help-desk'
         | 'archived'
         | 'waiting';
       spaceId?: string;
+      stationId?: string;
       status?: RoomStatus;
       domains?: string[];
       tags?: string[];
       countries: string[];
+      isGroup?: boolean;
+      isUnread?: boolean;
     },
     userId: string,
   ): Promise<Pagination<Room, CursorPaginationInfo>> {
     const {
-      limit = 10,
       cursor,
       type,
       status,
@@ -442,8 +526,11 @@ export class RoomsService {
       domains,
       tags,
       countries = [],
+      stationId,
+      isUnread,
+      isGroup,
     } = queryParams;
-
+    let limit = queryParams.limit;
     const user = await this.usersService.findById(userId);
     let userIds: ObjectId[] = [];
     if (spaceId && countries && countries.length > 0) {
@@ -461,22 +548,23 @@ export class RoomsService {
       },
       participants: userId,
       waitingUsers: { $nin: [userId] },
-      status: { $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED] },
+      status: {
+        $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED, RoomStatus.WAITING],
+      },
       deleteFor: { $nin: [userId] },
       archiveFor: { $nin: [userId] },
       isHelpDesk: { $ne: true },
+      station: { $exists: false },
       ...(status && { status }),
       ...(countries?.length && {
         $and: [{ participants: { $in: userIds } }, { participants: userId }],
       }),
       ...(tags?.length && { tag: { $in: tags } }),
       ...(domains?.length && { fromDomain: { $in: domains } }),
+      ...(stationId && { station: stationId }),
     };
 
     switch (type) {
-      case 'group':
-        Object.assign(query, { isGroup: true });
-        break;
       case 'individual':
         Object.assign(query, { isGroup: false });
         break;
@@ -489,17 +577,54 @@ export class RoomsService {
       case 'unread-help-desk':
         Object.assign(query, {
           isHelpDesk: true,
-          readBy: { $nin: [user] },
+          readBy: { $nin: [userId] },
           space: { $exists: true, $eq: spaceId },
         });
         break;
       case 'archived':
         Object.assign(query, { archiveFor: { $in: [userId] } });
         break;
-      case 'waiting':
-        Object.assign(query, { waitingUsers: { $in: [userId] } });
-        Object.assign(query, { participants: { $nin: [userId] } });
+      case 'contact':
+        Object.assign(query, {
+          isGroup: false,
+          status: { $ne: RoomStatus.WAITING },
+        });
+        delete query.archiveFor;
+        // delete query.waitingUsers;
+        delete query._id;
+        limit = Infinity;
         break;
+      case 'waiting':
+        Object.assign(query, {
+          $or: [
+            { waitingUsers: { $in: [userId] } },
+            {
+              $and: [
+                { participants: { $in: [userId] } },
+                { status: RoomStatus.WAITING },
+              ],
+            },
+          ],
+        });
+        delete query.status;
+        delete query.waitingUsers;
+        delete query.participants;
+        // Object.assign(query, { participants: { $nin: [userId] } });
+        break;
+    }
+
+    // if (isUnread !== undefined) {
+    //   if (isUnread) {
+    //     query['lastMessage.readBy'] = { $nin: [userId] };
+    //   } else {
+    //     query['lastMessage.readBy'] = { $in: [userId] };
+    //   }
+    // }
+
+    if (isGroup !== undefined) {
+      query.isGroup = isGroup;
+    } else {
+      delete query.isGroup;
     }
 
     const rooms = await this.roomModel
@@ -568,14 +693,8 @@ export class RoomsService {
       pageInfo,
     };
   }
-  async search({
-    query,
-    limit,
-  }: {
-    query: FilterQuery<Room>;
-    limit: number;
-  }): Promise<Room[]> {
-    const rooms = await this.roomModel
+  search({ query, limit }: { query: FilterQuery<Room>; limit: number }) {
+    const rooms = this.roomModel
       .find(query)
       .limit(limit)
       .populate(
@@ -633,6 +752,10 @@ export class RoomsService {
           'targetUsers',
           'sender',
         ]),
+      )
+      .populate(
+        selectPopulateField<Room>(['space']),
+        selectPopulateField<Space>(['name']),
       );
     return room;
   }
@@ -712,6 +835,11 @@ export class RoomsService {
       .populate(selectPopulateField<Room>(['admin']), userSelectFieldsString);
 
     return room;
+  }
+
+  async findRoomIdsByQuery({ query }: { query: FilterQuery<Room> }) {
+    const data = await this.roomModel.find(query).select('_id');
+    return data.map((item) => item._id);
   }
   async addHelpDeskParticipant(
     spaceId: string,
@@ -837,10 +965,14 @@ export class RoomsService {
         ...(notGroup ? { isGroup: false } : {}),
         waitingUsers: { $nin: [userId] },
         status: RoomStatus.ACTIVE,
-        isHelpDesk: { $ne: true },
-        ...(query?.type === 'help-desk'
-          ? { isHelpDesk: true, space: { $exists: true, $eq: query.spaceId } }
-          : {}),
+        space: { $exists: false },
+        station: { $exists: false },
+        ...(query?.spaceId && {
+          space: { $exists: true, $eq: query.spaceId },
+        }),
+        ...(query?.stationId && {
+          station: { $exists: true, $eq: query.stationId },
+        }),
       })
       .sort({ newMessageAt: -1 })
       .limit(10)
@@ -961,21 +1093,27 @@ export class RoomsService {
       });
     }
   }
-  async getPinnedRooms(userId: string, spaceId: string) {
+  async getPinnedRooms(userId: string, query: QueryRoomsDto) {
+    const { spaceId, stationId } = query;
     const user = await this.usersService.findById(userId);
     const rooms = await this.roomModel
       .find({
         _id: {
           $in: user.pinRoomIds,
         },
-        isHelpDesk: { $ne: true },
+        space: { $exists: false },
+        station: { $exists: false },
         status: RoomStatus.ACTIVE,
         participants: userId,
         deleteFor: { $nin: [userId] },
         archiveFor: { $nin: [userId] },
-        ...(spaceId
-          ? { isHelpDesk: true, space: { $exists: true, $eq: spaceId } }
-          : {}),
+        ...(spaceId && {
+          isHelpDesk: true,
+          space: { $exists: true, $eq: spaceId },
+        }),
+        ...(stationId && {
+          station: { $exists: true, $eq: stationId },
+        }),
       })
       .populate({
         path: 'lastMessage',
@@ -1064,7 +1202,7 @@ export class RoomsService {
     newRoom.participants = participants;
     newRoom.space = createRoomDto.space;
     newRoom.admin = creatorId as any;
-    newRoom.readBy = createRoomDto.participants;
+    newRoom.readBy = [];
     newRoom.fromDomain = createRoomDto.fromDomain;
     newRoom.expiredAt = moment()
       .add(envConfig.helpDesk.room.expireIn, 'seconds')
@@ -1083,15 +1221,10 @@ export class RoomsService {
       { new: true },
     );
   }
-  async updateRoomHelpDesk(
-    roomId: ObjectId,
-    userId: string,
-    senderType?: SenderType,
-  ) {
+  async updateRoomHelpDesk(roomId: ObjectId, senderType?: SenderType) {
     return await this.roomModel.findByIdAndUpdate(
       roomId,
       {
-        readBy: [userId],
         ...(senderType === SenderType.ANONYMOUS && {
           expiredAt: moment()
             .add(envConfig.helpDesk.room.expireIn, 'seconds')
@@ -1212,16 +1345,9 @@ export class RoomsService {
     const query = [
       ...queryResponseTime(filter),
       {
-        $project: {
-          timeDifference: {
-            $subtract: ['$secondMessage.createdAt', '$createdAt'],
-          },
-        },
-      },
-      {
         $group: {
           _id: null,
-          averageDifference: { $avg: '$timeDifference' },
+          averageDifference: { $avg: '$averageDifference' },
         },
       },
     ];
@@ -1233,36 +1359,8 @@ export class RoomsService {
     return parseFloat(data[0]?.averageDifference?.toFixed(2)) || 0;
   }
   async getChartResponseTime(filter: AnalystFilterDto) {
-    const { type } = filter;
-
     const query = [
       ...queryResponseTime(filter),
-      {
-        $project: {
-          day: {
-            $dayOfMonth: '$createdAt',
-          },
-          month: {
-            $month: '$createdAt',
-          },
-          year: {
-            $year: '$createdAt',
-          },
-          timeDifference: {
-            $subtract: ['$secondMessage.createdAt', '$createdAt'],
-          },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            ...(type !== AnalystType.LAST_YEAR && { day: '$day' }),
-            year: '$year',
-            month: '$month',
-          },
-          averageDifference: { $avg: '$timeDifference' },
-        },
-      },
       {
         $project: {
           _id: 0,
@@ -1510,5 +1608,13 @@ export class RoomsService {
     const queryReport = queryReportByType(filter.type, query);
     const data = await this.roomModel.aggregate(queryReport);
     return data;
+  }
+  async getTotalNewMessagesBySpaceIdAndUserId(spaceId: string, userId: string) {
+    return await this.roomModel.countDocuments({
+      space: spaceId,
+      status: RoomStatus.ACTIVE,
+      readBy: { $ne: new mongoose.Types.ObjectId(userId) },
+      deleteFor: { $ne: new mongoose.Types.ObjectId(userId) },
+    });
   }
 }

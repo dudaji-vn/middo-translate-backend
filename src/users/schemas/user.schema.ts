@@ -1,7 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { HydratedDocument } from 'mongoose';
+import mongoose, { HydratedDocument, ObjectId } from 'mongoose';
 import { HelpDeskBusiness } from 'src/help-desk/schemas/help-desk-business.schema';
 import { Space } from 'src/help-desk/schemas/space.schema';
+import { Station } from 'src/stations/schemas/station.schema';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -106,6 +107,15 @@ export class User {
   phoneNumber: string;
   @Prop({ type: Boolean, default: true })
   allowUnknown: boolean;
+
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: Station.name }],
+    default: [],
+  })
+  stations: Station[];
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Station.name })
+  defaultStation: ObjectId | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

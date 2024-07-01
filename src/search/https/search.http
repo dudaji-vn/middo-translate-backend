@@ -1,0 +1,62 @@
+@SERVER_URL = http://localhost:8080
+@ACCESS_TOKEN = 
+###
+POST  {{SERVER_URL}}/api/search/keywords
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  "keyword":"ABC"
+ // "stationId":"6662d3336c2bd7cc71563677"
+ // "spaceId":""
+}
+
+###
+GET {{SERVER_URL}}/api/search/keywords?stationId=6662d3336c2bd7cc71563677
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET  {{SERVER_URL}}/api/search/keywords
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+###
+GET  {{SERVER_URL}}/api/search/keywords/ABC?stationId=6662d3336c2bd7cc71563677
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET  {{SERVER_URL}}/api/search/keywords/ABC
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+//Delete all keyword
+###
+DELETE {{SERVER_URL}}/api/search/keywords
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+//Delete keywory by name
+###
+DELETE {{SERVER_URL}}/api/search/keywords/ABC
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/search/inboxes?q=Linh&stationId=6662d3336c2bd7cc71563677
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/search/inboxes/count?q=Linh&spaceId=6628764846f721ef0c128461
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/search/rooms/6667c743ba6a1ef11a9992a6/messages?q=T
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+###
+GET {{SERVER_URL}}/api/search/conversations?q=Bài kiểm tra&type=message&limit=7
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/search/users/username?q=wwa
+Authorization: Bearer {{ACCESS_TOKEN}}

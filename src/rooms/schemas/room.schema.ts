@@ -4,6 +4,7 @@ import mongoose, { HydratedDocument, ObjectId } from 'mongoose';
 import { Message } from 'src/messages/schemas/messages.schema';
 import { User } from 'src/users/schemas/user.schema';
 import { Space, Tag } from 'src/help-desk/schemas/space.schema';
+import { Station } from 'src/stations/schemas/station.schema';
 
 export type RoomDocument = HydratedDocument<Room>;
 export enum RoomStatus {
@@ -21,6 +22,11 @@ export enum RoomStatus {
 })
 export class Room {
   _id: mongoose.Schema.Types.ObjectId;
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Station',
+  })
+  station?: Station | string;
 
   @Prop({
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: User.name }],

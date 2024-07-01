@@ -19,7 +19,8 @@ import { convertMessageRemoved } from './utils/convert-message-removed';
 import { CreateHelpDeskMessageDto } from './dto/create-help-desk-message.dto';
 import { UpdateContentDto } from './dto/update-content.dto';
 import { EndConversationDto } from './dto/end-conversation-dto';
-
+import { ApiTags } from '@nestjs/swagger';
+@ApiTags('Messages')
 @Controller('messages')
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
@@ -84,8 +85,35 @@ export class MessagesController {
     };
   }
 
+  @Public()
+  @Patch('help-desk/:id/seen')
+  async seenMessageHelpDesk(
+    @ParamObjectId() id: string,
+    @Body() { userId }: { userId: string },
+  ) {
+    await this.messagesService.seen(id, userId);
+    return {
+      data: null,
+      message: 'Message seen',
+    };
+  }
+
   @Get(':id/seen')
   async checkSeen(@JwtUserId() userId: string, @ParamObjectId() id: string) {
+    const seen = await this.messagesService.checkSeen(id, userId);
+    return {
+      data: {
+        seen,
+      },
+    };
+  }
+
+  @Public()
+  @Get('help-desk/:id/seen/:userId')
+  async checkSeenHelpDesk(
+    @ParamObjectId('id') id: string,
+    @ParamObjectId('userId') userId: string,
+  ) {
     const seen = await this.messagesService.checkSeen(id, userId);
     return {
       data: {
@@ -206,6 +234,7 @@ export class MessagesController {
     if (!createMessageDto.senderType) {
       createMessageDto.senderType = SenderType.ANONYMOUS;
     }
+    createMessageDto.language = '';
 
     const message = await this.messagesService.create(
       createMessageDto,

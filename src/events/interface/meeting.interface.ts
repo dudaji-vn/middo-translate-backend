@@ -1,6 +1,20 @@
+
+export interface ParticipantMeeting {
+  socketId: string;
+  user: {
+    _id: string;
+    name: string;
+    avatar: string;
+    status: string;
+  }
+}
 export default interface Meeting {
-  participants: any[];
-  room?: any;
+  participants: ParticipantMeeting[];
+  room: {
+    _id: string;
+    participantIds: string[];
+    type: 'HELP_DESK' | 'NORMAL';
+  }
   startTime?: Date;
   doodle?: {
     image?: string;

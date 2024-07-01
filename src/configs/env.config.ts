@@ -7,6 +7,7 @@ export const envConfig = {
     url: process.env.CLIENT_URL || 'http://localhost:3000',
     serverUrl: process.env.SERVER_URL || 'http://localhost:8080',
     name: process.env.APP_NAME || 'Nest',
+    extension_name: process.env.APP_EXTENSION || 'Middo Extension',
   },
   database: {
     uri: process.env.DATABASE_URI || 'mongodb://localhost/nest',
@@ -56,6 +57,11 @@ export const envConfig = {
   helpDesk: {
     room: {
       expireIn: process.env.HELP_DESK_ROOM_EXPIRES_IN || 60 * 60 * 24,
+    },
+  },
+  station: {
+    invite: {
+      expireIn: process.env.STATION_INVITE_EXPIRE_IN || 1, //Unit day
     },
   },
 };

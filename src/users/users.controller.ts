@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, Put } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
 import { Response } from 'src/common/types';

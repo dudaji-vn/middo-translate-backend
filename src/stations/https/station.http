@@ -1,0 +1,176 @@
+@SERVER_URL = http://localhost:8080
+@ACCESS_TOKEN = 
+@STATION_ID=6662d3336c2bd7cc71563677
+
+POST  {{SERVER_URL}}/api/stations
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  "name":"Linh station",
+  "avatar":"hrkrkr",
+  "backgroundImage":"sss",
+  "members":[
+    
+    {
+      "email":"linh@dudaji.vn"
+    }
+  ]
+}
+
+###
+GET {{SERVER_URL}}/api/stations
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/stations/{{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+PATCH  {{SERVER_URL}}/api/stations/{{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  "name":"LCD",
+  "avatar":"avatar",
+  "backgroundImage":"sss",
+}
+
+
+###
+DELETE  {{SERVER_URL}}/api/stations/{{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+###
+DELETE  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  "email": "hoquanghao2710@gmail.com"
+}
+
+###
+DELETE  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members/leave
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+###
+POST  {{SERVER_URL}}/api/rooms/stations/{{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+   "participants": [
+        "65eec7b605903d94f07797ae",
+        "65e56cfb9cd38aca6cd26d3c"
+    ]
+}
+
+###
+GET {{SERVER_URL}}/api/rooms?stationId={{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+###
+POST {{SERVER_URL}}/api/stations/members/validate-invite
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  //status: accept|decline
+  "token":"z1e-iau-2hv-aja-d7k-481",
+  "status":"accept"
+}
+
+
+###
+
+POST  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members/users
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  "members":[
+    {
+      "userId":"6667c733ba6a1ef11a999281"
+    },
+    {
+      "userId":"65e56cfb9cd38aca6cd26d3c"
+    }
+  ]
+}
+
+
+###
+PATCH  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members/invite-link
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+   "verifyUrl":"http://localhost:3000/station-verify?token=fqp-rp7-3pu-889-nf3-1xz",
+   "email":"hoquanglinh2910@gmail.com"
+}
+
+
+//Call this api to get default station
+###
+GET {{SERVER_URL}}/api/auth/me
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/stations/station-verify/z1e-iau-2hv-aja-d7k-481
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/rooms/pin?stationId={{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/search/users?q=&stationId={{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/recommendation/chat?stationId={{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+GET {{SERVER_URL}}/api/recommendation/chat/users?stationId={{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+
+###
+GET  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members/invitation-link
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+POST  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members/invitation-link
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+####
+DELETE  {{SERVER_URL}}/api/stations/{{STATION_ID}}/members/invitation-link
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+POST {{SERVER_URL}}/api/stations/{{STATION_ID}}/members/invitation-link/join
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY2NjdjNzMzYmE2YTFlZjExYTk5OTI4MSIsImlhdCI6MTcxOTQ3MDM3MiwiZXhwIjoxNzIyMDYyMzcyfQ.iuIDb5oDZcRlUe84PvSckvi2NB52wI5a1YboV8z22_0
+Content-Type: application/json
+
+{
+   "link":"http://localhost:3000/station-invitation?stationId=6662d3336c2bd7cc71563677&token=yz7-9yc-9wu-a0z-wim-y2f"
+}
+
+###
+
+
+PATCH {{SERVER_URL}}/api/stations/667d1c79a4ebe77f550a9fe7/set-default
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+
+DELETE  {{SERVER_URL}}/api/stations/667d1c79a4ebe77f550a9fe7/remove-default
+Authorization: Bearer {{ACCESS_TOKEN}}
+
