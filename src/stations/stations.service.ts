@@ -782,7 +782,7 @@ export class StationsService {
         stationId: stationData._id.toString(),
       });
 
-      this.eventEmitter.emit(socketConfig.events.app.notification, {
+      this.eventEmitter.emit(socketConfig.events.app.notification.new, {
         receiverIds: [receiver._id.toString()],
       });
     }
