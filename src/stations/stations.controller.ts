@@ -95,6 +95,17 @@ export class StationsController {
     };
   }
 
+  @Delete(':id/remove-default')
+  async removeDefault(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.stationsService.removeDefaultStation(id, userId);
+    return {
+      data: result,
+    };
+  }
+
   @Post(':id/members/emails')
   async inviteMembersByEmail(
     @JwtUserId() userId: string,
