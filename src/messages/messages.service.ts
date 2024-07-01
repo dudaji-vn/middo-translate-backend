@@ -1621,7 +1621,6 @@ export class MessagesService {
     return pinMessagesWithRemoved;
   }
 
-
   async getMessageByCallId(callId: string) {
     const message = await this.messageModel.findOne({ call: callId }).populate([
       {
@@ -1659,7 +1658,7 @@ export class MessagesService {
       {
         path: 'mentions',
         select: selectPopulateField<User>(['_id', 'name', 'email']),
-      }
+      },
     ]);
     return message;
   }
@@ -1755,6 +1754,7 @@ export class MessagesService {
     return this.messageModel
       .find({
         removedFor: { $nin: userId },
+        deleteFor: { $nin: [userId] },
         isForwarded: { $ne: true },
         parent: { $exists: false },
         $or: [
