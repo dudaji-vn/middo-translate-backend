@@ -28,6 +28,7 @@ import speech from '@google-cloud/speech';
 // import { Logger } from '@nestjs/common';
 import { logger } from 'src/common/utils/logger';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
+import { Space } from 'src/help-desk/schemas/space.schema';
 process.env.GOOGLE_APPLICATION_CREDENTIALS = './speech-to-text-key.json';
 const speechClient = new speech.SpeechClient();
 @WebSocketGateway({
@@ -350,9 +351,12 @@ export class EventsGateway
   sendNotifyJoinCall(
     @MessageBody()
     payload: {
-      users: any[];
-      room: any;
-      user: any;
+      users: User[];
+      call: any;
+      user: User;
+      type?: 'help_desk' | 'direct' | 'group';
+      space?: Space;
+      message?: string;
     },
   ) {
     const ids = payload.users.map((p) => p._id);
@@ -361,25 +365,32 @@ export class EventsGateway
       .flat();
     if (socketIds.length > 0) {
       this.server.to(socketIds).emit(socketConfig.events.call.invite_to_call, {
-        call: payload.room,
+        call: payload.call,
         user: payload.user,
+        type: payload.type,
+        space: payload.space,
+        message: payload.message,
       });
     }
     // call is roomId => send notify to all user in room
-    this.server
-      .to(payload.room._id)
+    if(['direct', 'group', undefined].includes(payload.type)) {
+      this.server
+      .to(payload.call._id)
       .emit(socketConfig.events.call.list_waiting_call, {
         users: payload.users,
       });
-    setTimeout(() => {
-      const userIds = payload.users.map((p) => p._id);
-      this.server
-        .to(payload.room._id)
-        .emit(socketConfig.events.call.decline_call, {
-          roomId: payload.room._id,
-          userIds: userIds,
-        });
-    }, this.CALLING_TIMEOUT);
+      setTimeout(() => {
+        const userIds = payload.users.map((p) => p._id);
+        this.server
+          .to(payload.call._id)
+          .emit(socketConfig.events.call.decline_call, {
+            roomId: payload.call?.roomId,
+            userIds: userIds,
+          });
+      }, this.CALLING_TIMEOUT);
+    }
+
+    
   }
 
   // Decline call
