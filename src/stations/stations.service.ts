@@ -236,6 +236,17 @@ export class StationsService {
                     { $eq: ['$$stationId', '$station'] },
                     { $eq: [RoomStatus.ACTIVE, '$status'] },
                     {
+                      $ne: [
+                        {
+                          $indexOfArray: [
+                            '$participants',
+                            new Types.ObjectId(userId),
+                          ],
+                        },
+                        -1,
+                      ],
+                    },
+                    {
                       $eq: [
                         {
                           $indexOfArray: [
