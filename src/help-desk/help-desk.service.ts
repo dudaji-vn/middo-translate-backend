@@ -621,6 +621,31 @@ export class HelpDeskService {
     };
   }
 
+  async getMembers(userId: string, spaceId: string) {
+    const space = await this.spaceModel
+      .findOne({
+        _id: spaceId,
+        status: { $ne: StatusSpace.DELETED },
+        members: {
+          $elemMatch: {
+            user: new Types.ObjectId(userId),
+            status: MemberStatus.JOINED,
+          },
+        },
+      })
+      .populate('owner', 'email')
+      .populate('members.user', '_id name avatar username')
+      .select('members.status members.role')
+      .lean();
+
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+    return space.members.filter(
+      (item) => item.user && item.status === MemberStatus.JOINED,
+    );
+  }
+
   async getBusinessByUser(userId: string, spaceId: string) {
     const user = await this.userService.findById(userId);
     if (!user) {

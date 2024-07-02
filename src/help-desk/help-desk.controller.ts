@@ -108,6 +108,17 @@ export class HelpDeskController {
     };
   }
 
+  @Get('spaces/:id/members')
+  async getMembers(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+  ) {
+    const result = await this.helpDeskService.getMembers(userId, id);
+    return {
+      data: result,
+    };
+  }
+
   @Public()
   @Get('extensions/:id')
   async getExtensionById(@ParamObjectId('id') id: string) {
