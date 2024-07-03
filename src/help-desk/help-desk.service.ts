@@ -418,7 +418,7 @@ export class HelpDeskService {
           .map((item) => item.user?.toString()),
       });
 
-      if (space.owner !== userId) {
+      if (space.owner.toString() !== userId) {
         const action = scriptId ? 'updated' : 'created';
         const doer = await this.userService.findById(userId);
         this.notificationService.sendNotification({
@@ -1808,10 +1808,24 @@ export class HelpDeskService {
     spaceData.members[index].status = MemberStatus.DELETED;
 
     await spaceData.save();
-    if (!!spaceData.members[index].user) {
+    const removedUser = spaceData.members[index];
+    const filterMemberIds = spaceData.members
+      .filter(
+        (item) =>
+          item.status === MemberStatus.JOINED &&
+          ![userId, removedUser.user?.toString()].includes(
+            item?.user?.toString(),
+          ),
+      )
+      .map((item) => item.user?.toString());
+    if (!!removedUser.user) {
       this.eventEmitter.emit(socketConfig.events.space.member.remove, {
         data,
-        receiverIds: [spaceData.members[index].user?.toString()],
+        receiverIds: [removedUser.user?.toString()],
+      });
+      this.eventEmitter.emit(socketConfig.events.space.update, {
+        data,
+        receiverIds: filterMemberIds,
       });
       const usersToNotify = spaceData.members
         .filter(
@@ -1821,7 +1835,7 @@ export class HelpDeskService {
             item.user?.toString() !== userId.toString(), // not the user who remove
         )
         .map((item) => String(item.user));
-      const removedUser = spaceData.members[index];
+
       const userRemove = await this.userService.findById(userId);
       this.notificationService.sendNotification({
         title: `${envConfig.app.extension_name} - ${spaceData.name}`,
