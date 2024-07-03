@@ -1907,7 +1907,13 @@ export class HelpDeskService {
     };
     if (!tagId) {
       space.tags = space.tags || [];
-      if (space.tags.find((item) => item.name === name && !item.isDeleted)) {
+      const isExistTag = space.tags.find(
+        (item) =>
+          item.name &&
+          item.name.trim().toLowerCase() === name.trim().toLowerCase() &&
+          !item.isDeleted,
+      );
+      if (isExistTag) {
         throw new BadRequestException('name already exists');
       }
       space.tags.push(item);
