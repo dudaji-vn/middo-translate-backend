@@ -344,7 +344,11 @@ export class HelpDeskService {
       if (spaceData.members && spaceData.members.length > 0) {
         this.eventEmitter.emit(socketConfig.events.space.update, {
           receiverIds: spaceData.members
-            .filter((item) => item.status === MemberStatus.JOINED)
+            .filter(
+              (item) =>
+                item.status === MemberStatus.JOINED &&
+                item?.user?.toString() !== userId,
+            )
             .map((item) => item.user?.toString()),
         });
       }
@@ -406,7 +410,11 @@ export class HelpDeskService {
     if (space.members && space.members.length > 0) {
       this.eventEmitter.emit(socketConfig.events.space.update, {
         receiverIds: space.members
-          .filter((item) => item.status === MemberStatus.JOINED)
+          .filter(
+            (item) =>
+              item.status === MemberStatus.JOINED &&
+              item?.user?.toString() !== userId,
+          )
           .map((item) => item.user?.toString()),
       });
 
@@ -1395,7 +1403,11 @@ export class HelpDeskService {
     if (space.members && space.members.length > 0) {
       this.eventEmitter.emit(socketConfig.events.space.update, {
         receiverIds: space.members
-          .filter((item) => item.status === MemberStatus.JOINED)
+          .filter(
+            (item) =>
+              item.status === MemberStatus.JOINED &&
+              item?.user?.toString() !== userId,
+          )
           .map((item) => item.user?.toString()),
       });
     }
@@ -1434,7 +1446,11 @@ export class HelpDeskService {
     if (space.members && space.members.length > 0) {
       this.eventEmitter.emit(socketConfig.events.space.update, {
         receiverIds: space.members
-          .filter((item) => item.status === MemberStatus.JOINED)
+          .filter(
+            (item) =>
+              item.status === MemberStatus.JOINED &&
+              item?.user?.toString() !== userId,
+          )
           .map((item) => item.user?.toString()),
       });
     }
