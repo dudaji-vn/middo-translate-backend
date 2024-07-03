@@ -21,4 +21,5 @@ export default interface Meeting {
     data?: Record<string, { user: any; image: string; color: string }>;
     socketId?: string; // User created the doodle
   };
+  whiteList?: string[];
 }

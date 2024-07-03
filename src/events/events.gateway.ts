@@ -28,6 +28,7 @@ import speech from '@google-cloud/speech';
 // import { Logger } from '@nestjs/common';
 import { logger } from 'src/common/utils/logger';
 import { User, UserStatus } from 'src/users/schemas/user.schema';
+import { Space } from 'src/help-desk/schemas/space.schema';
 process.env.GOOGLE_APPLICATION_CREDENTIALS = './speech-to-text-key.json';
 const speechClient = new speech.SpeechClient();
 @WebSocketGateway({
@@ -282,7 +283,7 @@ export class EventsGateway
     { callId, user, roomId }: { callId: string; user: User; roomId: string },
   ) {
     if (this.meetings[callId]) {
-      // Check if user already joined call
+      // Check if user helpdesk already joined call
       const isUserJoined = this.meetings[callId].participants.some(
         (p: ParticipantMeeting) => p.user._id === user._id.toString(),
       );
@@ -290,7 +291,14 @@ export class EventsGateway
         this.server.to(client.id).emit(socketConfig.events.meeting.block, roomId);
         return;
       }
-
+      const whiteList = this.meetings[callId].whiteList;
+      if(whiteList && !whiteList.includes(user._id.toString())) {
+        this.server.to(client.id).emit(socketConfig.events.meeting.block, roomId);
+        return;
+      }
+      if(this.meetings[callId]?.room?.type == 'HELP_DESK' && whiteList && whiteList.includes(user._id.toString())){
+        this.meetings[callId].whiteList = undefined;
+      }
       this.meetings[callId].participants.push({ 
         socketId: client.id, 
         user: {
@@ -300,12 +308,14 @@ export class EventsGateway
           status: user.status,
         } 
       });
+      
       let startTime = this.meetings[callId].startTime;
       if (!startTime) {
         startTime = new Date();
         this.meetings[callId].startTime = startTime;
         this.callService.callStart({ callId, time: startTime });
       }
+      
     } else {
       let roomData = await this.roomService.findById(roomId);
       let participantsIds = roomData?.participants.map((p: any) => p._id.toString());
@@ -350,9 +360,12 @@ export class EventsGateway
   sendNotifyJoinCall(
     @MessageBody()
     payload: {
-      users: any[];
-      room: any;
-      user: any;
+      users: User[];
+      call: any;
+      user: User;
+      type?: 'help_desk' | 'direct' | 'group';
+      space?: Space;
+      message?: string;
     },
   ) {
     const ids = payload.users.map((p) => p._id);
@@ -361,25 +374,41 @@ export class EventsGateway
       .flat();
     if (socketIds.length > 0) {
       this.server.to(socketIds).emit(socketConfig.events.call.invite_to_call, {
-        call: payload.room,
+        call: payload.call,
         user: payload.user,
+        type: payload.type,
+        space: payload.space,
+        message: payload.message,
       });
     }
     // call is roomId => send notify to all user in room
-    this.server
-      .to(payload.room._id)
+    if(['direct', 'group', undefined].includes(payload.type)) {
+      this.server
+      .to(payload.call._id)
       .emit(socketConfig.events.call.list_waiting_call, {
         users: payload.users,
       });
-    setTimeout(() => {
-      const userIds = payload.users.map((p) => p._id);
-      this.server
-        .to(payload.room._id)
-        .emit(socketConfig.events.call.decline_call, {
-          roomId: payload.room._id,
-          userIds: userIds,
-        });
-    }, this.CALLING_TIMEOUT);
+      setTimeout(() => {
+        const userIds = payload.users.map((p) => p._id);
+        this.server
+          .to(payload.call._id)
+          .emit(socketConfig.events.call.decline_call, {
+            roomId: payload.call?.roomId,
+            userIds: userIds,
+          });
+      }, this.CALLING_TIMEOUT);
+    }
+
+    // Add whiteList to prevent another user join to call
+    if(payload.type === 'help_desk') {
+      this.meetings[payload.call._id].whiteList = ids.map(id => id.toString());
+      this.pushMeetingList({
+        type: 'room',
+        id: payload.call?.roomId,
+      })
+    }
+
+    
   }
 
   // Decline call
@@ -696,6 +725,7 @@ export class EventsGateway
   }){
     const response: Record<string, {
       participantsIdJoined: string[],
+      whiteList: string[] | undefined
     }> = {};
     switch (type) {
       case 'user':
@@ -705,6 +735,7 @@ export class EventsGateway
           if(isHaveMe) {
             response[meeting.room._id] = {
               participantsIdJoined: meeting.participants.map((p) => p.user._id),
+              whiteList: meeting.whiteList,
             }
           }
         }
@@ -726,6 +757,7 @@ export class EventsGateway
           for (const meeting of roomMeetings) {
             response[meeting.room._id] = {
               participantsIdJoined: meeting.participants.map((p) => p.user._id),
+              whiteList: meeting.whiteList,
             }
           }
           this.server.to(roomParticipantOnlineSocketIds).emit(socketConfig.events.meeting.update, response);
