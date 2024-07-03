@@ -852,7 +852,7 @@ export class EventsGateway
       .map((id) => this.clients[id.toString()]?.socketIds || [])
       .flat();
     console.log('socketIds', socketIds);
-    if(socketIds){
+    if(socketIds.length > 0){
       this.server
         .to(socketIds)
         .emit(socketConfig.events.space.notification.new, data);
@@ -872,7 +872,7 @@ export class EventsGateway
     const socketIds = receiverIds
       .map((id) => this.clients[id.toString()]?.socketIds || [])
       .flat();
-    if(socketIds) {
+    if(socketIds.length > 0) {
       this.server
       .to(socketIds)
       .emit(socketConfig.events.space.member.remove, data);
@@ -903,7 +903,7 @@ export class EventsGateway
     const socketIds = receiverIds
       .map((id) => this.clients[id.toString()]?.socketIds || [])
       .flat();
-      if (socketIds) {
+      if (socketIds.length > 0) {
         this.server.to(socketIds).emit(socketConfig.events.space.update, data);
       }
     
@@ -923,7 +923,7 @@ export class EventsGateway
       .map((id) => this.clients[id.toString()]?.socketIds || [])
       .flat();
     console.log('socketIds', socketIds);
-    if (socketIds) {
+    if (socketIds.length > 0) {
       this.server
         .to(socketIds)
         .emit(socketConfig.events.app.notification.new, data);
