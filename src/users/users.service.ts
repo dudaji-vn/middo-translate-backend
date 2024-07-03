@@ -1,6 +1,6 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, ObjectId, Types } from 'mongoose';
+import { Model, ObjectId, PipelineStage, Types } from 'mongoose';
 import { FindParams } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
 import {
@@ -21,6 +21,7 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { socketConfig } from 'src/configs/socket.config';
 import { SearchQueryParams } from 'src/search/types';
 import { Station } from 'src/stations/schemas/station.schema';
+import { queryClients } from 'src/common/utils/query-report';
 
 @Injectable()
 export class UsersService {
@@ -322,74 +323,39 @@ export class UsersService {
       throw error;
     }
   }
-  async findByBusiness({
+  async getClientsByUser({
     q,
     limit = 5,
-    businessId,
+    spaceId,
     userId,
     currentPage = 1,
   }: FindParams & {
-    businessId: string;
+    spaceId: string;
     userId: string;
   }): Promise<UserHelpDeskResponse> {
-    const totalItemsPromise = this.userModel.countDocuments({
-      business: new Types.ObjectId(businessId),
-      $or: [
-        { name: { $regex: q, $options: 'i' } },
-        { username: { $regex: q, $options: 'i' } },
-        {
-          tempEmail: { $regex: q, $options: 'i' },
-        },
-        {
-          phoneNumber: { $regex: q, $options: 'i' },
-        },
-      ],
+    const query = queryClients({
+      params: {
+        userId,
+        spaceId,
+        q,
+      },
     });
-    const query = [
-      {
-        $match: {
-          business: new Types.ObjectId(businessId),
-          $or: [
-            { name: { $regex: q, $options: 'i' } },
-            { username: { $regex: q, $options: 'i' } },
-            {
-              tempEmail: { $regex: q, $options: 'i' },
-            },
-            {
-              phoneNumber: { $regex: q, $options: 'i' },
-            },
-          ],
-        },
-      },
-      {
-        $lookup: {
-          from: 'rooms',
-          let: { userId: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $in: ['$$userId', '$participants'],
-                },
-                isHelpDesk: true,
-                admin: new Types.ObjectId(userId),
-              },
-            },
-          ],
-          as: 'room',
-        },
-      },
+    const totalItemsPromise = this.userModel.aggregate([
+      ...query,
+      { $count: 'totalCount' },
+    ]);
 
+    const queryCurrentData = [
+      {
+        $sort: {
+          'room.createdAt': -1,
+        },
+      } as PipelineStage,
       {
         $skip: (currentPage - 1) * limit,
       },
       {
         $limit: limit,
-      },
-      {
-        $addFields: {
-          room: { $arrayElemAt: ['$room', 0] },
-        },
       },
       {
         $project: {
@@ -401,14 +367,19 @@ export class UsersService {
         },
       },
     ];
-    const dataPromise = this.userModel.aggregate(query) as any;
+    const dataPromise = this.userModel.aggregate([
+      ...query,
+      ...queryCurrentData,
+    ]);
+
     const [totalItems, data] = await Promise.all([
       totalItemsPromise,
       dataPromise,
     ]);
 
+    const totalPage = totalItems[0]?.totalCount || 0;
     return {
-      totalPage: Math.ceil(totalItems / limit),
+      totalPage: Math.ceil(totalPage / limit),
       items: data,
     };
   }

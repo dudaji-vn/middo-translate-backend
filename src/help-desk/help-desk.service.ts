@@ -788,17 +788,18 @@ export class HelpDeskService {
     userId: string,
   ) {
     const { q, limit, currentPage } = query;
-    const business = await this.helpDeskBusinessModel.findOne({
-      space: spaceId,
+    const space = await this.spaceModel.findOne({
+      _id: spaceId,
+      status: StatusSpace.ACTIVE,
     });
-    if (!business) {
+    if (!space) {
       throw new BadRequestException('space not found');
     }
-    const data = await this.userService.findByBusiness({
+    const data = await this.userService.getClientsByUser({
       q,
       limit,
       currentPage,
-      businessId: business._id.toString(),
+      spaceId: spaceId,
       userId: userId,
     });
     return data;
