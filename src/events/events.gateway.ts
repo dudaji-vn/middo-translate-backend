@@ -283,7 +283,7 @@ export class EventsGateway
     { callId, user, roomId }: { callId: string; user: User; roomId: string },
   ) {
     if (this.meetings[callId]) {
-      // Check if user already joined call
+      // Check if user helpdesk already joined call
       const isUserJoined = this.meetings[callId].participants.some(
         (p: ParticipantMeeting) => p.user._id === user._id.toString(),
       );
@@ -291,7 +291,14 @@ export class EventsGateway
         this.server.to(client.id).emit(socketConfig.events.meeting.block, roomId);
         return;
       }
-
+      const whiteList = this.meetings[callId].whiteList;
+      if(whiteList && !whiteList.includes(user._id.toString())) {
+        this.server.to(client.id).emit(socketConfig.events.meeting.block, roomId);
+        return;
+      }
+      if(this.meetings[callId]?.room?.type == 'HELP_DESK' && whiteList && whiteList.includes(user._id.toString())){
+        this.meetings[callId].whiteList = undefined;
+      }
       this.meetings[callId].participants.push({ 
         socketId: client.id, 
         user: {
@@ -301,12 +308,14 @@ export class EventsGateway
           status: user.status,
         } 
       });
+      
       let startTime = this.meetings[callId].startTime;
       if (!startTime) {
         startTime = new Date();
         this.meetings[callId].startTime = startTime;
         this.callService.callStart({ callId, time: startTime });
       }
+      
     } else {
       let roomData = await this.roomService.findById(roomId);
       let participantsIds = roomData?.participants.map((p: any) => p._id.toString());
@@ -388,6 +397,15 @@ export class EventsGateway
             userIds: userIds,
           });
       }, this.CALLING_TIMEOUT);
+    }
+
+    // Add whiteList to prevent another user join to call
+    if(payload.type === 'help_desk') {
+      this.meetings[payload.call._id].whiteList = ids.map(id => id.toString());
+      this.pushMeetingList({
+        type: 'room',
+        id: payload.call?.roomId,
+      })
     }
 
     
@@ -707,6 +725,7 @@ export class EventsGateway
   }){
     const response: Record<string, {
       participantsIdJoined: string[],
+      whiteList: string[] | undefined
     }> = {};
     switch (type) {
       case 'user':
@@ -716,6 +735,7 @@ export class EventsGateway
           if(isHaveMe) {
             response[meeting.room._id] = {
               participantsIdJoined: meeting.participants.map((p) => p.user._id),
+              whiteList: meeting.whiteList,
             }
           }
         }
@@ -737,6 +757,7 @@ export class EventsGateway
           for (const meeting of roomMeetings) {
             response[meeting.room._id] = {
               participantsIdJoined: meeting.participants.map((p) => p.user._id),
+              whiteList: meeting.whiteList,
             }
           }
           this.server.to(roomParticipantOnlineSocketIds).emit(socketConfig.events.meeting.update, response);
