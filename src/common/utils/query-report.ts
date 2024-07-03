@@ -442,3 +442,67 @@ export function queryGroupByLanguage(filter: AnalystFilterDto) {
     },
   ];
 }
+
+export function queryClients({
+  params,
+}: {
+  params: {
+    spaceId: string;
+    q: string;
+    userId: string;
+  };
+}): PipelineStage[] {
+  const { spaceId, q, userId } = params;
+  const query = [
+    {
+      $match: {
+        space: new Types.ObjectId(spaceId),
+        $or: [
+          { name: { $regex: q, $options: 'i' } },
+          { username: { $regex: q, $options: 'i' } },
+          {
+            tempEmail: { $regex: q, $options: 'i' },
+          },
+          {
+            phoneNumber: { $regex: q, $options: 'i' },
+          },
+        ],
+      },
+    },
+    {
+      $lookup: {
+        from: 'rooms',
+        let: { userId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $in: ['$$userId', '$participants'],
+              },
+              isHelpDesk: true,
+              space: new Types.ObjectId(spaceId),
+              admin: new Types.ObjectId(userId),
+            },
+          },
+        ],
+        as: 'room',
+      },
+    },
+
+    {
+      $match: {
+        room: {
+          $exists: true,
+          $ne: [],
+        },
+      },
+    },
+    {
+      $addFields: {
+        room: { $arrayElemAt: ['$room', 0] },
+      },
+    },
+  ];
+
+  return query;
+}
