@@ -50,6 +50,7 @@ import { envConfig } from 'src/configs/env.config';
 import { pivotChartByType } from 'src/common/utils/date-report';
 import { StationsService } from 'src/stations/stations.service';
 import { QueryRoomsDto } from 'src/common/dto';
+import { Station } from 'src/stations/schemas/station.schema';
 
 const userSelectFieldsString = selectPopulateField<User>([
   '_id',
@@ -422,7 +423,7 @@ export class RoomsService {
         room.participants = participants;
         room.status = RoomStatus.TEMPORARY;
         if (stationId) {
-          room.station = stationId;
+          room.station = stationId as any;
         }
         room.admin = user;
       } catch (error) {
@@ -756,6 +757,10 @@ export class RoomsService {
       .populate(
         selectPopulateField<Room>(['space']),
         selectPopulateField<Space>(['name']),
+      )
+      .populate(
+        selectPopulateField<Room>(['station']),
+        selectPopulateField<Station>(['name', 'avatar']),
       );
     return room;
   }
