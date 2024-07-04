@@ -755,7 +755,7 @@ export class RoomsService {
       )
       .populate(
         selectPopulateField<Room>(['space']),
-        selectPopulateField<Space>(['name']),
+        selectPopulateField<Space>(['name', 'avatar']),
       );
     return room;
   }

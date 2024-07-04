@@ -357,14 +357,13 @@ export class EventsGateway
   private CALLING_TIMEOUT = 30000;
   // Send notify invite_to_call event
   @SubscribeMessage(socketConfig.events.call.invite_to_call)
-  sendNotifyJoinCall(
+  async sendNotifyJoinCall(
     @MessageBody()
     payload: {
       users: User[];
       call: any;
       user: User;
       type?: 'help_desk' | 'direct' | 'group';
-      space?: Space;
       message?: string;
     },
   ) {
@@ -373,12 +372,13 @@ export class EventsGateway
       .map((p) => this.clients[p.toString()]?.socketIds || [])
       .flat();
     if (socketIds.length > 0) {
+      const room = await this.roomService.findById(payload.call?.roomId);
       this.server.to(socketIds).emit(socketConfig.events.call.invite_to_call, {
         call: payload.call,
         user: payload.user,
         type: payload.type,
-        space: payload.space,
         message: payload.message,
+        room: room,
       });
     }
     // call is roomId => send notify to all user in room
