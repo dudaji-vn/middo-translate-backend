@@ -12,12 +12,15 @@ import {
   AndroidConfig,
   ApnsConfig,
 } from 'firebase-admin/lib/messaging/messaging-api';
+import { Room, RoomStatus } from 'src/rooms/schemas/room.schema';
 
 @Injectable()
 export class NotificationService {
   constructor(
     @InjectModel(RoomNotification.name)
     private roomNotificationModel: Model<RoomNotification>,
+    @InjectModel(Room.name)
+    private roomModel: Model<Room>,
     @InjectModel(Notification.name)
     private notificationModel: Model<Notification>,
     private watchingService: WatchingService,
@@ -256,6 +259,42 @@ export class NotificationService {
         room: roomId,
         user: userId,
       });
+    }
+  }
+
+  async toggleStationNotification(stationId: string, userId: string) {
+    try {
+      const roomIds = await this.roomModel
+        .find({
+          station: stationId,
+          status: RoomStatus.ACTIVE,
+          deleteFor: { $nin: [userId] },
+        })
+        .distinct('_id');
+
+      if (!roomIds || roomIds.length === 0) {
+        return;
+      }
+
+      const roomNotifications = await this.roomNotificationModel.find({
+        room: { $in: roomIds },
+        user: userId,
+      });
+
+      if (roomNotifications && roomNotifications.length > 0) {
+        await this.roomNotificationModel.deleteMany({
+          room: { $in: roomIds },
+          user: userId,
+        });
+      } else {
+        const newNotifications = roomIds.map((roomId) => ({
+          room: roomId,
+          user: userId,
+        }));
+        await this.roomNotificationModel.insertMany(newNotifications);
+      }
+    } catch (error) {
+      throw new Error('Error toggling station notification');
     }
   }
 

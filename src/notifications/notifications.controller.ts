@@ -103,4 +103,13 @@ export class NotificationController {
       },
     };
   }
+
+  @Post('stations/:stationId/toggle')
+  async toggleStationNotification(
+    @JwtUserId() userId: string,
+    @ParamObjectId('stationId') stationId: string,
+  ): Promise<Response<null>> {
+    await this.notificationService.toggleStationNotification(stationId, userId);
+    return { message: 'Station notification toggled', data: null };
+  }
 }
