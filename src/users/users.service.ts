@@ -335,7 +335,6 @@ export class UsersService {
   }): Promise<UserHelpDeskResponse> {
     const query = queryClients({
       params: {
-        userId,
         spaceId,
         q,
       },
