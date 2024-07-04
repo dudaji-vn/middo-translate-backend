@@ -1158,7 +1158,7 @@ export class HelpDeskService {
           destinationApp: 'extension',
         });
       }
-      this.roomsService.addHelpDeskParticipant(
+     await this.roomsService.addHelpDeskParticipant(
         space._id.toString(),
         space.owner.toString(),
         userId,

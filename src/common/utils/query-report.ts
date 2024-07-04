@@ -449,10 +449,10 @@ export function queryClients({
   params: {
     spaceId: string;
     q: string;
-    userId: string;
+  
   };
 }): PipelineStage[] {
-  const { spaceId, q, userId } = params;
+  const { spaceId, q } = params;
   const query = [
     {
       $match: {
@@ -481,7 +481,6 @@ export function queryClients({
               },
               isHelpDesk: true,
               space: new Types.ObjectId(spaceId),
-              admin: new Types.ObjectId(userId),
             },
           },
         ],
