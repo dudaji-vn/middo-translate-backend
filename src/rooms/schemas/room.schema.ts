@@ -26,7 +26,7 @@ export class Room {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Station',
   })
-  station?: Station | string;
+  station?: Station;
 
   @Prop({
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: User.name }],
