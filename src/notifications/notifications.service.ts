@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { messaging } from 'firebase-admin';
 import { Model } from 'mongoose';
@@ -273,7 +273,7 @@ export class NotificationService {
         .distinct('_id');
 
       if (!roomIds || roomIds.length === 0) {
-        return;
+        throw new BadRequestException('Station is not contain rooms');
       }
 
       const roomNotifications = await this.roomNotificationModel.find({
@@ -311,5 +311,24 @@ export class NotificationService {
       user: userId,
     });
     return !!notification;
+  }
+
+  async checkIsUserIgnoringStation(stationId: string, userId: string) {
+    const roomIds = await this.roomModel
+      .find({
+        station: stationId,
+        status: RoomStatus.ACTIVE,
+        deleteFor: { $nin: [userId] },
+      })
+      .distinct('_id');
+
+    if (!roomIds || roomIds.length === 0) {
+      throw new BadRequestException('Station is not contain rooms');
+    }
+    const notification = await this.roomNotificationModel.find({
+      room: { $in: roomIds },
+      user: userId,
+    });
+    return notification?.length === roomIds.length;
   }
 }
