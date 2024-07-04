@@ -104,6 +104,27 @@ export class NotificationController {
     };
   }
 
+  @Post('stations/:stationId/check')
+  async checkStationNotification(
+    @ParamObjectId('stationId') roomId: string,
+    @JwtUserId() userId: string,
+  ): Promise<
+    Response<{
+      isMuted: boolean;
+    }>
+  > {
+    const isMuted = await this.notificationService.checkIsUserIgnoringStation(
+      roomId,
+      userId,
+    );
+    return {
+      message: 'Notification toggled',
+      data: {
+        isMuted,
+      },
+    };
+  }
+
   @Post('stations/:stationId/toggle')
   async toggleStationNotification(
     @JwtUserId() userId: string,

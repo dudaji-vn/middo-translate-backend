@@ -178,3 +178,7 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 POST  {{SERVER_URL}}/api/notifications/stations/{{STATION_ID}}/toggle
 Authorization: Bearer {{ACCESS_TOKEN}}
 
+###
+POST {{SERVER_URL}}/api/notifications/stations/{{STATION_ID}}/check
+Authorization: Bearer {{ACCESS_TOKEN}}
+
