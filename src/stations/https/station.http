@@ -174,3 +174,11 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 DELETE  {{SERVER_URL}}/api/stations/667d1c79a4ebe77f550a9fe7/remove-default
 Authorization: Bearer {{ACCESS_TOKEN}}
 
+###
+POST  {{SERVER_URL}}/api/notifications/stations/{{STATION_ID}}/toggle
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+POST {{SERVER_URL}}/api/notifications/stations/{{STATION_ID}}/check
+Authorization: Bearer {{ACCESS_TOKEN}}
+
