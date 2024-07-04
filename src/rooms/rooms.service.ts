@@ -760,7 +760,7 @@ export class RoomsService {
       )
       .populate(
         selectPopulateField<Room>(['station']),
-        selectPopulateField<Station>(['name']),
+        selectPopulateField<Station>(['name', 'avatar']),
       );
     return room;
   }
