@@ -24,9 +24,13 @@ import {
 import { NotificationService } from 'src/notifications/notifications.service';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { Room, RoomStatus } from 'src/rooms/schemas/room.schema';
-import { User, UserRelationType } from 'src/users/schemas/user.schema';
+import {
+  User,
+  UserRelationType,
+  UserStatus,
+} from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import { DefaultTag, Space } from '../help-desk/schemas/space.schema';
+import { DefaultTag, Space } from 'src/help-desk/schemas/space.schema';
 import { CreateMessageDto } from './dto';
 import { ForwardMessageDto } from './dto/forward-message.dto';
 import {
@@ -1405,8 +1409,16 @@ export class MessagesService {
           'username',
         ]),
       )
-      .populate('room', selectPopulateField<Room>(['_id', 'isHelpDesk']))
+      .populate({
+        path: 'room',
+        select: selectPopulateField<Room>(['_id', 'isHelpDesk', 'space']),
+        populate: {
+          path: 'space',
+          select: selectPopulateField<Space>(['bot']),
+        },
+      })
       .populate('parent');
+
     if (!message) {
       throw new Error('Message not found');
     }
@@ -1416,7 +1428,13 @@ export class MessagesService {
     // 1. user already reacted
     // 2. user not reacted with same reaction
     // 3. user reacted with another reaction
-    const user = await this.usersService.findById(userId);
+    let user = await this.usersService.findById(userId);
+    const space = message?.room?.space as Space;
+    if (space?.bot && user.status !== UserStatus.ANONYMOUS) {
+      userId = space?.bot.toString();
+      user = await this.usersService.findById(userId);
+    }
+
     const reaction = reactions.find((r) => r.user._id.toString() === userId);
     if (reaction) {
       // case 1
@@ -1440,7 +1458,7 @@ export class MessagesService {
       message.reactions.push(newReaction);
       if (message.sender._id.toString() !== userId) {
         const link = `${envConfig.app.url}/${
-          message.room.isHelpDesk ? 'business/conversations' : 'talk'
+          space?._id ? `spaces/${space._id}/conversations` : 'talk'
         }/${message.room._id}`;
         this.notificationService.sendNotification({
           userIds: [message.sender._id.toString()],

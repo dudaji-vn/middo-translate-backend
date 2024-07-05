@@ -152,6 +152,20 @@ export class MessagesController {
     };
   }
 
+  @Public()
+  @Patch('help-desk/:id/react/:userId')
+  async reactHelpDeskMessage(
+    @ParamObjectId('id') id: string,
+    @ParamObjectId('userId') userId: string,
+    @Body() { emoji }: ReactMessageDto,
+  ) {
+    await this.messagesService.react(id, userId, emoji);
+    return {
+      data: null,
+      message: 'Message reacted',
+    };
+  }
+
   @Post(':id/forward')
   async forwardMessage(
     @ParamObjectId() id: string,
