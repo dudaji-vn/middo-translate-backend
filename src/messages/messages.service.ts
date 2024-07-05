@@ -46,6 +46,7 @@ import {
   multipleTranslate,
   translate,
 } from './utils/translate';
+import { Station } from 'src/stations/schemas/station.schema';
 
 @Injectable()
 export class MessagesService {
@@ -87,11 +88,16 @@ export class MessagesService {
           'name',
           'isGroup',
           'participants',
+          'station',
         ]),
         populate: [
           {
             path: 'participants',
             select: selectPopulateField<User>(['_id', 'avatar', 'name']),
+          },
+          {
+            path: 'station',
+            select: selectPopulateField<Station>(['name']),
           },
         ],
       },
@@ -664,6 +670,7 @@ export class MessagesService {
     }
     if (room.station) {
       title = room.station?.name;
+      featurePath = `stations/${room?.station?._id}/conversations`;
     }
     if (room.isHelpDesk) {
       const roomWithSpace: any = await room.populate('space');
@@ -799,9 +806,15 @@ export class MessagesService {
     });
   }
   async sendReplyMessageNotification(message: Message) {
-    const title = envConfig.app.name;
+    let featurePath = 'talk';
+    let title = envConfig.app.name;
     let body = message.sender.name + ' replied in a discussion';
     const parentMessage = await this.findById(message.parent._id.toString());
+    const parentMessageWithRoomStation = parentMessage?.room?.station;
+    if (parentMessageWithRoomStation) {
+      title = parentMessageWithRoomStation?.name;
+      featurePath = `stations/${parentMessageWithRoomStation?._id}/conversations`;
+    }
     const messageContent = convert(message.content);
     switch (message.type) {
       case MessageType.TEXT:
@@ -866,7 +879,7 @@ export class MessagesService {
       (id) => !userIgnoredNotification.includes(id),
     );
 
-    const link = `${envConfig.app.url}/talk/${roomId}?r_tab=discussion&ms_id=${message.parent._id}`;
+    const link = `${envConfig.app.url}/${featurePath}/${roomId}?r_tab=discussion&ms_id=${message.parent._id}`;
     this.notificationService.sendNotification({
       userIds: targetUserIds,
       title,
@@ -1392,6 +1405,7 @@ export class MessagesService {
   }
 
   async react(id: string, userId: string, emoji: string) {
+    let title = envConfig.app.name;
     const message = await this.messageModel
       .findById(id)
       .populate(
@@ -1405,10 +1419,24 @@ export class MessagesService {
           'username',
         ]),
       )
-      .populate('room', selectPopulateField<Room>(['_id', 'isHelpDesk']))
+      .populate({
+        path: 'room',
+        select: selectPopulateField<Room>(['_id', 'isHelpDesk', 'station']),
+        populate: [
+          {
+            path: 'station',
+            select: selectPopulateField<Station>(['_id', 'name']),
+          },
+        ],
+      })
       .populate('parent');
     if (!message) {
       throw new Error('Message not found');
+    }
+
+    const station = message?.room?.station;
+    if (station?.name) {
+      title = station.name;
     }
     const reactions = message.reactions;
 
@@ -1438,13 +1466,14 @@ export class MessagesService {
       newReaction.user = user;
       newReaction.emoji = emoji;
       message.reactions.push(newReaction);
+
       if (message.sender._id.toString() !== userId) {
         const link = `${envConfig.app.url}/${
-          message.room.isHelpDesk ? 'business/conversations' : 'talk'
+          station?._id ? `stations/${station?._id}/conversations` : 'talk'
         }/${message.room._id}`;
         this.notificationService.sendNotification({
           userIds: [message.sender._id.toString()],
-          title: envConfig.app.name,
+          title: title,
           body: `${user.name} reacted to your message`,
           roomId: message.room._id.toString(),
           link,
