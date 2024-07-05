@@ -629,6 +629,31 @@ export class HelpDeskService {
     };
   }
 
+  async getMembers(userId: string, spaceId: string) {
+    const space = await this.spaceModel
+      .findOne({
+        _id: spaceId,
+        status: { $ne: StatusSpace.DELETED },
+        members: {
+          $elemMatch: {
+            user: new Types.ObjectId(userId),
+            status: MemberStatus.JOINED,
+          },
+        },
+      })
+      .populate('owner', 'email')
+      .populate('members.user', '_id name avatar username')
+      .select('members.status members.role')
+      .lean();
+
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+    return space.members.filter(
+      (item) => item.user && item.status === MemberStatus.JOINED,
+    );
+  }
+
   async getBusinessByUser(userId: string, spaceId: string) {
     const user = await this.userService.findById(userId);
     if (!user) {
@@ -763,17 +788,18 @@ export class HelpDeskService {
     userId: string,
   ) {
     const { q, limit, currentPage } = query;
-    const business = await this.helpDeskBusinessModel.findOne({
-      space: spaceId,
+    const space = await this.spaceModel.findOne({
+      _id: spaceId,
+      status: StatusSpace.ACTIVE,
     });
-    if (!business) {
+    if (!space) {
       throw new BadRequestException('space not found');
     }
-    const data = await this.userService.findByBusiness({
+    const data = await this.userService.getClientsByUser({
       q,
       limit,
       currentPage,
-      businessId: business._id.toString(),
+      spaceId: spaceId,
       userId: userId,
     });
     return data;
@@ -1132,7 +1158,7 @@ export class HelpDeskService {
           destinationApp: 'extension',
         });
       }
-      this.roomsService.addHelpDeskParticipant(
+     await this.roomsService.addHelpDeskParticipant(
         space._id.toString(),
         space.owner.toString(),
         userId,

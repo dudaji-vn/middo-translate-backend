@@ -662,6 +662,9 @@ export class MessagesService {
     if (!room) {
       throw new NotFoundException('Room not found');
     }
+    if (room.station) {
+      title = room.station?.name;
+    }
     if (room.isHelpDesk) {
       const roomWithSpace: any = await room.populate('space');
       title = `${envConfig.app.extension_name} -  ${roomWithSpace.space?.name}`;
