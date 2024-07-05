@@ -992,7 +992,7 @@ export class HelpDeskService {
     ]);
 
     return {
-      isNotEnoughData: !business || (!totalVisitor && !totalClients),
+      isNotEnoughData: !business || (!domain && !totalVisitor && !totalClients),
       analysis: {
         newVisitor: {
           value: totalVisitorWithTime,
@@ -1158,7 +1158,7 @@ export class HelpDeskService {
           destinationApp: 'extension',
         });
       }
-     await this.roomsService.addHelpDeskParticipant(
+      await this.roomsService.addHelpDeskParticipant(
         space._id.toString(),
         space.owner.toString(),
         userId,
