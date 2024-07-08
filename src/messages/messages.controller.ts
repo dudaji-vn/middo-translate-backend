@@ -63,6 +63,20 @@ export class MessagesController {
     };
   }
 
+  @Public()
+  @Delete('help-desk/:id/:userId')
+  async helpDeskRemove(
+    @ParamObjectId('userId') userId: string,
+    @ParamObjectId('id') id: string,
+    @Query() { type }: RemoveParamsMessageDto,
+  ) {
+    await this.messagesService.remove(id, userId, type);
+    return {
+      data: null,
+      message: 'Message deleted',
+    };
+  }
+
   @Patch(':id/translate')
   async translateMessage(
     @ParamObjectId() id: string,
@@ -125,14 +139,42 @@ export class MessagesController {
   @Patch(':id/edit')
   async editMessage(
     @ParamObjectId() id: string,
+    @JwtUserId() userId: string,
     @Body() updateContentDto: UpdateContentDto,
   ) {
-    const data = await this.messagesService.update(id, {
-      content: updateContentDto.content,
-      enContent: updateContentDto.enContent,
-      mentions: updateContentDto.mentions as any,
-      language: updateContentDto.language,
-    });
+    const data = await this.messagesService.update(
+      id,
+      {
+        content: updateContentDto.content,
+        enContent: updateContentDto.enContent,
+        mentions: updateContentDto.mentions as any,
+        language: updateContentDto.language,
+      },
+      userId,
+    );
+    return {
+      data: data,
+      message: 'Message edited',
+    };
+  }
+
+  @Public()
+  @Patch('help-desk/:id/edit/:userId')
+  async editHelpDeskMessage(
+    @ParamObjectId('id') id: string,
+    @ParamObjectId('userId') userId: string,
+    @Body() updateContentDto: UpdateContentDto,
+  ) {
+    const data = await this.messagesService.update(
+      id,
+      {
+        content: updateContentDto.content,
+        enContent: updateContentDto.enContent,
+        mentions: updateContentDto.mentions as any,
+        language: updateContentDto.language,
+      },
+      userId,
+    );
     return {
       data: data,
       message: 'Message edited',

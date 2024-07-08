@@ -616,10 +616,15 @@ export class MessagesService {
       enContent?: string;
       mentions?: string[];
     },
+    userId?: string,
   ) {
     const message = await this.messageModel.findById(id).populate(['parent']);
     if (!message) {
       throw new Error('Message not found');
+    }
+
+    if (userId && userId !== message.sender._id.toString()) {
+      throw new BadRequestException('You are not owner of this message');
     }
     if (updateMessageDto.content) {
       const content = updateMessageDto.content;
