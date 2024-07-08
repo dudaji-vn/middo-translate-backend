@@ -4,6 +4,7 @@ import { Call } from 'src/call/schemas/call.schema';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { User } from 'src/users/schemas/user.schema';
 import { NodeChatFlowDto } from 'src/help-desk/dto/node-chat-dto';
+import { Script } from 'src/help-desk/schemas/space.schema';
 
 @Schema({ _id: false }) // _id: false because this is a subdocument
 export class Reaction extends Document {
@@ -174,6 +175,10 @@ export class Message {
   translations: any;
   @Prop({ type: String })
   senderType: SenderType;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Script.name })
+  script: Script;
+
   @Prop({ type: [String], default: [] })
   editHistory: string[];
 }

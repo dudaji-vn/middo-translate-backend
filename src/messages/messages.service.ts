@@ -26,7 +26,7 @@ import { RoomsService } from 'src/rooms/rooms.service';
 import { Room, RoomStatus } from 'src/rooms/schemas/room.schema';
 import { User, UserRelationType } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import { DefaultTag, Space } from '../help-desk/schemas/space.schema';
+import { DefaultTag, Script, Space } from 'src/help-desk/schemas/space.schema';
 import { CreateMessageDto } from './dto';
 import { ForwardMessageDto } from './dto/forward-message.dto';
 import {
@@ -300,6 +300,14 @@ export class MessagesService {
         room.space &&
         room.space.bot
       ) {
+        const currentScript = await this.roomsService.getCurrentScriptBySpace(
+          room.space,
+        );
+
+        if (currentScript) {
+          createdMessage.script = currentScript;
+        }
+
         createdMessage.sender = room.space.bot;
         createdMessage.readBy = [];
       }
@@ -1011,10 +1019,8 @@ export class MessagesService {
           },
         ],
       })
-      .populate(
-        'mentions',
-        selectPopulateField<User>(['_id', 'name', 'email']),
-      );
+      .populate('mentions', selectPopulateField<User>(['_id', 'name', 'email']))
+      .populate('script', selectPopulateField<Script>(['name']));
 
     const endCursor =
       messages.length > 0 ? String(messages[messages.length - 1]._id) : '';
