@@ -1622,4 +1622,14 @@ export class RoomsService {
       deleteFor: { $ne: new mongoose.Types.ObjectId(userId) },
     });
   }
+
+  async getCurrentScriptBySpace(spaceId: ObjectId) {
+    const business = await this.helpDeskBusinessModel
+      .findOne({ space: spaceId })
+      .lean();
+    if (!business || !business.currentScript) {
+      return null;
+    }
+    return business?.currentScript;
+  }
 }

@@ -11,6 +11,9 @@ export function convertMessageRemoved(
   if (!message) {
     return undefined;
   }
+  if (message.script && message.script.isDeleted) {
+    message.script = null;
+  }
   const isRemovedForMe = message.removedFor.some((id) => String(id) === userId);
   if (isRemovedForMe) {
     message.content = 'This message was removed';
