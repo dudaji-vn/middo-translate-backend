@@ -23,7 +23,6 @@ export class CreateMessageDto {
   forwardOfId?: string;
   callId?: string;
   mentions?: string[];
-  businessUserId?: string;
   action?: ActionTypes;
   senderType?: SenderType;
 
