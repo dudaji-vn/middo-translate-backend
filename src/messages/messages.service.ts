@@ -1020,7 +1020,7 @@ export class MessagesService {
         ],
       })
       .populate('mentions', selectPopulateField<User>(['_id', 'name', 'email']))
-      .populate('script', selectPopulateField<Script>(['name']));
+      .populate('script', selectPopulateField<Script>(['name', 'isDeleted']));
 
     const endCursor =
       messages.length > 0 ? String(messages[messages.length - 1]._id) : '';

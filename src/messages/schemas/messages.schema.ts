@@ -177,7 +177,7 @@ export class Message {
   senderType: SenderType;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Script.name })
-  script: Script;
+  script: Script | null;
 
   @Prop({ type: [String], default: [] })
   editHistory: string[];
