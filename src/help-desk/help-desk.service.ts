@@ -92,8 +92,8 @@ export class HelpDeskService {
       .findById(businessId)
       .populate('space');
 
-    if (!business) {
-      throw new BadRequestException('Business not found');
+    if (!business || !business.space) {
+      throw new BadRequestException('Business or space not found');
     }
     const user = await this.userModel.create({
       status: UserStatus.ANONYMOUS,
@@ -106,6 +106,8 @@ export class HelpDeskService {
       space: business.space._id,
     });
 
+    const owner = business.space.owner?.toString();
+
     const participants: any = business.space.members
       .filter((item) => item.status === MemberStatus.JOINED && item.user)
       .map((item) => item.user);
@@ -117,11 +119,11 @@ export class HelpDeskService {
       {
         participants: [user._id, ...participants],
         businessId: business._id.toString(),
-        senderId: business.user.toString(),
+        senderId: owner,
         space: business.space._id,
         fromDomain: info.fromDomain,
       },
-      business.user.toString(),
+      owner,
     );
 
     if (
@@ -137,9 +139,8 @@ export class HelpDeskService {
           type: MessageType.TEXT,
           roomId: room._id.toString(),
           media: [],
-          businessUserId: business.user.toString(),
         },
-        business.user.toString(),
+        owner,
       );
     }
 
