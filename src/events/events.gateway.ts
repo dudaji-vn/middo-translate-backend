@@ -962,6 +962,39 @@ export class EventsGateway
     }
    
   }
+  //Station
+  @OnEvent(socketConfig.events.station.update)
+  async handleUpdateStation({
+    data,
+    receiverIds,
+  }: {
+    data: any;
+    receiverIds: string[];
+  }) {
+    const socketIds = receiverIds
+      .map((id) => this.clients[id.toString()]?.socketIds || [])
+      .flat();
+      if (socketIds.length > 0) {
+        this.server.to(socketIds).emit(socketConfig.events.station.update, data);
+      }
+  }
+
+  @OnEvent(socketConfig.events.station.member.remove)
+  async handleRemoveMemberStation({
+    data,
+    receiverIds,
+  }: {
+    data: any;
+    receiverIds: string[];
+  }) {
+    const socketIds = receiverIds
+      .map((id) => this.clients[id.toString()]?.socketIds || [])
+      .flat();
+      if (socketIds.length > 0) {
+        this.server.to(socketIds).emit(socketConfig.events.station.member.remove, data);
+      }
+    
+  }
 }
 
 const findUserIdBySocketId = (clients: any, socketId: string) => {

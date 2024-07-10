@@ -108,8 +108,6 @@ export const socketConfig = {
       update: 'station.update',
       member: {
         remove: 'station.member.remove',
-        leave: 'station.member.leave',
-        update: 'station.member.update',
       },
     },
     app: {

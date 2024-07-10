@@ -131,6 +131,17 @@ export class StationsService {
 
     await stationData.save();
     const { members: _, ...data } = stationData.toObject();
+
+    this.eventEmitter.emit(socketConfig.events.station.update, {
+      receiverIds: stationData.members
+        .filter(
+          (item) =>
+            item.status === MemberStatus.JOINED &&
+            item?.user?.toString() !== userId,
+        )
+        .map((item) => item.user?.toString()),
+    });
+
     return data;
   }
 
@@ -465,11 +476,18 @@ export class StationsService {
     if (memberId) {
       this.userService.removeMemberFromStation(memberId, stationId);
       this.eventEmitter.emit(socketConfig.events.station.member.remove, {
-        receiverIds: stationData.members
-          .filter((member) => member.status === MemberStatus.JOINED)
-          .map((item) => item.user?.toString()),
+        receiverIds: [memberId],
       });
     }
+    this.eventEmitter.emit(socketConfig.events.station.update, {
+      receiverIds: stationData.members
+        .filter(
+          (item) =>
+            item.status === MemberStatus.JOINED &&
+            item?.user?.toString() !== userId,
+        )
+        .map((item) => item.user?.toString()),
+    });
 
     return true;
   }
@@ -502,13 +520,16 @@ export class StationsService {
     const memberId = stationData.members[index]?.user?.toString();
     if (memberId) {
       this.userService.removeMemberFromStation(memberId, stationId);
-      this.eventEmitter.emit(socketConfig.events.station.member.leave, {
-        receiverIds: stationData.members
-          .filter((member) => member.status === MemberStatus.JOINED)
-          .map((item) => item.user?.toString()),
-      });
     }
-
+    this.eventEmitter.emit(socketConfig.events.station.update, {
+      receiverIds: stationData.members
+        .filter(
+          (item) =>
+            item.status === MemberStatus.JOINED &&
+            item?.user?.toString() !== userId,
+        )
+        .map((item) => item.user?.toString()),
+    });
     return true;
   }
 
