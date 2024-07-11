@@ -1,5 +1,4 @@
-import { IsEmail, IsMongoId, IsOptional } from 'class-validator';
-import { MemberStatus } from '../schemas/member.schema';
+import { IsEmail, IsMongoId } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class MemberDto {

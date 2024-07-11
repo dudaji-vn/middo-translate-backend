@@ -1,12 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {
-  IsNotEmpty,
-  IsString,
-  Matches,
-  MinLength,
-  ValidateNested,
-} from 'class-validator';
+import { IsString, Matches, ValidateNested } from 'class-validator';
 import { MemberDto } from './member.dto';
 
 export class CreateOrEditStationDto {
