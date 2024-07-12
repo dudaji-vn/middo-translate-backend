@@ -338,6 +338,7 @@ export class RoomsService {
   ) {
     const room = await this.roomModel
       .findOne({
+        station: { $exists: false },
         ...(stationId && { station: stationId }),
         participants: {
           $all: participantIds,
@@ -385,6 +386,7 @@ export class RoomsService {
           $all: participantIds,
           $size: participantIds.length,
         },
+        station: { $exists: false },
         status: RoomStatus.ACTIVE,
         ...(stationId && {
           station: stationId,
@@ -395,6 +397,7 @@ export class RoomsService {
     if (!room) {
       const participantIds = [...new Set([userId, id])];
       room = await this.roomModel.findOne({
+        station: { $exists: false },
         ...(stationId && {
           station: stationId,
         }),
@@ -1019,6 +1022,7 @@ export class RoomsService {
     if (!room) {
       const participantIds = [...new Set([userId, id])];
       room = await this.roomModel.findOne({
+        station: { $exists: false },
         participants: {
           $all: participantIds,
           $size: participantIds.length,
