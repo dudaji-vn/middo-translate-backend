@@ -1912,4 +1912,11 @@ export class MessagesService {
       sourceLang,
     };
   };
+
+  async updateReadAllMessagesInRoom(roomId: string, userId: string) {
+    return this.messageModel.updateMany(
+      { room: roomId },
+      { $addToSet: { readBy: userId } },
+    );
+  }
 }

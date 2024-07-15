@@ -1221,7 +1221,10 @@ export class RoomsService {
 
     return room;
   }
-  async updateReadByLastMessageInRoom(roomId: ObjectId, userId: string) {
+  async updateReadByLastMessageInRoom(
+    roomId: ObjectId | string,
+    userId: string,
+  ) {
     return await this.roomModel.findByIdAndUpdate(
       roomId,
       {
@@ -1635,5 +1638,8 @@ export class RoomsService {
       return null;
     }
     return business?.currentScript;
+  }
+  async existRoomByIdAndUserId(roomId: string, userId: string) {
+    return await this.roomModel.exists({ _id: roomId, participants: userId });
   }
 }
