@@ -874,9 +874,10 @@ export class RoomsService {
       ...data,
       isSetName: data.name ? true : false,
     });
+    const isHaveNameKey = Object.keys(data).includes('name');
     return {
       room: newRoom,
-      isRemoveName: room.name && !data.name,
+      isRemoveName: room.name && isHaveNameKey && !data.name,
     };
   }
 
