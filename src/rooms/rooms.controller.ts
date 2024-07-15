@@ -424,6 +424,21 @@ export class RoomsController {
     return { message: 'Contact deleted', data: null };
   }
 
+  @Patch(':id/read-all-messages')
+  async readAllMessages(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ): Promise<Response<null>> {
+    const existRoomByIdAndUserId =
+      await this.roomsService.existRoomByIdAndUserId(id, userId);
+    if (!existRoomByIdAndUserId) {
+      throw new BadRequestException('Room not found');
+    }
+    await this.roomsService.updateReadByLastMessageInRoom(id, userId);
+    await this.messagesService.updateReadAllMessagesInRoom(id, userId);
+    return { message: 'Read all messages in room', data: null };
+  }
+
   @Post('stations/:stationId')
   async createStationRoom(
     @Body() createRoomDto: CreateRoomDto,
