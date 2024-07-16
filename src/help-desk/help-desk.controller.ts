@@ -30,6 +30,7 @@ import { ValidateInviteDto } from './dto/validate-invite-dto';
 import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 import { DeleteScriptsDto } from './dto/delete-scripts-dto';
 import { VisitorDto } from './dto/visitor-dto';
+import { CreateOrEditFormDto } from './dto/create-or-edit-form-dto';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -404,5 +405,19 @@ export class HelpDeskController {
     return {
       data: result,
     };
+  }
+
+  @Put('spaces/:id/forms')
+  async createOrEditForm(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+    @Body() payload: CreateOrEditFormDto,
+  ) {
+    const result = await this.helpDeskService.createOrEditForm(
+      id,
+      userId,
+      payload,
+    );
+    return { data: result };
   }
 }

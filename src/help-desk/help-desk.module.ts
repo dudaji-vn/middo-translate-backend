@@ -26,11 +26,19 @@ import {
 } from './schemas/space-notifications.schema';
 
 import { Visitor, VisitorSchema } from './schemas/visitor.schema';
+import {
+  HelpDeskForm,
+  HelpDeskFormSchema,
+} from './schemas/help-desk-form.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: HelpDeskBusiness.name, schema: HelpDeskBusinessSchema },
+      {
+        name: HelpDeskForm.name,
+        schema: HelpDeskFormSchema,
+      },
       { name: User.name, schema: UserSchema },
       { name: Space.name, schema: SpaceSchema },
       { name: SpaceNotification.name, schema: SpaceNotificationSchema },

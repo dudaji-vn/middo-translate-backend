@@ -62,12 +62,16 @@ import { Member, Script, Space, StatusSpace } from './schemas/space.schema';
 import { Visitor } from './schemas/visitor.schema';
 import { pivotChartByType } from 'src/common/utils/date-report';
 import { NotificationService } from 'src/notifications/notifications.service';
+import { CreateOrEditFormDto } from './dto/create-or-edit-form-dto';
+import { HelpDeskForm } from './schemas/help-desk-form.schema';
 
 @Injectable()
 export class HelpDeskService {
   constructor(
     @InjectModel(HelpDeskBusiness.name)
     private helpDeskBusinessModel: Model<HelpDeskBusiness>,
+    @InjectModel(HelpDeskForm.name)
+    private helpDeskFormModel: Model<HelpDeskForm>,
     @InjectModel(User.name)
     private userModel: Model<User>,
     @InjectModel(Space.name)
@@ -2281,5 +2285,76 @@ export class HelpDeskService {
       }),
     );
     return mappedData;
+  }
+
+  async createOrEditForm(
+    spaceId: string,
+    userId: string,
+    payload: CreateOrEditFormDto,
+  ) {
+    const { formId, name } = payload;
+    const space = await this.spaceModel.findOne({
+      _id: spaceId,
+      status: { $ne: StatusSpace.DELETED },
+    });
+
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+
+    if (!this.isAdminSpace(space.members, userId)) {
+      throw new ForbiddenException(
+        'You do not have permission to create or edit form',
+      );
+    }
+    if (!formId) {
+      const isExist = await this.helpDeskFormModel.exists({
+        name: name,
+        space: spaceId,
+        isDeleted: { $ne: true },
+      });
+      if (isExist) {
+        throw new BadRequestException(`Form ${name} is exist`);
+      }
+      const item: Partial<HelpDeskForm> = {
+        ...payload,
+        space: space,
+        lastEditedBy: userId,
+        createdBy: userId,
+      };
+      await this.helpDeskFormModel.create(item);
+    } else {
+      const form = await this.helpDeskFormModel.findOne({
+        _id: formId,
+        isDeleted: { $ne: true },
+      });
+      if (!form) {
+        throw new BadRequestException('Form not found');
+      }
+
+      const updateData: Partial<HelpDeskForm> = {
+        ...payload,
+        lastEditedBy: userId,
+      };
+
+      await this.helpDeskFormModel.findByIdAndUpdate(formId, updateData, {
+        new: true,
+      });
+
+      await form.save();
+    }
+    if (space.members && space.members.length > 0) {
+      this.eventEmitter.emit(socketConfig.events.space.update, {
+        receiverIds: space.members
+          .filter(
+            (item) =>
+              item.status === MemberStatus.JOINED &&
+              item?.user?.toString() !== userId,
+          )
+          .map((item) => item.user?.toString()),
+      });
+    }
+
+    return true;
   }
 }
