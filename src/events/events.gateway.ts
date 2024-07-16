@@ -20,7 +20,7 @@ import {
   UpdateRoomPayload,
 } from './types/room-payload.type';
 import { CallService } from 'src/call/call.service';
-import Meeting, { ParticipantMeeting } from './interface/meeting.interface';
+import Meeting, { ParticipantMeeting, RoomType } from './interface/meeting.interface';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { WatchingService } from 'src/watching/watching.service';
@@ -319,7 +319,9 @@ export class EventsGateway
     } else {
       let roomData = await this.roomService.findById(roomId);
       let participantsIds = roomData?.participants.map((p: any) => p._id.toString());
-      
+      let roomType: RoomType = 'NORMAL';
+      if(roomData?.isHelpDesk) roomType = 'HELP_DESK'
+      if(roomData?.isAnonymous) roomType = 'ANONYMOUS'
       this.meetings[callId] = {
         participants: [
           { 
@@ -335,7 +337,7 @@ export class EventsGateway
         room: {
           _id: roomId,
           participantIds: participantsIds || [],
-          type: roomData?.isHelpDesk ? 'HELP_DESK' : 'NORMAL',
+          type: roomType,
         },
       };
       this.server.emit(socketConfig.events.call.start, roomId);

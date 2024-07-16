@@ -1671,4 +1671,17 @@ export class RoomsService {
       { new: true },
     );
   }
+
+  async forgeDeleteRoomAndUserInRoom(id: string) {
+    const room = await this.roomModel.findById(id);
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+    const participants = room.participants.map((p) => p.toString());
+    // Delete all participants
+    await this.usersService.forgeDeleteManyAnonymousUser(participants);
+    return await this.roomModel.deleteOne({
+      _id: id,
+    });
+  }
 }

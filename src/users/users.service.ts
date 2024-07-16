@@ -578,4 +578,11 @@ export class UsersService {
       language: language,
     });
   }
+
+  async forgeDeleteManyAnonymousUser(ids: string[]) {
+    return await this.userModel.deleteMany({
+      _id: { $in: ids },
+      status: UserStatus.ANONYMOUS,
+    });
+  }
 }

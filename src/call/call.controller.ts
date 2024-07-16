@@ -26,6 +26,12 @@ export class CallController {
     const result = await this.callService.getCallById(id);
     return { data: result };
   }
+  @Public()
+  @Get(':id/anonymous')
+  async getAnonymousCallById(@ParamObjectId('id') id: string) {
+    const result = await this.callService.getAnonymousCallById(id);
+    return { data: result };
+  }
 
   @Public()
   @Post('/help-desk')

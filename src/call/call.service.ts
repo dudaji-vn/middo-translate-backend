@@ -14,6 +14,8 @@ import { logger } from 'src/common/utils/logger';
 import { UsersService } from 'src/users/users.service';
 import { Space } from 'src/help-desk/schemas/space.schema';
 import { UserJoinDto } from './dto/user-join.dto';
+import { selectPopulateField } from 'src/common/utils';
+import { Room } from 'src/rooms/schemas/room.schema';
 @Injectable()
 export class CallService {
   constructor(
@@ -169,8 +171,12 @@ export class CallService {
   async endCall(callId: string) {
     try {
       if (!callId) return;
-      const call = await this.callModel.findById(callId);
-      if (!call) {
+      const call = await this.callModel.findById(callId).populate('roomId', selectPopulateField<Room>(['_id']));
+      if (!call) return;
+      if (call?.type == CALL_TYPE.ANONYMOUS) { // DELETE ROOM, CALL and All message of room
+        await this.roomService.forgeDeleteRoomAndUserInRoom(call.roomId?._id?.toString());
+        await this.messageService.forgeDeleteMessageByRoomId(call.roomId?._id?.toString());
+        await this.callModel.findByIdAndDelete(callId);
         return;
       }
       call.endTime = new Date();
@@ -249,11 +255,22 @@ export class CallService {
       call.roomId.toString(),
       user._id.toString(),
     );
-    return user;
+    return {
+      user,
+      call
+    };
   }
   async getCallById(callId: string) {
     return await this.callModel.findOne({
       _id: callId,
+      endTime: null,
+    });
+  }
+
+  async getAnonymousCallById(callId: string) {
+    return await this.callModel.findOne({
+      _id: callId,
+      type: CALL_TYPE.ANONYMOUS,
       endTime: null,
     });
   }

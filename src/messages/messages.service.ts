@@ -1919,4 +1919,10 @@ export class MessagesService {
       { $addToSet: { readBy: userId } },
     );
   }
+
+  async forgeDeleteMessageByRoomId(roomId: string) {
+    return await this.messageModel.deleteMany({
+      room: roomId,
+    });
+  }
 }
