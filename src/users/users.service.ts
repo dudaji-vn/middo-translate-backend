@@ -22,6 +22,7 @@ import { socketConfig } from 'src/configs/socket.config';
 import { SearchQueryParams } from 'src/search/types';
 import { Station } from 'src/stations/schemas/station.schema';
 import { queryClients } from 'src/common/utils/query-report';
+import { generateSlug } from 'src/common/utils/generate-slug';
 
 @Injectable()
 export class UsersService {
@@ -565,5 +566,16 @@ export class UsersService {
       { $pull: { stations: stationId } },
     );
     return null;
+  }
+
+  async createAnonymousUser(name: string, language: string) {
+    const slug = generateSlug();
+    return await this.userModel.create({
+      status: UserStatus.ANONYMOUS,
+      email: `${slug}@gmail.com`,
+      username: `${slug}`,
+      name: name,
+      language: language,
+    });
   }
 }

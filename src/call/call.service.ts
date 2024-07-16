@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { Call } from './schemas/call.schema';
-import { Model, ObjectId, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { STATUS } from './constants/call-status';
 import { CALL_TYPE, JOIN_TYPE } from './constants/call-type';
 import { MessagesService } from 'src/messages/messages.service';
@@ -13,6 +13,7 @@ import { socketConfig } from 'src/configs/socket.config';
 import { logger } from 'src/common/utils/logger';
 import { UsersService } from 'src/users/users.service';
 import { Space } from 'src/help-desk/schemas/space.schema';
+import { UserJoinDto } from './dto/user-join.dto';
 @Injectable()
 export class CallService {
   constructor(
@@ -86,6 +87,9 @@ export class CallService {
       } else if (room.isGroup) {
         type = CALL_TYPE.GROUP;
       }
+      if (room.isAnonymous) {
+        type = CALL_TYPE.ANONYMOUS;
+      }
       const newCall = {
         roomId: payload.roomId,
         name: roomName,
@@ -120,6 +124,16 @@ export class CallService {
       );
       return { status: 'SERVER_ERROR' };
     }
+  }
+  async joinAnonymousVideoCall(userId: string) {
+    const room = await this.roomService.createAnonymousRoom(
+      userId,
+      'Instant Call',
+    );
+    return await this.joinVideoCallRoom({
+      id: userId,
+      roomId: room._id.toString(),
+    });
   }
   async getCallInfo(payload: { roomId: string }) {
     try {
@@ -220,5 +234,27 @@ export class CallService {
     } catch (error) {
       return { status: STATUS.USER_NOT_IN_ROOM };
     }
+  }
+  async createUserAndJoinCall(payload: UserJoinDto) {
+    const { name, language, callId } = payload;
+    const user = await this.userService.createAnonymousUser(name, language);
+    const call = await this.callModel.findOne({
+      _id: callId,
+      endTime: null,
+    });
+    if (!call) {
+      return { status: STATUS.CALL_NOT_FOUND };
+    }
+    await this.roomService.addAnonymousParticipant(
+      call.roomId.toString(),
+      user._id.toString(),
+    );
+    return user;
+  }
+  async getCallById(callId: string) {
+    return await this.callModel.findOne({
+      _id: callId,
+      endTime: null,
+    });
   }
 }

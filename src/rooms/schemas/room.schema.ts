@@ -111,6 +111,9 @@ export class Room {
 
   @Prop({ type: Date })
   expiredAt: Date;
+
+  @Prop({ type: Boolean })
+  isAnonymous: boolean;
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);
