@@ -1,35 +1,33 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
+import { MailModule } from 'src/mail/mail.module';
+import { MessagesModule } from 'src/messages/messages.module';
+import { NotificationModule } from 'src/notifications/notifications.module';
 import { RoomsModule } from 'src/rooms/rooms.module';
+import { User, UserSchema } from 'src/users/schemas/user.schema';
 import { UsersModule } from 'src/users/users.module';
-import { User, UserSchema } from '../users/schemas/user.schema';
 import { HelpDeskController } from './help-desk.controller';
 import { HelpDeskService } from './help-desk.service';
-import { NotificationModule } from 'src/notifications/notifications.module';
-
 import {
   HelpDeskBusiness,
   HelpDeskBusinessSchema,
 } from './schemas/help-desk-business.schema';
-
-import { MessagesModule } from '../messages/messages.module';
-import { MailModule } from '../mail/mail.module';
+import {
+  SpaceNotification,
+  SpaceNotificationSchema,
+} from './schemas/space-notifications.schema';
 import {
   Script,
   ScriptSchema,
   Space,
   SpaceSchema,
 } from './schemas/space.schema';
-import {
-  SpaceNotification,
-  SpaceNotificationSchema,
-} from './schemas/space-notifications.schema';
 
-import { Visitor, VisitorSchema } from './schemas/visitor.schema';
 import {
   HelpDeskForm,
   HelpDeskFormSchema,
 } from './schemas/help-desk-form.schema';
+import { Visitor, VisitorSchema } from './schemas/visitor.schema';
 
 @Module({
   imports: [

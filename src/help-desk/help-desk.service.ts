@@ -39,13 +39,17 @@ import {
 } from './schemas/help-desk-business.schema';
 
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { pivotChartByType } from 'src/common/utils/date-report';
 import { envConfig } from 'src/configs/env.config';
 import { socketConfig } from 'src/configs/socket.config';
 import { MailService } from 'src/mail/mail.service';
 import { MessagesService } from 'src/messages/messages.service';
+import { detectLanguage, translate } from 'src/messages/utils/translate';
+import { NotificationService } from 'src/notifications/notifications.service';
 import { calculateRate } from '../common/utils/calculate-rate';
 import { CreateClientDto } from './dto/create-client-dto';
 import { CreateOrEditBusinessDto as CreateOrEditExtensionDto } from './dto/create-or-edit-business-dto';
+import { CreateOrEditFormDto } from './dto/create-or-edit-form-dto';
 import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 import {
   CreateOrEditSpaceDto,
@@ -57,13 +61,10 @@ import {
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
 import { VisitorDto } from './dto/visitor-dto';
 import { ChatFlow } from './schemas/chat-flow.schema';
+import { HelpDeskForm } from './schemas/help-desk-form.schema';
 import { SpaceNotification } from './schemas/space-notifications.schema';
 import { Member, Script, Space, StatusSpace } from './schemas/space.schema';
 import { Visitor } from './schemas/visitor.schema';
-import { pivotChartByType } from 'src/common/utils/date-report';
-import { NotificationService } from 'src/notifications/notifications.service';
-import { CreateOrEditFormDto } from './dto/create-or-edit-form-dto';
-import { HelpDeskForm } from './schemas/help-desk-form.schema';
 
 @Injectable()
 export class HelpDeskService {
@@ -369,6 +370,7 @@ export class HelpDeskService {
     payload: CreateOrEditScriptDto,
   ) {
     const { name, chatFlow, scriptId } = payload;
+
     const space = await this.spaceModel.findOne({
       _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
@@ -383,10 +385,17 @@ export class HelpDeskService {
         'You do not have permission to create or edit script',
       );
     }
+
+    chatFlow.nodes.forEach((item, index) => {
+      if (item.formId) {
+        chatFlow.nodes[index].form = item.formId;
+      }
+    });
+
     if (!scriptId) {
       const item: Partial<Script> = {
         name: name,
-        chatFlow: chatFlow as ChatFlow,
+        chatFlow: chatFlow,
         lastEditedBy: userId,
         createdBy: userId,
         space: space,
@@ -1386,7 +1395,7 @@ export class HelpDeskService {
   async getDetailScript(spaceId: string, id: string, userId: string) {
     const script = await this.scriptModel
       .findOne({ _id: id, space: spaceId, isDeleted: { $ne: true } })
-      .populate('space')
+      .populate('space chatFlow.nodes.form')
       .select('name chatFlow space');
     if (!script) {
       throw new BadRequestException('Script not found');
@@ -2332,15 +2341,25 @@ export class HelpDeskService {
         throw new BadRequestException('Form not found');
       }
 
-      const updateData: Partial<HelpDeskForm> = {
-        ...payload,
-        lastEditedBy: userId,
-      };
-
-      await this.helpDeskFormModel.findByIdAndUpdate(formId, updateData, {
-        new: true,
+      payload.formFields.forEach((field) => {
+        const existingField = form.formFields.find(
+          (item) => item._id.toString() === field._id.toString(),
+        );
+        if (existingField) {
+          if (field.label) existingField.label = field.label;
+          if (field.type) existingField.type = field.type;
+          if (field.options) {
+            existingField.options = field.options;
+          }
+          if (field.required) {
+            existingField.required = field.required;
+          }
+        } else {
+          form.formFields.push(field);
+        }
       });
 
+      form.lastEditedBy = userId;
       await form.save();
     }
     if (space.members && space.members.length > 0) {
@@ -2356,5 +2375,54 @@ export class HelpDeskService {
     }
 
     return true;
+  }
+  async getDetailForm(formId: string, userId: string) {
+    const user = await this.userService.findById(userId);
+    const language = user.language;
+    const result = await this.helpDeskFormModel.findById(formId).lean();
+    if (!result) {
+      return null;
+    }
+
+    result.formFields = await Promise.all(
+      result.formFields.map(async (item) => {
+        const sourceLabel = await detectLanguage(item.label);
+        const label = await translate(item.label, sourceLabel, language);
+
+        const sourceOptions = item.options
+          ? await Promise.all(item.options.map((item) => detectLanguage(item)))
+          : [];
+
+        const options = item.options
+          ? await Promise.all(
+              item.options.map((item, index) =>
+                translate(item, sourceOptions[index], language),
+              ),
+            )
+          : [];
+
+        return {
+          ...item,
+          translations: {
+            label: {
+              [language]: label || item.label,
+            },
+            options: {
+              [language]: options || item.options,
+            },
+          },
+        };
+      }),
+    );
+
+    return result;
+  }
+
+  async getFormsBy(
+    spaceId: string,
+    searchQuery: SearchQueryParamsDto,
+    userId: string,
+  ) {
+    return [];
   }
 }

@@ -420,4 +420,27 @@ export class HelpDeskController {
     );
     return { data: result };
   }
+
+  @Public()
+  @Get('spaces/:id/forms/:formId/:userId')
+  async getDetailForm(
+    @ParamObjectId('id') id: string,
+    @ParamObjectId('formId') formId: string,
+    @ParamObjectId('userId') userId: string,
+  ) {
+    const result = await this.helpDeskService.getDetailForm(formId, userId);
+    return { data: result };
+  }
+
+  @Get('spaces/:id/forms')
+  async getFormsBy(
+    @Query() query: SearchQueryParamsDto,
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.getScriptsBy(id, query, userId);
+    return {
+      data: result,
+    };
+  }
 }
