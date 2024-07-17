@@ -16,10 +16,13 @@ import { Space } from 'src/help-desk/schemas/space.schema';
 import { UserJoinDto } from './dto/user-join.dto';
 import { selectPopulateField } from 'src/common/utils';
 import { Room } from 'src/rooms/schemas/room.schema';
+import { JwtService } from '@nestjs/jwt';
+import { envConfig } from 'src/configs/env.config';
 @Injectable()
 export class CallService {
   constructor(
     private roomService: RoomsService,
+    private readonly jwtService: JwtService,
     private messageService: MessagesService,
     private userService: UsersService,
     private readonly eventEmitter: EventEmitter2,
@@ -255,9 +258,16 @@ export class CallService {
       call.roomId.toString(),
       user._id.toString(),
     );
+    const token = await this.jwtService.signAsync({
+      id: user._id.toString(),
+    }, {
+      secret: envConfig.jwt.accessToken.secret,
+      expiresIn: envConfig.jwt.accessToken.expiresIn,
+    });
     return {
       user,
-      call
+      call,
+      token
     };
   }
   async getCallById(callId: string) {
