@@ -1684,4 +1684,18 @@ export class RoomsService {
       _id: id,
     });
   }
+  async isAccessAnonymousRoom(roomId: string, userId: string) {
+    return await this.roomModel.exists({
+      _id: roomId,
+      participants: userId,
+      $or: [
+        {
+          isAnonymous: true,
+        },
+        {
+          isHelpDesk: true,
+        },
+      ],
+    });
+  }
 }

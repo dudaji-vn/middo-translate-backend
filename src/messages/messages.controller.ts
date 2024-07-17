@@ -6,6 +6,7 @@ import {
   Query,
   Patch,
   Get,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
@@ -231,6 +232,14 @@ export class MessagesController {
   async helpDeskCreate(
     @Body() createMessageDto: CreateHelpDeskMessageDto,
   ): Promise<Response<Message>> {
+    const { roomId, userId } = createMessageDto;
+    const isAccessAnonymousRoom =
+      await this.messagesService.isAccessAnonymousRoom(roomId, userId);
+    if (!isAccessAnonymousRoom) {
+      throw new UnauthorizedException(
+        'User has no permission to access this room',
+      );
+    }
     if (!createMessageDto.senderType) {
       createMessageDto.senderType = SenderType.ANONYMOUS;
     }

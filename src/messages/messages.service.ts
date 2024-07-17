@@ -1925,4 +1925,8 @@ export class MessagesService {
       room: roomId,
     });
   }
+
+  async isAccessAnonymousRoom(roomId: string, userId: string) {
+    return await this.roomsService.isAccessAnonymousRoom(roomId, userId);
+  }
 }
