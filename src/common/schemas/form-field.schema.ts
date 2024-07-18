@@ -1,5 +1,6 @@
-import { Prop, Schema } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import mongoose, { Document } from 'mongoose';
+import { Form } from './form.schema';
 
 export enum FormType {
   TEXT = 'text',
@@ -33,3 +34,5 @@ export class FormField extends Document {
   @Prop({ type: Number })
   order: number;
 }
+
+export const FormFieldSchema = SchemaFactory.createForClass(FormField);

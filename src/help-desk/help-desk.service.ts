@@ -44,7 +44,6 @@ import { envConfig } from 'src/configs/env.config';
 import { socketConfig } from 'src/configs/socket.config';
 import { MailService } from 'src/mail/mail.service';
 import { MessagesService } from 'src/messages/messages.service';
-import { detectLanguage, translate } from 'src/messages/utils/translate';
 import { NotificationService } from 'src/notifications/notifications.service';
 import { calculateRate } from '../common/utils/calculate-rate';
 import { CreateClientDto } from './dto/create-client-dto';
@@ -61,18 +60,16 @@ import {
 import { ValidateInviteStatus } from './dto/validate-invite-dto';
 import { VisitorDto } from './dto/visitor-dto';
 import { ChatFlow } from './schemas/chat-flow.schema';
-import { HelpDeskForm } from './schemas/help-desk-form.schema';
 import { SpaceNotification } from './schemas/space-notifications.schema';
 import { Member, Script, Space, StatusSpace } from './schemas/space.schema';
 import { Visitor } from './schemas/visitor.schema';
+import { FormService } from 'src/form/form.service';
 
 @Injectable()
 export class HelpDeskService {
   constructor(
     @InjectModel(HelpDeskBusiness.name)
     private helpDeskBusinessModel: Model<HelpDeskBusiness>,
-    @InjectModel(HelpDeskForm.name)
-    private helpDeskFormModel: Model<HelpDeskForm>,
     @InjectModel(User.name)
     private userModel: Model<User>,
     @InjectModel(Space.name)
@@ -88,6 +85,7 @@ export class HelpDeskService {
     private messagesService: MessagesService,
     private mailService: MailService,
     private notificationService: NotificationService,
+    private formService: FormService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -2301,7 +2299,6 @@ export class HelpDeskService {
     userId: string,
     payload: CreateOrEditFormDto,
   ) {
-    const { formId, name, color, backgroundColor, images } = payload;
     const space = await this.spaceModel.findOne({
       _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
@@ -2316,58 +2313,8 @@ export class HelpDeskService {
         'You do not have permission to create or edit form',
       );
     }
-    if (!formId) {
-      const isExist = await this.helpDeskFormModel.exists({
-        name: name,
-        space: spaceId,
-        isDeleted: { $ne: true },
-      });
-      if (isExist) {
-        throw new BadRequestException(`Form ${name} is exist`);
-      }
-      const item: Partial<HelpDeskForm> = {
-        ...payload,
-        space: space,
-        lastEditedBy: userId,
-        createdBy: userId,
-      };
-      await this.helpDeskFormModel.create(item);
-    } else {
-      const form = await this.helpDeskFormModel.findOne({
-        _id: formId,
-        isDeleted: { $ne: true },
-      });
-      if (!form) {
-        throw new BadRequestException('Form not found');
-      }
+    await this.formService.createOrEditForm(spaceId, userId, payload);
 
-      const formIds = payload.formFields.map((item) => item?._id?.toString());
-      form.formFields = form.formFields.filter((item) =>
-        formIds.includes(item._id.toString()),
-      );
-      payload.formFields.forEach((newField) => {
-        const existingField = form.formFields.find(
-          (item) => item._id.toString() === newField?._id?.toString(),
-        );
-        if (existingField) {
-          existingField.label = newField.label || existingField.label;
-          existingField.type = newField.type || existingField.type;
-          existingField.name = newField.name || existingField.name;
-          existingField.options = newField.options || existingField.options;
-          existingField.required = newField.required;
-          existingField.order = newField.order;
-        } else {
-          form.formFields.push(newField);
-        }
-      });
-
-      form.name = name || form.name;
-      form.color = color || form.color;
-      form.backgroundColor = backgroundColor || form.backgroundColor;
-      form.images = images || form.images;
-      form.lastEditedBy = userId;
-      await form.save();
-    }
     if (space.members && space.members.length > 0) {
       this.eventEmitter.emit(socketConfig.events.space.update, {
         receiverIds: space.members
@@ -2385,43 +2332,7 @@ export class HelpDeskService {
   async getDetailForm(formId: string, userId: string) {
     const user = await this.userService.findById(userId);
     const language = user.language;
-    const result = await this.helpDeskFormModel.findById(formId).lean();
-    if (!result) {
-      return null;
-    }
-
-    result.formFields = await Promise.all(
-      result.formFields.map(async (item) => {
-        const sourceLabel = await detectLanguage(item.label);
-        const label = await translate(item.label, sourceLabel, language);
-
-        const sourceOptions = item.options
-          ? await Promise.all(item.options.map((item) => detectLanguage(item)))
-          : [];
-
-        const options = item.options
-          ? await Promise.all(
-              item.options.map((item, index) =>
-                translate(item, sourceOptions[index], language),
-              ),
-            )
-          : [];
-
-        return {
-          ...item,
-          translations: {
-            label: {
-              [language]: label || item.label,
-            },
-            options: {
-              [language]: options || item.options,
-            },
-          },
-        };
-      }),
-    );
-
-    return result;
+    return await this.formService.getDetailForm(formId, language);
   }
 
   async getFormsBy(
@@ -2429,6 +2340,10 @@ export class HelpDeskService {
     searchQuery: SearchQueryParamsDto,
     userId: string,
   ) {
-    return [];
+    return await this.formService.getFormsBy(spaceId, searchQuery, userId);
+  }
+
+  async submitForm(formId: string, userId: string) {
+    return this.formService.submitForm(formId, userId);
   }
 }

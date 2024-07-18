@@ -1,16 +1,19 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
-import { FormField } from 'src/common/schemas/form-field.schema';
+import {
+  FormField,
+  FormFieldSchema,
+} from 'src/common/schemas/form-field.schema';
 import { User } from 'src/users/schemas/user.schema';
-import { Space } from './space.schema';
+import { Space } from 'src/help-desk/schemas/space.schema';
 
 @Schema({ timestamps: true })
-export class HelpDeskForm extends Document {
+export class Form extends Document {
   @Prop({ type: String, required: true })
   name: string;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Space', required: true })
-  space: Space;
+  space: Space | string;
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
@@ -34,7 +37,7 @@ export class HelpDeskForm extends Document {
   backgroundColor: string;
 
   @Prop({
-    type: [{ type: FormField }],
+    type: [FormFieldSchema],
     default: [],
   })
   formFields: FormField[];
@@ -50,4 +53,4 @@ export class HelpDeskForm extends Document {
   isDeleted: boolean;
 }
 
-export const HelpDeskFormSchema = SchemaFactory.createForClass(HelpDeskForm);
+export const FormSchema = SchemaFactory.createForClass(Form);

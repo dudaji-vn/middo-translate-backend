@@ -422,7 +422,7 @@ export class HelpDeskController {
   }
 
   @Public()
-  @Get('spaces/:id/forms/:formId/:userId')
+  @Get('forms/:formId/:userId')
   async getDetailForm(
     @ParamObjectId('id') id: string,
     @ParamObjectId('formId') formId: string,
@@ -438,9 +438,17 @@ export class HelpDeskController {
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
   ) {
-    const result = await this.helpDeskService.getScriptsBy(id, query, userId);
-    return {
-      data: result,
-    };
+    const result = await this.helpDeskService.getFormsBy(id, query, userId);
+    return { data: result };
+  }
+
+  @Public()
+  @Post('forms/:formId/:userId')
+  async submitFormHelpDesk(
+    @ParamObjectId('formId') formId: string,
+    @ParamObjectId('userId') userId: string,
+  ) {
+    const result = await this.helpDeskService.submitForm(formId, userId);
+    return { data: result };
   }
 }

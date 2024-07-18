@@ -23,20 +23,13 @@ import {
   SpaceSchema,
 } from './schemas/space.schema';
 
-import {
-  HelpDeskForm,
-  HelpDeskFormSchema,
-} from './schemas/help-desk-form.schema';
+import { FormModule } from 'src/form/form.module';
 import { Visitor, VisitorSchema } from './schemas/visitor.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: HelpDeskBusiness.name, schema: HelpDeskBusinessSchema },
-      {
-        name: HelpDeskForm.name,
-        schema: HelpDeskFormSchema,
-      },
       { name: User.name, schema: UserSchema },
       { name: Space.name, schema: SpaceSchema },
       { name: SpaceNotification.name, schema: SpaceNotificationSchema },
@@ -47,6 +40,7 @@ import { Visitor, VisitorSchema } from './schemas/visitor.schema';
     UsersModule,
     NotificationModule,
     MailModule,
+    FormModule,
     forwardRef(() => MessagesModule),
     forwardRef(() => RoomsModule),
   ],

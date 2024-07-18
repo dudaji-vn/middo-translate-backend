@@ -77,7 +77,7 @@ export class NodeChatFlow {
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'HelpDeskForm',
+    ref: 'Form',
   })
   form?: any;
 }
