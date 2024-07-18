@@ -2301,7 +2301,7 @@ export class HelpDeskService {
     userId: string,
     payload: CreateOrEditFormDto,
   ) {
-    const { formId, name } = payload;
+    const { formId, name, color, backgroundColor, images } = payload;
     const space = await this.spaceModel.findOne({
       _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
@@ -2341,24 +2341,30 @@ export class HelpDeskService {
         throw new BadRequestException('Form not found');
       }
 
-      payload.formFields.forEach((field) => {
+      const formIds = payload.formFields.map((item) => item?._id?.toString());
+      form.formFields = form.formFields.filter((item) =>
+        formIds.includes(item._id.toString()),
+      );
+      payload.formFields.forEach((newField) => {
         const existingField = form.formFields.find(
-          (item) => item._id.toString() === field._id.toString(),
+          (item) => item._id.toString() === newField?._id?.toString(),
         );
         if (existingField) {
-          if (field.label) existingField.label = field.label;
-          if (field.type) existingField.type = field.type;
-          if (field.options) {
-            existingField.options = field.options;
-          }
-          if (field.required) {
-            existingField.required = field.required;
-          }
+          existingField.label = newField.label || existingField.label;
+          existingField.type = newField.type || existingField.type;
+          existingField.name = newField.name || existingField.name;
+          existingField.options = newField.options || existingField.options;
+          existingField.required = newField.required;
+          existingField.order = newField.order;
         } else {
-          form.formFields.push(field);
+          form.formFields.push(newField);
         }
       });
 
+      form.name = name || form.name;
+      form.color = color || form.color;
+      form.backgroundColor = backgroundColor || form.backgroundColor;
+      form.images = images || form.images;
       form.lastEditedBy = userId;
       await form.save();
     }

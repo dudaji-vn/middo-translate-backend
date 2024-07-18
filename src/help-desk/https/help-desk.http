@@ -1,6 +1,5 @@
-@SERVER_URL = 
-@ACCESS_TOKEN = 
-
+@SERVER_URL = http://localhost:8080
+@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcyMTIxMzc5OSwiZXhwIjoxNzIxMzAwMTk5fQ.ekV0B7Va8T9j3NbTWlmlMXLgXJ3FzQymkUDBMwlnsF4
 @ROOM_ID =
 
 @BUSINESS_ID=
@@ -317,5 +316,45 @@ GET {{SERVER_URL}}/api/help-desk/scripts?spaceId=6628764846f721ef0c128461&q=
 Authorization: Bearer {{ACCESS_TOKEN}}
 
 ###
-GET {{SERVER_URL}}/api/help-desk/scripts/66432635ec02b1535def25ea
+GET {{SERVER_URL}}/api/help-desk/spaces/6628764846f721ef0c128461/scripts/666ff165622ea1af0d8403fb
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+
+
+####
+
+PUT {{SERVER_URL}}/api/help-desk/spaces/6657e39e478e29765d3c87a3/forms
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  "formId":"66964333db58594e90a17400",
+  "name":"Linh form",
+  "color":"red111",
+  "backgroundColor":"blue1111",
+  "images":[],
+  "formFields":[
+    {
+      "name":"linhlaaaa",
+      "label":"ssss",
+      "type":"text",
+      "options":["s"],
+      "required":false,
+      "order":1,
+      "_id":"6697a45a66900476486de6a0" 
+    },
+    {
+      "name":"linh1",
+      "label":"Linh label",
+      "type":"text",
+      "options":[],
+      "required":false,
+      "order":2
+    }
+  ]
+ 
+}
+
+###
+GET {{SERVER_URL}}/api/help-desk/spaces/6657e39e478e29765d3c87a3/forms/66964333db58594e90a17400/65eec7b605903d94f07797ae
 Authorization: Bearer {{ACCESS_TOKEN}}
