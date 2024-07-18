@@ -2,8 +2,8 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { CreateOrEditFormDto } from 'src/help-desk/dto/create-or-edit-form-dto';
-import { FormResponse } from 'src/common/schemas/form-response.schema';
-import { Form } from 'src/common/schemas/form.schema';
+import { FormResponse } from 'src/form/schemas/form-response.schema';
+import { Form } from 'src/form/schemas/form.schema';
 import { detectLanguage, translate } from 'src/messages/utils/translate';
 import { SearchQueryParamsDto } from 'src/search/dtos';
 

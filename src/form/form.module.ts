@@ -1,12 +1,11 @@
 import { Module } from '@nestjs/common';
-import { FormService } from './form.service';
 import { MongooseModule } from '@nestjs/mongoose';
-import { Form, FormSchema } from '../common/schemas/form.schema';
-import { FormField } from '../common/schemas/form-field.schema';
+import { FormService } from './form.service';
 import {
   FormResponse,
   FormResponseSchema,
-} from '../common/schemas/form-response.schema';
+} from './schemas/form-response.schema';
+import { Form, FormSchema } from './schemas/form.schema';
 
 @Module({
   imports: [

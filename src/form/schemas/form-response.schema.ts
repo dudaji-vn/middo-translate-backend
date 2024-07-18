@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose from 'mongoose';
-import { FormField } from 'src/common/schemas/form-field.schema';
+import { FormField } from 'src/form/schemas/form-field.schema';
 import { Form } from './form.schema';
 
 @Schema({

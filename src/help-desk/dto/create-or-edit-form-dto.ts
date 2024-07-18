@@ -8,7 +8,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { FormFieldDto } from 'src/common/dto/form-field.dto';
-import { FormField } from 'src/common/schemas/form-field.schema';
+import { FormField } from 'src/form/schemas/form-field.schema';
 import { IsArrayUnique } from 'src/common/validators';
 
 export class CreateOrEditFormDto {

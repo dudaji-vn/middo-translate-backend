@@ -6,7 +6,7 @@ import {
   IsNumber,
   IsString,
 } from 'class-validator';
-import { FormType } from '../schemas/form-field.schema';
+import { FormType } from 'src/form/schemas/form-field.schema';
 
 export class FormFieldDto {
   @IsString()
