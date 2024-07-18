@@ -35,5 +35,5 @@ export class CreateOrEditFormDto {
   @Type(() => FormFieldDto)
   @IsArrayUnique('name', { message: 'Each form field name must be unique' })
   @IsArrayUnique('order', { message: 'Each form field order must be unique' })
-  formFields: FormField[];
+  formFields: FormFieldDto[];
 }

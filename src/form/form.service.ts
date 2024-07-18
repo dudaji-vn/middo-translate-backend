@@ -6,12 +6,15 @@ import { FormResponse } from 'src/form/schemas/form-response.schema';
 import { Form } from 'src/form/schemas/form.schema';
 import { detectLanguage, translate } from 'src/messages/utils/translate';
 import { SearchQueryParamsDto } from 'src/search/dtos';
+import { FormField } from './schemas/form-field.schema';
 
 @Injectable()
 export class FormService {
   constructor(
     @InjectModel(Form.name)
     private formModel: Model<Form>,
+    @InjectModel(FormField.name)
+    private formFieldModel: Model<FormField>,
     @InjectModel(FormResponse.name)
     private formResponseModel: Model<FormResponse>,
   ) {}
@@ -20,7 +23,8 @@ export class FormService {
     userId: string,
     payload: CreateOrEditFormDto,
   ) {
-    const { formId, name, color, backgroundColor, images } = payload;
+    const { formId, name, color, backgroundColor, images, formFields } =
+      payload;
 
     if (!formId) {
       const isExist = await this.formModel.exists({
@@ -29,15 +33,29 @@ export class FormService {
         isDeleted: { $ne: true },
       });
       if (isExist) {
-        throw new BadRequestException(`Form ${name} is exist`);
+        throw new BadRequestException(`Form ${name} already exists`);
       }
-      const item: Partial<Form> = {
-        ...payload,
+
+      const form = await this.formModel.create({
         space: spaceId,
         lastEditedBy: userId,
         createdBy: userId,
-      };
-      await this.formModel.create(item);
+        name,
+        color,
+        backgroundColor,
+        images,
+      });
+
+      const insertData = formFields.map((item) => ({
+        form: form._id,
+        ...item,
+      }));
+
+      const data = await this.formFieldModel.insertMany(insertData);
+
+      await this.formModel.findByIdAndUpdate(form._id, {
+        formFields: data.map((item) => item._id),
+      });
     } else {
       const form = await this.formModel.findOne({
         _id: formId,
@@ -47,39 +65,59 @@ export class FormService {
         throw new BadRequestException('Form not found');
       }
 
-      const formIds = payload.formFields.map((item) => item?._id?.toString());
+      const formIds = formFields
+        .map((item) => item?._id?.toString())
+        .filter(Boolean);
 
-      form.formFields = form.formFields.filter((item) =>
-        formIds.includes(item._id.toString()),
-      );
-      payload.formFields.forEach((newField) => {
-        const existingField = form.formFields.find(
-          (item) => item._id.toString() === newField?._id?.toString(),
-        );
-        if (existingField) {
-          existingField.label = newField.label || existingField.label;
-          existingField.type = newField.type || existingField.type;
-          existingField.name = newField.name || existingField.name;
-          existingField.options = newField.options || existingField.options;
-          existingField.required = newField.required;
-          existingField.order = newField.order;
+      await this.formFieldModel.deleteMany({
+        _id: { $nin: formIds },
+        form: formId,
+      });
+
+      const formFieldUpdates = formFields.map((newField) => {
+        const newFieldWithForm = { ...newField, form: formId };
+        if (newField._id) {
+          return this.formFieldModel.findByIdAndUpdate(
+            newField._id,
+            newFieldWithForm,
+            {
+              new: true,
+              upsert: true,
+            },
+          );
         } else {
-          form.formFields.push(newField);
+          return this.formFieldModel.create(newFieldWithForm);
         }
       });
 
-      form.name = name || form.name;
-      form.color = color || form.color;
-      form.backgroundColor = backgroundColor || form.backgroundColor;
-      form.images = images || form.images;
-      form.lastEditedBy = userId;
-      await form.save();
+      const updatedFields = await Promise.all(formFieldUpdates);
+
+      await this.formModel.updateOne(
+        { _id: formId },
+        {
+          $set: {
+            name: name || form.name,
+            color: color || form.color,
+            backgroundColor: backgroundColor || form.backgroundColor,
+            images: images || form.images,
+            lastEditedBy: userId,
+            formFields:
+              updatedFields.length > 0
+                ? updatedFields.map((field) => field?._id)
+                : form.formFields,
+          },
+        },
+      );
     }
 
     return true;
   }
+
   async getDetailForm(formId: string, language: string) {
-    const result = await this.formModel.findById(formId).lean();
+    const result = await this.formModel
+      .findById(formId)
+      .populate('formFields')
+      .lean();
     if (!result) {
       return null;
     }
@@ -119,6 +157,12 @@ export class FormService {
   }
 
   async submitForm(formId: string, userId: string) {
+    const form = await this.formModel.findById(formId);
+
+    if (!form) {
+      throw new BadRequestException('Form not found');
+    }
+
     return true;
   }
 

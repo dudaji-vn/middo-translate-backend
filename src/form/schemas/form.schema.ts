@@ -34,7 +34,7 @@ export class Form extends Document {
   backgroundColor: string;
 
   @Prop({
-    type: [FormFieldSchema],
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'FormField' }],
     default: [],
   })
   formFields: FormField[];

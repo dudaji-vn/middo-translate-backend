@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import mongoose, { Document } from 'mongoose';
+import mongoose from 'mongoose';
 import { Form } from './form.schema';
 
 export enum FormType {
@@ -12,7 +12,14 @@ export enum FormType {
 }
 
 @Schema({ timestamps: true })
-export class FormField extends Document {
+export class FormField {
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: Form.name,
+    required: true,
+  })
+  form: Form;
+
   @Prop({ type: String })
   name: string;
 

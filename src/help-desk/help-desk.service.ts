@@ -1393,7 +1393,13 @@ export class HelpDeskService {
   async getDetailScript(spaceId: string, id: string, userId: string) {
     const script = await this.scriptModel
       .findOne({ _id: id, space: spaceId, isDeleted: { $ne: true } })
-      .populate('space chatFlow.nodes.form')
+      .populate('space')
+      .populate({
+        path: 'chatFlow.nodes.form',
+        populate: {
+          path: 'formFields',
+        },
+      })
       .select('name chatFlow space');
     if (!script) {
       throw new BadRequestException('Script not found');

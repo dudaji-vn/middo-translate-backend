@@ -6,6 +6,7 @@ import {
   FormResponseSchema,
 } from './schemas/form-response.schema';
 import { Form, FormSchema } from './schemas/form.schema';
+import { FormField, FormFieldSchema } from './schemas/form-field.schema';
 
 @Module({
   imports: [
@@ -17,6 +18,10 @@ import { Form, FormSchema } from './schemas/form.schema';
       {
         name: FormResponse.name,
         schema: FormResponseSchema,
+      },
+      {
+        name: FormField.name,
+        schema: FormFieldSchema,
       },
     ]),
   ],

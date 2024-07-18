@@ -424,7 +424,6 @@ export class HelpDeskController {
   @Public()
   @Get('forms/:formId/:userId')
   async getDetailForm(
-    @ParamObjectId('id') id: string,
     @ParamObjectId('formId') formId: string,
     @ParamObjectId('userId') userId: string,
   ) {
