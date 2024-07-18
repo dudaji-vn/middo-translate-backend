@@ -1,3 +1,4 @@
+export type RoomType = 'HELP_DESK' | 'NORMAL' | 'ANONYMOUS';
 
 export interface ParticipantMeeting {
   socketId: string;
@@ -13,7 +14,7 @@ export default interface Meeting {
   room: {
     _id: string;
     participantIds: string[];
-    type: 'HELP_DESK' | 'NORMAL';
+    type: RoomType;
   }
   startTime?: Date;
   doodle?: {

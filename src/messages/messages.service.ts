@@ -1919,4 +1919,14 @@ export class MessagesService {
       { $addToSet: { readBy: userId } },
     );
   }
+
+  async forgeDeleteMessageByRoomId(roomId: string) {
+    return await this.messageModel.deleteMany({
+      room: roomId,
+    });
+  }
+
+  async isAccessAnonymousRoom(roomId: string, userId: string) {
+    return await this.roomsService.isAccessAnonymousRoom(roomId, userId);
+  }
 }

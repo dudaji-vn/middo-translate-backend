@@ -3,7 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { Call } from './schemas/call.schema';
-import { Model, ObjectId, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { STATUS } from './constants/call-status';
 import { CALL_TYPE, JOIN_TYPE } from './constants/call-type';
 import { MessagesService } from 'src/messages/messages.service';
@@ -13,10 +13,16 @@ import { socketConfig } from 'src/configs/socket.config';
 import { logger } from 'src/common/utils/logger';
 import { UsersService } from 'src/users/users.service';
 import { Space } from 'src/help-desk/schemas/space.schema';
+import { UserJoinDto } from './dto/user-join.dto';
+import { selectPopulateField } from 'src/common/utils';
+import { Room } from 'src/rooms/schemas/room.schema';
+import { JwtService } from '@nestjs/jwt';
+import { envConfig } from 'src/configs/env.config';
 @Injectable()
 export class CallService {
   constructor(
     private roomService: RoomsService,
+    private readonly jwtService: JwtService,
     private messageService: MessagesService,
     private userService: UsersService,
     private readonly eventEmitter: EventEmitter2,
@@ -86,6 +92,9 @@ export class CallService {
       } else if (room.isGroup) {
         type = CALL_TYPE.GROUP;
       }
+      if (room.isAnonymous) {
+        type = CALL_TYPE.ANONYMOUS;
+      }
       const newCall = {
         roomId: payload.roomId,
         name: roomName,
@@ -121,6 +130,16 @@ export class CallService {
       return { status: 'SERVER_ERROR' };
     }
   }
+  async joinAnonymousVideoCall(userId: string) {
+    const room = await this.roomService.createAnonymousRoom(
+      userId,
+      'Instant Call',
+    );
+    return await this.joinVideoCallRoom({
+      id: userId,
+      roomId: room._id.toString(),
+    });
+  }
   async getCallInfo(payload: { roomId: string }) {
     try {
       const call = await this.callModel.findOne({
@@ -155,8 +174,12 @@ export class CallService {
   async endCall(callId: string) {
     try {
       if (!callId) return;
-      const call = await this.callModel.findById(callId);
-      if (!call) {
+      const call = await this.callModel.findById(callId).populate('roomId', selectPopulateField<Room>(['_id']));
+      if (!call) return;
+      if (call?.type == CALL_TYPE.ANONYMOUS) { // DELETE ROOM, CALL and All message of room
+        await this.roomService.forgeDeleteRoomAndUserInRoom(call.roomId?._id?.toString());
+        await this.messageService.forgeDeleteMessageByRoomId(call.roomId?._id?.toString());
+        await this.callModel.findByIdAndDelete(callId);
         return;
       }
       call.endTime = new Date();
@@ -220,5 +243,45 @@ export class CallService {
     } catch (error) {
       return { status: STATUS.USER_NOT_IN_ROOM };
     }
+  }
+  async createUserAndJoinCall(payload: UserJoinDto) {
+    const { name, language, callId } = payload;
+    const user = await this.userService.createAnonymousUser(name, language);
+    const call = await this.callModel.findOne({
+      _id: callId,
+      endTime: null,
+    });
+    if (!call) {
+      return { status: STATUS.CALL_NOT_FOUND };
+    }
+    await this.roomService.addAnonymousParticipant(
+      call.roomId.toString(),
+      user._id.toString(),
+    );
+    const token = await this.jwtService.signAsync({
+      id: user._id.toString(),
+    }, {
+      secret: envConfig.jwt.accessToken.secret,
+      expiresIn: envConfig.jwt.accessToken.expiresIn,
+    });
+    return {
+      user,
+      call,
+      token
+    };
+  }
+  async getCallById(callId: string) {
+    return await this.callModel.findOne({
+      _id: callId,
+      endTime: null,
+    });
+  }
+
+  async getAnonymousCallById(callId: string) {
+    return await this.callModel.findOne({
+      _id: callId,
+      type: CALL_TYPE.ANONYMOUS,
+      endTime: null,
+    });
   }
 }

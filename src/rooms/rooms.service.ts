@@ -558,6 +558,7 @@ export class RoomsService {
       deleteFor: { $nin: [userId] },
       archiveFor: { $nin: [userId] },
       isHelpDesk: { $ne: true },
+      isAnonymous: { $ne: true },
       station: { $exists: false },
       ...(status && { status }),
       ...(countries?.length && {
@@ -1222,6 +1223,16 @@ export class RoomsService {
 
     return room;
   }
+
+  async createAnonymousRoom(creatorId: string, name: string) {
+    const user = await this.usersService.findById(creatorId);
+    return await this.roomModel.create({
+      admin: creatorId,
+      participants: [user],
+      isAnonymous: true,
+      name: name,
+    });
+  }
   async updateReadByLastMessageInRoom(
     roomId: ObjectId | string,
     userId: string,
@@ -1642,5 +1653,50 @@ export class RoomsService {
   }
   async existRoomByIdAndUserId(roomId: string, userId: string) {
     return await this.roomModel.exists({ _id: roomId, participants: userId });
+  }
+
+  async addAnonymousParticipant(id: string, userId: string) {
+    const isExist = await this.roomModel.findOne({
+      _id: id,
+      isAnonymous: true,
+    });
+    if (!isExist) {
+      throw new BadRequestException('room is not exist');
+    }
+
+    return await this.roomModel.findByIdAndUpdate(
+      id,
+      {
+        $addToSet: { participants: userId },
+      },
+      { new: true },
+    );
+  }
+
+  async forgeDeleteRoomAndUserInRoom(id: string) {
+    const room = await this.roomModel.findById(id);
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+    const participants = room.participants.map((p) => p.toString());
+    // Delete all participants
+    await this.usersService.forgeDeleteManyAnonymousUser(participants);
+    return await this.roomModel.deleteOne({
+      _id: id,
+    });
+  }
+  async isAccessAnonymousRoom(roomId: string, userId: string) {
+    return await this.roomModel.exists({
+      _id: roomId,
+      participants: userId,
+      $or: [
+        {
+          isAnonymous: true,
+        },
+        {
+          isHelpDesk: true,
+        },
+      ],
+    });
   }
 }
