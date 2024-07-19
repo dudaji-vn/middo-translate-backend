@@ -48,7 +48,7 @@ import { NotificationService } from 'src/notifications/notifications.service';
 import { calculateRate } from '../common/utils/calculate-rate';
 import { CreateClientDto } from './dto/create-client-dto';
 import { CreateOrEditBusinessDto as CreateOrEditExtensionDto } from './dto/create-or-edit-business-dto';
-import { CreateOrEditFormDto } from '../form/dto/create-or-edit-form-dto';
+import { CreateOrEditFormDto } from '../form/dto/create-or-edit-form.dto';
 import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 import {
   CreateOrEditSpaceDto,
@@ -64,6 +64,7 @@ import { SpaceNotification } from './schemas/space-notifications.schema';
 import { Member, Script, Space, StatusSpace } from './schemas/space.schema';
 import { Visitor } from './schemas/visitor.schema';
 import { FormService } from 'src/form/form.service';
+import { SubmitFormDto } from '../form/dto/submit-form.dto';
 
 @Injectable()
 export class HelpDeskService {
@@ -2349,7 +2350,11 @@ export class HelpDeskService {
     return await this.formService.getFormsBy(spaceId, searchQuery, userId);
   }
 
-  async submitForm(formId: string, userId: string) {
-    return this.formService.submitForm(formId, userId);
+  async submitForm(formId: string, userId: string, payload: SubmitFormDto) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    return this.formService.submitForm(formId, userId, payload);
   }
 }

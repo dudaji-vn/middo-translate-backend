@@ -1,12 +1,13 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { CreateOrEditFormDto } from 'src/form/dto/create-or-edit-form-dto';
+import { CreateOrEditFormDto } from 'src/form/dto/create-or-edit-form.dto';
 import { FormResponse } from 'src/form/schemas/form-response.schema';
 import { Form } from 'src/form/schemas/form.schema';
 import { detectLanguage, translate } from 'src/messages/utils/translate';
 import { SearchQueryParamsDto } from 'src/search/dtos';
 import { FormField } from './schemas/form-field.schema';
+import { SubmitFormDto } from './dto/submit-form.dto';
 
 @Injectable()
 export class FormService {
@@ -145,12 +146,21 @@ export class FormService {
     return result;
   }
 
-  async submitForm(formId: string, userId: string) {
+  async submitForm(formId: string, userId: string, payload: SubmitFormDto) {
     const form = await this.formModel.findById(formId);
-
     if (!form) {
       throw new BadRequestException('Form not found');
     }
+
+    await this.formResponseModel.create({
+      form: form,
+      user: userId,
+      space: form.space,
+      answers: payload.answers.map((item) => ({
+        field: item.fieldId,
+        value: item.value,
+      })),
+    });
 
     return true;
   }
@@ -160,6 +170,8 @@ export class FormService {
     searchQuery: SearchQueryParamsDto,
     userId: string,
   ) {
+    const { q, limit, currentPage } = searchQuery;
+
     const query = [
       {
         $lookup: {
@@ -177,7 +189,14 @@ export class FormService {
           as: 'userDetails',
         },
       },
-
+      {
+        $lookup: {
+          from: 'formfields',
+          localField: 'answers.field',
+          foreignField: '_id',
+          as: 'fieldDetails',
+        },
+      },
       {
         $unwind: '$formDetails',
       },
@@ -204,25 +223,68 @@ export class FormService {
           preserveNullAndEmptyArrays: true,
         },
       },
+
       {
         $group: {
-          _id: '$form',
-          form: { $first: '$formDetails.name' },
-          results: {
+          _id: {
+            form: '$formDetails._id',
+          },
+          form: { $first: '$formDetails' },
+          user: { $first: '$userDetails' },
+          answers: {
             $push: {
-              user: {
-                _id: '$userDetails._id',
-                name: '$userDetails.name',
-              },
               field: {
                 name: '$answers.fieldDetails.name',
+                label: '$answers.fieldDetails.label',
               },
+
               value: '$answers.value',
             },
           },
         },
       },
+      {
+        $group: {
+          _id: '$_id.form',
+          form: { $first: '$form' },
+          results: {
+            $push: {
+              user: {
+                _id: '$user._id',
+                name: '$user.name',
+                avatar: '$user.avatar',
+              },
+              answers: '$answers',
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          form: {
+            _id: 1,
+            name: '$form.name',
+          },
+          results: 1,
+        },
+      },
+      {
+        $lookup: {
+          from: 'formfields',
+          localField: 'form._id',
+          foreignField: 'form',
+          as: 'form.formfields',
+        },
+      },
     ];
+
+    const totalItemsPromise = await this.formResponseModel.aggregate([
+      ...query,
+      { $count: 'totalCount' },
+    ]);
+
+    console.log(totalItemsPromise);
     return await this.formResponseModel.aggregate(query);
   }
 }

@@ -30,7 +30,8 @@ import { ValidateInviteDto } from './dto/validate-invite-dto';
 import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 import { DeleteScriptsDto } from './dto/delete-scripts-dto';
 import { VisitorDto } from './dto/visitor-dto';
-import { CreateOrEditFormDto } from '../form/dto/create-or-edit-form-dto';
+import { CreateOrEditFormDto } from '../form/dto/create-or-edit-form.dto';
+import { SubmitFormDto } from '../form/dto/submit-form.dto';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -446,8 +447,13 @@ export class HelpDeskController {
   async submitFormHelpDesk(
     @ParamObjectId('formId') formId: string,
     @ParamObjectId('userId') userId: string,
+    @Body() payload: SubmitFormDto,
   ) {
-    const result = await this.helpDeskService.submitForm(formId, userId);
+    const result = await this.helpDeskService.submitForm(
+      formId,
+      userId,
+      payload,
+    );
     return { data: result };
   }
 }
