@@ -48,7 +48,7 @@ import { NotificationService } from 'src/notifications/notifications.service';
 import { calculateRate } from '../common/utils/calculate-rate';
 import { CreateClientDto } from './dto/create-client-dto';
 import { CreateOrEditBusinessDto as CreateOrEditExtensionDto } from './dto/create-or-edit-business-dto';
-import { CreateOrEditFormDto } from './dto/create-or-edit-form-dto';
+import { CreateOrEditFormDto } from '../form/dto/create-or-edit-form-dto';
 import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 import {
   CreateOrEditSpaceDto,

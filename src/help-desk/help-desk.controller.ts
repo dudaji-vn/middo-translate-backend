@@ -30,7 +30,7 @@ import { ValidateInviteDto } from './dto/validate-invite-dto';
 import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 import { DeleteScriptsDto } from './dto/delete-scripts-dto';
 import { VisitorDto } from './dto/visitor-dto';
-import { CreateOrEditFormDto } from './dto/create-or-edit-form-dto';
+import { CreateOrEditFormDto } from '../form/dto/create-or-edit-form-dto';
 
 @ApiTags('help-desk')
 @Controller('help-desk')

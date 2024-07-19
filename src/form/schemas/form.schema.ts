@@ -1,8 +1,10 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose, { Document } from 'mongoose';
-import { FormField, FormFieldSchema } from 'src/form/schemas/form-field.schema';
-import { User } from 'src/users/schemas/user.schema';
+import { FormField } from 'src/form/schemas/form-field.schema';
 import { Space } from 'src/help-desk/schemas/space.schema';
+import { User } from 'src/users/schemas/user.schema';
+import { ThankyouSchema } from './thank-you.schema';
+import { CustomizeSchema } from './customize.schema';
 
 @Schema({ timestamps: true })
 export class Form extends Document {
@@ -27,12 +29,6 @@ export class Form extends Document {
   @Prop({ type: Boolean, default: false })
   isUsing: boolean;
 
-  @Prop({ type: String })
-  color: string;
-
-  @Prop({ type: String })
-  backgroundColor: string;
-
   @Prop({
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'FormField' }],
     default: [],
@@ -40,9 +36,14 @@ export class Form extends Document {
   formFields: FormField[];
 
   @Prop({
-    type: [{ type: String }],
+    type: ThankyouSchema,
   })
-  images: string[];
+  thankyou: ThankyouSchema;
+
+  @Prop({
+    type: CustomizeSchema,
+  })
+  customize: CustomizeSchema;
 
   @Prop({
     type: Boolean,

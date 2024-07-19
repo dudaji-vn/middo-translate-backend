@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { CreateOrEditFormDto } from 'src/help-desk/dto/create-or-edit-form-dto';
+import { CreateOrEditFormDto } from 'src/form/dto/create-or-edit-form-dto';
 import { FormResponse } from 'src/form/schemas/form-response.schema';
 import { Form } from 'src/form/schemas/form.schema';
 import { detectLanguage, translate } from 'src/messages/utils/translate';
@@ -23,8 +23,7 @@ export class FormService {
     userId: string,
     payload: CreateOrEditFormDto,
   ) {
-    const { formId, name, color, backgroundColor, images, formFields } =
-      payload;
+    const { formId, name, thankyou, customize, formFields } = payload;
 
     if (!formId) {
       const isExist = await this.formModel.exists({
@@ -41,9 +40,8 @@ export class FormService {
         lastEditedBy: userId,
         createdBy: userId,
         name,
-        color,
-        backgroundColor,
-        images,
+        thankyou,
+        customize,
       });
 
       const insertData = formFields.map((item) => ({
@@ -92,22 +90,13 @@ export class FormService {
 
       const updatedFields = await Promise.all(formFieldUpdates);
 
-      await this.formModel.updateOne(
-        { _id: formId },
-        {
-          $set: {
-            name: name || form.name,
-            color: color || form.color,
-            backgroundColor: backgroundColor || form.backgroundColor,
-            images: images || form.images,
-            lastEditedBy: userId,
-            formFields:
-              updatedFields.length > 0
-                ? updatedFields.map((field) => field?._id)
-                : form.formFields,
-          },
-        },
-      );
+      await this.formModel.findByIdAndUpdate(formId, {
+        ...payload,
+        lastEditedBy: userId,
+        ...(updatedFields.length > 0 && {
+          formFields: updatedFields.map((field) => field?._id),
+        }),
+      });
     }
 
     return true;
@@ -171,6 +160,69 @@ export class FormService {
     searchQuery: SearchQueryParamsDto,
     userId: string,
   ) {
-    return await this.formResponseModel.find().populate('answers.field');
+    const query = [
+      {
+        $lookup: {
+          from: 'forms',
+          localField: 'form',
+          foreignField: '_id',
+          as: 'formDetails',
+        },
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user',
+          foreignField: '_id',
+          as: 'userDetails',
+        },
+      },
+
+      {
+        $unwind: '$formDetails',
+      },
+      {
+        $unwind: '$userDetails',
+      },
+      {
+        $unwind: {
+          path: '$answers',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: 'formfields',
+          localField: 'answers.field',
+          foreignField: '_id',
+          as: 'answers.fieldDetails',
+        },
+      },
+      {
+        $unwind: {
+          path: '$answers.fieldDetails',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $group: {
+          _id: '$form',
+          form: { $first: '$formDetails.name' },
+          results: {
+            $push: {
+              user: {
+                _id: '$userDetails._id',
+                name: '$userDetails.name',
+              },
+              field: {
+                name: '$answers.fieldDetails.name',
+              },
+              value: '$answers.value',
+            },
+          },
+        },
+      },
+    ];
+    return await this.formResponseModel.aggregate(query);
   }
 }
