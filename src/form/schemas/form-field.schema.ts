@@ -3,12 +3,18 @@ import mongoose from 'mongoose';
 import { Form } from './form.schema';
 
 export enum FormType {
-  TEXT = 'text',
-  NUMBER = 'message',
-  DATE = 'date',
-  SELECT = 'select',
+  INPUT = 'input',
   RADIO = 'radio',
   CHECKBOX = 'checkbox',
+  DATE = 'date',
+  SELECT = 'select',
+}
+
+export enum FormDataType {
+  TEXT = 'text',
+  LONG_TEXT = 'long-text',
+  DATE = 'date',
+  TIME = 'time',
 }
 
 @Schema({ timestamps: true })
@@ -28,6 +34,9 @@ export class FormField {
 
   @Prop({ type: String })
   type: FormType;
+
+  @Prop({ type: String })
+  dataType: FormDataType;
 
   @Prop({ type: Boolean, default: false })
   required: boolean;

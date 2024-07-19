@@ -45,8 +45,9 @@ export class FormService {
         customize,
       });
 
-      const insertData = formFields.map((item) => ({
+      const insertData = formFields.map((item, index) => ({
         form: form._id,
+        order: index,
         ...item,
       }));
 

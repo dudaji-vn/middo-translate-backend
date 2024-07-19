@@ -4,11 +4,10 @@ import {
   IsBoolean,
   IsEnum,
   IsMongoId,
-  IsNumber,
   IsOptional,
   IsString,
 } from 'class-validator';
-import { FormType } from 'src/form/schemas/form-field.schema';
+import { FormDataType, FormType } from 'src/form/schemas/form-field.schema';
 
 export class FormFieldDto {
   @IsString()
@@ -20,15 +19,15 @@ export class FormFieldDto {
   @IsEnum(FormType)
   type: FormType;
 
+  @IsEnum(FormDataType)
+  dataType: FormDataType;
+
   @IsBoolean()
   required: boolean;
 
   @IsArray()
   @ArrayUnique()
   options?: string[];
-
-  @IsNumber()
-  order: number;
 
   @IsMongoId()
   @IsOptional()
