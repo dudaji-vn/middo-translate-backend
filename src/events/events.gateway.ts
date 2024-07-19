@@ -489,10 +489,15 @@ export class EventsGateway
       userId: string;
       status: boolean;
       roomId: string;
+      directUserId?: string;
     },
   ) {
+    let receiver: string | string[] = payload.roomId
+    if(payload.directUserId) {
+      receiver = this.clients[payload.directUserId]?.socketIds || [];
+    }
     this.server
-      .to(payload.roomId)
+      .to(receiver)
       .emit(socketConfig.events.call.call_status.mic_change, {
         userId: payload.userId,
         status: payload.status,
@@ -704,6 +709,7 @@ export class EventsGateway
     delete this.meetings[callId];
     this.callService.endCall(callId);
     this.pushMeetingList({
+
       type: 'room',
       id: roomId
     })
