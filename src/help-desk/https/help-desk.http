@@ -1,5 +1,5 @@
 @SERVER_URL = http://localhost:8080
-@ACCESS_TOKEN = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY1ZWVjN2I2MDU5MDNkOTRmMDc3OTdhZSIsImlhdCI6MTcyMTIxMzc5OSwiZXhwIjoxNzIxMzAwMTk5fQ.ekV0B7Va8T9j3NbTWlmlMXLgXJ3FzQymkUDBMwlnsF4
+@ACCESS_TOKEN = 
 @ROOM_ID =
 
 @BUSINESS_ID=
@@ -328,20 +328,17 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
-  "formId":"66964333db58594e90a17400",
-  "name":"Linh form",
-  "color":"red111",
-  "backgroundColor":"blue1111",
+  
+  "name":"Hao form",
   "images":[],
   "formFields":[
     {
-      "name":"linhlaaaa",
-      "label":"ssss",
+      "name":"linh",
+      "label":"Label la g111i",
       "type":"text",
-      "options":["s"],
+      "options":["s","skskks"],
       "required":false,
-      "order":1,
-      "_id":"6697a45a66900476486de6a0" 
+      "order":1
     },
     {
       "name":"linh1",
@@ -351,10 +348,44 @@ Content-Type: application/json
       "required":false,
       "order":2
     }
-  ]
+  ],
+  "thankyou":{
+    "image":"image",
+    "subTitle":"subTitle",
+    "title":"title"
+  },
+  "customize":{
+      "theme":"them",
+      "background":"background",
+      "layout":"multiple"
+  }
  
 }
 
 ###
-GET {{SERVER_URL}}/api/help-desk/spaces/6657e39e478e29765d3c87a3/forms/66964333db58594e90a17400/65eec7b605903d94f07797ae
+GET {{SERVER_URL}}/api/help-desk/forms/6698d35ee5c11fb72755ccd3/65eec7b605903d94f07797ae
+
+
+// Api for submit form
+###
+POST {{SERVER_URL}}/api/help-desk/forms/6699e46db75324323be43cac/65eec7b605903d94f07797ae
+Content-Type: application/json
+
+{
+  "answers" :
+    [
+      {
+          "fieldId":"6699e46db75324323be43cae",
+          "value":"Tôi muốn ăn cơm1"
+      },
+      {
+          "fieldId":"6699e46db75324323be43caf",
+         "value":"Tôi muốn ăn đi làm1"
+     }
+    ]
+}
+
+###
+GET {{SERVER_URL}}/api/help-desk/spaces/6657e39e478e29765d3c87a3/forms?q=
 Authorization: Bearer {{ACCESS_TOKEN}}
+
