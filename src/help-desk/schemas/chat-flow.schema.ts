@@ -1,5 +1,5 @@
 import { Prop, SchemaFactory, Schema } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import mongoose, { Document } from 'mongoose';
 import { Media } from 'src/messages/schemas/messages.schema';
 
 export enum FlowItemType {
@@ -9,6 +9,7 @@ export enum FlowItemType {
   CONTAINER = 'container',
   OPTION = 'option',
   LINK = 'link',
+  FORM = 'form',
 }
 @Schema({ _id: false })
 export class EdgeChatFlow {
@@ -31,7 +32,7 @@ export class DataNodeChatFlow {
   @Prop({ type: String })
   content: string;
   @Prop({ type: String })
-  label: string;
+  label?: string;
   @Prop({ type: Array })
   media: Media[];
 
@@ -73,13 +74,20 @@ export class NodeChatFlow {
 
   @Prop({ type: SchemaFactory.createForClass(PositionNodeChatFlow) })
   position: PositionNodeChatFlow;
+
+  @Prop({
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Form',
+  })
+  form?: any;
 }
 
 @Schema({ _id: false })
-export class ChatFlow extends Document {
+export class ChatFlow {
   @Prop({ type: [SchemaFactory.createForClass(EdgeChatFlow)], default: [] })
   edges: EdgeChatFlow[];
   @Prop({ type: [SchemaFactory.createForClass(NodeChatFlow)], default: [] })
   nodes: NodeChatFlow[];
 }
 export const ChatFlowSchema = SchemaFactory.createForClass(ChatFlow);
+export const NodeChatFlowSchema = SchemaFactory.createForClass(NodeChatFlow);

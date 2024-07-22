@@ -26,6 +26,7 @@ import { WatchingModule } from './watching/watching.module';
 import { HelpDeskModule } from './help-desk/help-desk.module';
 import { StationsModule } from './stations/stations.module';
 import { AppNotificationsModule } from './app-notifications/app-notifications.module';
+import { FormModule } from './form/form.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { AppNotificationsModule } from './app-notifications/app-notifications.mo
     HelpDeskModule,
     StationsModule,
     AppNotificationsModule,
+    FormModule,
   ],
   controllers: [AppController, GoogleApiStatController],
   providers: [

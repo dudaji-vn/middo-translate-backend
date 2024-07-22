@@ -1,6 +1,7 @@
 import { Type } from 'class-transformer';
 import { IsEnum, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { FlowItemType } from '../schemas/chat-flow.schema';
+import { Media } from 'src/messages/schemas/messages.schema';
 
 export class DataNodeChatFlowDto {
   @IsOptional()
@@ -15,6 +16,9 @@ export class DataNodeChatFlowDto {
   content: string;
 
   translations: any;
+
+  @IsOptional()
+  media: Media[];
 }
 export class PositionNodeChatFlowDto {
   @IsOptional()
@@ -51,4 +55,10 @@ export class NodeChatFlowDto {
   @ValidateNested()
   @Type(() => PositionNodeChatFlowDto)
   position: PositionNodeChatFlowDto;
+
+  @IsOptional()
+  formId: string;
+
+  @IsOptional()
+  form: string;
 }

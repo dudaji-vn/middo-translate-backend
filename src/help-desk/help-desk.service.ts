@@ -39,13 +39,16 @@ import {
 } from './schemas/help-desk-business.schema';
 
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { pivotChartByType } from 'src/common/utils/date-report';
 import { envConfig } from 'src/configs/env.config';
 import { socketConfig } from 'src/configs/socket.config';
 import { MailService } from 'src/mail/mail.service';
 import { MessagesService } from 'src/messages/messages.service';
+import { NotificationService } from 'src/notifications/notifications.service';
 import { calculateRate } from '../common/utils/calculate-rate';
 import { CreateClientDto } from './dto/create-client-dto';
 import { CreateOrEditBusinessDto as CreateOrEditExtensionDto } from './dto/create-or-edit-business-dto';
+import { CreateOrEditFormDto } from '../form/dto/create-or-edit-form.dto';
 import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 import {
   CreateOrEditSpaceDto,
@@ -60,8 +63,8 @@ import { ChatFlow } from './schemas/chat-flow.schema';
 import { SpaceNotification } from './schemas/space-notifications.schema';
 import { Member, Script, Space, StatusSpace } from './schemas/space.schema';
 import { Visitor } from './schemas/visitor.schema';
-import { pivotChartByType } from 'src/common/utils/date-report';
-import { NotificationService } from 'src/notifications/notifications.service';
+import { FormService } from 'src/form/form.service';
+import { SubmitFormDto } from '../form/dto/submit-form.dto';
 
 @Injectable()
 export class HelpDeskService {
@@ -83,6 +86,7 @@ export class HelpDeskService {
     private messagesService: MessagesService,
     private mailService: MailService,
     private notificationService: NotificationService,
+    private formService: FormService,
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
@@ -365,6 +369,7 @@ export class HelpDeskService {
     payload: CreateOrEditScriptDto,
   ) {
     const { name, chatFlow, scriptId } = payload;
+
     const space = await this.spaceModel.findOne({
       _id: spaceId,
       status: { $ne: StatusSpace.DELETED },
@@ -379,10 +384,17 @@ export class HelpDeskService {
         'You do not have permission to create or edit script',
       );
     }
+
+    chatFlow.nodes.forEach((item, index) => {
+      if (item.formId) {
+        chatFlow.nodes[index].form = item.formId;
+      }
+    });
+
     if (!scriptId) {
       const item: Partial<Script> = {
         name: name,
-        chatFlow: chatFlow as ChatFlow,
+        chatFlow: chatFlow,
         lastEditedBy: userId,
         createdBy: userId,
         space: space,
@@ -1383,6 +1395,12 @@ export class HelpDeskService {
     const script = await this.scriptModel
       .findOne({ _id: id, space: spaceId, isDeleted: { $ne: true } })
       .populate('space')
+      .populate({
+        path: 'chatFlow.nodes.form',
+        populate: {
+          path: 'formFields',
+        },
+      })
       .select('name chatFlow space');
     if (!script) {
       throw new BadRequestException('Script not found');
@@ -2281,5 +2299,87 @@ export class HelpDeskService {
       }),
     );
     return mappedData;
+  }
+
+  async createOrEditForm(
+    spaceId: string,
+    userId: string,
+    payload: CreateOrEditFormDto,
+  ) {
+    const space = await this.spaceModel.findOne({
+      _id: spaceId,
+      status: { $ne: StatusSpace.DELETED },
+    });
+
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+
+    if (!this.isAdminSpace(space.members, userId)) {
+      throw new ForbiddenException(
+        'You do not have permission to create or edit form',
+      );
+    }
+    await this.formService.createOrEditForm(spaceId, userId, payload);
+
+    if (space.members && space.members.length > 0) {
+      this.eventEmitter.emit(socketConfig.events.space.update, {
+        receiverIds: space.members
+          .filter(
+            (item) =>
+              item.status === MemberStatus.JOINED &&
+              item?.user?.toString() !== userId,
+          )
+          .map((item) => item.user?.toString()),
+      });
+    }
+
+    return true;
+  }
+  async getDetailForm(formId: string, userId: string) {
+    const user = await this.userService.findById(userId);
+    const language = user.language;
+    return await this.formService.getDetailForm(formId, language);
+  }
+
+  async getFormsBy(
+    spaceId: string,
+    searchQuery: SearchQueryParamsDto,
+    userId: string,
+  ) {
+    const scripts = await this.scriptModel
+      .find({
+        space: spaceId,
+        isDeleted: { $ne: true },
+        'chatFlow.nodes': {
+          $elemMatch: {
+            form: { $exists: true },
+          },
+        },
+      })
+      .select('chatFlow');
+
+    const uniqueForms = new Set(
+      scripts
+        .flatMap((item) => item?.chatFlow?.nodes)
+        .filter((node) => node?.form)
+        .map((node) => node?.form?.toString()),
+    );
+
+    const listUsingFormIds = Array.from(uniqueForms) || [];
+
+    return await this.formService.getFormsBy(
+      spaceId,
+      searchQuery,
+      listUsingFormIds,
+    );
+  }
+
+  async submitForm(formId: string, userId: string, payload: SubmitFormDto) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+    return this.formService.submitForm(formId, userId, payload);
   }
 }

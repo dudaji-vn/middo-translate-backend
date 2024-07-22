@@ -30,6 +30,8 @@ import { ValidateInviteDto } from './dto/validate-invite-dto';
 import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 import { DeleteScriptsDto } from './dto/delete-scripts-dto';
 import { VisitorDto } from './dto/visitor-dto';
+import { CreateOrEditFormDto } from '../form/dto/create-or-edit-form.dto';
+import { SubmitFormDto } from '../form/dto/submit-form.dto';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -404,5 +406,54 @@ export class HelpDeskController {
     return {
       data: result,
     };
+  }
+
+  @Put('spaces/:id/forms')
+  async createOrEditForm(
+    @JwtUserId() userId: string,
+    @ParamObjectId('id') id: string,
+    @Body() payload: CreateOrEditFormDto,
+  ) {
+    const result = await this.helpDeskService.createOrEditForm(
+      id,
+      userId,
+      payload,
+    );
+    return { data: result };
+  }
+
+  @Public()
+  @Get('forms/:formId/:userId')
+  async getDetailForm(
+    @ParamObjectId('formId') formId: string,
+    @ParamObjectId('userId') userId: string,
+  ) {
+    const result = await this.helpDeskService.getDetailForm(formId, userId);
+    return { data: result };
+  }
+
+  @Get('spaces/:id/forms')
+  async getFormsBy(
+    @Query() query: SearchQueryParamsDto,
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.getFormsBy(id, query, userId);
+    return { data: result };
+  }
+
+  @Public()
+  @Post('forms/:formId/:userId')
+  async submitFormHelpDesk(
+    @ParamObjectId('formId') formId: string,
+    @ParamObjectId('userId') userId: string,
+    @Body() payload: SubmitFormDto,
+  ) {
+    const result = await this.helpDeskService.submitForm(
+      formId,
+      userId,
+      payload,
+    );
+    return { data: result };
   }
 }
