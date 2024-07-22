@@ -4,7 +4,6 @@ import { Model, PipelineStage, Types } from 'mongoose';
 import { CreateOrEditFormDto } from 'src/form/dto/create-or-edit-form.dto';
 import { FormResponse } from 'src/form/schemas/form-response.schema';
 import { Form } from 'src/form/schemas/form.schema';
-import { detectLanguage, translate } from 'src/messages/utils/translate';
 import { SearchQueryParamsDto } from 'src/search/dtos';
 import { FormField } from './schemas/form-field.schema';
 import { SubmitFormDto } from './dto/submit-form.dto';
@@ -233,6 +232,7 @@ export class FormService {
       },
       {
         $addFields: {
+          totalSubmissions: { $size: '$submissions' },
           submissions: { $slice: ['$submissions', maxItems] },
         },
       },
@@ -326,8 +326,11 @@ export class FormService {
           return acc;
         }, {});
 
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { answers, space, form, ...restSubItem } = submitItem;
+
         return {
-          ...submitItem,
+          ...restSubItem,
           answer,
         };
       });
