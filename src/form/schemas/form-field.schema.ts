@@ -17,6 +17,23 @@ export enum FormDataType {
   TIME = 'time',
 }
 
+export class Option {
+  @Prop({
+    type: String,
+  })
+  type: string;
+
+  @Prop({
+    type: String,
+  })
+  value: string;
+
+  @Prop({
+    type: String,
+  })
+  media: string;
+}
+
 @Schema({ timestamps: true })
 export class FormField {
   @Prop({
@@ -41,14 +58,14 @@ export class FormField {
   @Prop({ type: Boolean, default: false })
   required: boolean;
 
-  @Prop({
-    type: [{ type: String }],
-    default: [],
-  })
-  options?: string[];
-
   @Prop({ type: Number })
   order: number;
+
+  @Prop({
+    type: [{ type: Option }],
+    default: [],
+  })
+  options: Option[];
 }
 
 export const FormFieldSchema = SchemaFactory.createForClass(FormField);
