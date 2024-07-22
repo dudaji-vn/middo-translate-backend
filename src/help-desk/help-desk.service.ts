@@ -2347,7 +2347,32 @@ export class HelpDeskService {
     searchQuery: SearchQueryParamsDto,
     userId: string,
   ) {
-    return await this.formService.getFormsBy(spaceId, searchQuery, userId);
+    const scripts = await this.scriptModel
+      .find({
+        space: spaceId,
+        isDeleted: { $ne: true },
+        'chatFlow.nodes': {
+          $elemMatch: {
+            form: { $exists: true },
+          },
+        },
+      })
+      .select('chatFlow');
+
+    const uniqueForms = new Set(
+      scripts
+        .flatMap((item) => item?.chatFlow?.nodes)
+        .filter((node) => node?.form)
+        .map((node) => node?.form?.toString()),
+    );
+
+    const listUsingFormIds = Array.from(uniqueForms) || [];
+
+    return await this.formService.getFormsBy(
+      spaceId,
+      searchQuery,
+      listUsingFormIds,
+    );
   }
 
   async submitForm(formId: string, userId: string, payload: SubmitFormDto) {

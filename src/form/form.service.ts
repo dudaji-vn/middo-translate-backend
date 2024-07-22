@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, PipelineStage, Types } from 'mongoose';
 import { CreateOrEditFormDto } from 'src/form/dto/create-or-edit-form.dto';
 import { FormResponse } from 'src/form/schemas/form-response.schema';
 import { Form } from 'src/form/schemas/form.schema';
@@ -113,36 +113,38 @@ export class FormService {
       return null;
     }
 
-    result.formFields = await Promise.all(
-      result.formFields.map(async (item) => {
-        const sourceLabel = await detectLanguage(item.label);
-        const label = await translate(item.label, sourceLabel, language);
+    // result.formFields = await Promise.all(
+    //   result.formFields.map(async (item) => {
+    //     const sourceLabel = await detectLanguage(item.label);
+    //     const label = await translate(item.label, sourceLabel, language);
 
-        const sourceOptions = item.options
-          ? await Promise.all(item.options.map((item) => detectLanguage(item)))
-          : [];
+    //     const sourceOptions = item.options
+    //       ? await Promise.all(
+    //           item.options.map((item) => detectLanguage(item.value)),
+    //         )
+    //       : [];
 
-        const options = item.options
-          ? await Promise.all(
-              item.options.map((item, index) =>
-                translate(item, sourceOptions[index], language),
-              ),
-            )
-          : [];
+    //     const options = item.options
+    //       ? await Promise.all(
+    //           item.options.map((item, index) =>
+    //             translate(item.value, sourceOptions[index], language),
+    //           ),
+    //         )
+    //       : [];
 
-        return {
-          ...item,
-          translations: {
-            label: {
-              [language]: label || item.label,
-            },
-            options: {
-              [language]: options || item.options,
-            },
-          },
-        };
-      }),
-    );
+    //     return {
+    //       ...item,
+    //       translations: {
+    //         label: {
+    //           [language]: label || item.label,
+    //         },
+    //         options: {
+    //           [language]: options || item.options,
+    //         },
+    //       },
+    //     };
+    //   }),
+    // );
 
     return result;
   }
@@ -169,123 +171,178 @@ export class FormService {
   async getFormsBy(
     spaceId: string,
     searchQuery: SearchQueryParamsDto,
-    userId: string,
+    listUsingFormIds: string[],
   ) {
-    const { q, limit, currentPage } = searchQuery;
+    const { q, limit = 100, currentPage = 1 } = searchQuery;
+    const maxItems = 3;
 
     const query = [
       {
+        $match: {
+          name: { $regex: q, $options: 'i' },
+          space: new Types.ObjectId(spaceId),
+        },
+      },
+      {
         $lookup: {
-          from: 'forms',
-          localField: 'form',
-          foreignField: '_id',
-          as: 'formDetails',
+          from: 'formresponses',
+          localField: '_id',
+          foreignField: 'form',
+          as: 'submissions',
+        },
+      },
+      {
+        $lookup: {
+          from: 'formfields',
+          localField: '_id',
+          foreignField: 'form',
+          as: 'formFields',
         },
       },
       {
         $lookup: {
           from: 'users',
-          localField: 'user',
-          foreignField: '_id',
-          as: 'userDetails',
-        },
-      },
-      {
-        $lookup: {
-          from: 'formfields',
-          localField: 'answers.field',
-          foreignField: '_id',
-          as: 'fieldDetails',
-        },
-      },
-      {
-        $unwind: '$formDetails',
-      },
-      {
-        $unwind: '$userDetails',
-      },
-      {
-        $unwind: {
-          path: '$answers',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-      {
-        $lookup: {
-          from: 'formfields',
-          localField: 'answers.field',
-          foreignField: '_id',
-          as: 'answers.fieldDetails',
-        },
-      },
-      {
-        $unwind: {
-          path: '$answers.fieldDetails',
-          preserveNullAndEmptyArrays: true,
-        },
-      },
-
-      {
-        $group: {
-          _id: {
-            form: '$formDetails._id',
-          },
-          form: { $first: '$formDetails' },
-          user: { $first: '$userDetails' },
-          answers: {
-            $push: {
-              field: {
-                name: '$answers.fieldDetails.name',
-                label: '$answers.fieldDetails.label',
+          let: { submissions: '$submissions' },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $in: [
+                    '$_id',
+                    {
+                      $map: {
+                        input: '$$submissions',
+                        as: 'submission',
+                        in: '$$submission.user',
+                      },
+                    },
+                  ],
+                },
               },
-
-              value: '$answers.value',
             },
-          },
+            {
+              $project: {
+                name: 1,
+                phoneNumber: 1,
+                tempEmail: 1,
+              },
+            },
+          ],
+          as: 'users',
         },
       },
       {
-        $group: {
-          _id: '$_id.form',
-          form: { $first: '$form' },
-          results: {
-            $push: {
-              user: {
-                _id: '$user._id',
-                name: '$user.name',
-                avatar: '$user.avatar',
+        $addFields: {
+          submissions: { $slice: ['$submissions', maxItems] },
+        },
+      },
+      {
+        $addFields: {
+          submissions: {
+            $map: {
+              input: '$submissions',
+              as: 'submission',
+              in: {
+                $mergeObjects: [
+                  '$$submission',
+                  {
+                    user: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: '$users',
+                            as: 'user',
+                            cond: { $eq: ['$$user._id', '$$submission.user'] },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                  },
+                ],
               },
-              answers: '$answers',
             },
           },
         },
       },
       {
         $project: {
-          _id: 1,
-          form: {
-            _id: 1,
-            name: '$form.name',
-          },
-          results: 1,
-        },
-      },
-      {
-        $lookup: {
-          from: 'formfields',
-          localField: 'form._id',
-          foreignField: 'form',
-          as: 'form.formfields',
+          users: 0,
+          customize: 0,
+          thankyou: 0,
+          createdBy: 0,
+          lastEditedBy: 0,
+          space: 0,
         },
       },
     ];
 
-    const totalItemsPromise = await this.formResponseModel.aggregate([
+    const totalItemsPromise = this.formModel.aggregate([
       ...query,
       { $count: 'totalCount' },
     ]);
 
-    console.log(totalItemsPromise);
-    return await this.formResponseModel.aggregate(query);
+    const queryCurrentData = [
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      } as PipelineStage,
+      {
+        $skip: (currentPage - 1) * limit,
+      },
+      {
+        $limit: limit,
+      },
+    ];
+
+    const dataPromise = this.formModel.aggregate([
+      ...query,
+      ...queryCurrentData,
+    ]);
+
+    const [totalItems, data] = await Promise.all([
+      totalItemsPromise,
+      dataPromise,
+    ]);
+
+    const responseData = data.map((item) => {
+      const submissions = item.submissions.map((submitItem: any) => {
+        submitItem.answers = submitItem?.answers
+          ?.map((answer: any) => {
+            const name = item?.formFields.find(
+              (field: any) =>
+                field?._id?.toString() === answer?.field?.toString(),
+            )?.name;
+
+            return {
+              name: name,
+              value: answer.value,
+            };
+          })
+          .filter((item: any) => item.name);
+        const answer = submitItem.answers.reduce((acc: any, item: any) => {
+          acc[item?.name] = item.value;
+          return acc;
+        }, {});
+
+        return {
+          ...submitItem,
+          answer,
+        };
+      });
+
+      return {
+        ...item,
+        isUsing: listUsingFormIds.includes(item._id.toString()),
+        submissions,
+      };
+    });
+
+    const totalPage = totalItems[0]?.totalCount || 0;
+    return {
+      totalPage: Math.ceil(totalPage / limit),
+      items: responseData,
+    };
   }
 }
