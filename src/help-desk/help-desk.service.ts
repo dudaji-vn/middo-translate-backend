@@ -2399,4 +2399,8 @@ export class HelpDeskService {
     }
     return this.formService.submitForm(formId, userId, payload);
   }
+
+  async deleteForm(spaceId: string, formId: string, userId: string) {
+    return await this.formService.deleteForm(formId, userId);
+  }
 }

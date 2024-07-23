@@ -460,6 +460,17 @@ export class HelpDeskController {
     return { data: result };
   }
 
+  @Delete('spaces/:id/forms/:formId')
+  async deleteForm(
+    @ParamObjectId('id') id: string,
+    @ParamObjectId('formId') formId: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.deleteForm(id, formId, userId);
+
+    return { data: result };
+  }
+
   @Public()
   @Post('forms/:formId/:userId')
   async submitFormHelpDesk(
