@@ -34,14 +34,14 @@ export class FormService {
     const { formId, name, thankyou, customize, formFields } = payload;
 
     if (!formId) {
-      // const isExist = await this.formModel.exists({
-      //   name: name,
-      //   space: spaceId,
-      //   isDeleted: { $ne: true },
-      // });
-      // if (isExist) {
-      //   throw new BadRequestException(`Form ${name} already exists`);
-      // }
+      const isExist = await this.formModel.exists({
+        name: name,
+        space: spaceId,
+        isDeleted: { $ne: true },
+      });
+      if (isExist) {
+        throw new BadRequestException(`Form ${name} already exists`);
+      }
 
       const form = await this.formModel.create({
         space: spaceId,
