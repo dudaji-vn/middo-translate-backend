@@ -26,9 +26,6 @@ export class Form extends Document {
   })
   lastEditedBy: User | string;
 
-  @Prop({ type: Boolean, default: false })
-  isUsing: boolean;
-
   @Prop({
     type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'FormField' }],
     default: [],

@@ -65,6 +65,7 @@ import { Member, Script, Space, StatusSpace } from './schemas/space.schema';
 import { Visitor } from './schemas/visitor.schema';
 import { FormService } from 'src/form/form.service';
 import { SubmitFormDto } from '../form/dto/submit-form.dto';
+import { PaginationQueryParamsDto } from '../common/dto/pagination-query.dto';
 
 @Injectable()
 export class HelpDeskService {
@@ -2342,11 +2343,7 @@ export class HelpDeskService {
     return await this.formService.getDetailForm(formId, language);
   }
 
-  async getFormsBy(
-    spaceId: string,
-    searchQuery: SearchQueryParamsDto,
-    userId: string,
-  ) {
+  private async getListUsingFormIds(spaceId: string) {
     const scripts = await this.scriptModel
       .find({
         space: spaceId,
@@ -2366,11 +2363,33 @@ export class HelpDeskService {
         .map((node) => node?.form?.toString()),
     );
 
-    const listUsingFormIds = Array.from(uniqueForms) || [];
+    return Array.from(uniqueForms) || [];
+  }
+
+  async getFormsBy(
+    spaceId: string,
+    searchQuery: SearchQueryParamsDto,
+    userId: string,
+  ) {
+    const listUsingFormIds = await this.getListUsingFormIds(spaceId);
 
     return await this.formService.getFormsBy(
       spaceId,
       searchQuery,
+      listUsingFormIds,
+    );
+  }
+
+  async getSubmissionByForm(
+    spaceId: string,
+    formId: string,
+    paginationQuery: PaginationQueryParamsDto,
+    userId: string,
+  ) {
+    const listUsingFormIds = await this.getListUsingFormIds(spaceId);
+    return await this.formService.getSubmissionByFormId(
+      formId,
+      paginationQuery,
       listUsingFormIds,
     );
   }

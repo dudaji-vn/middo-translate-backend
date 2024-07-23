@@ -30,8 +30,9 @@ import { ValidateInviteDto } from './dto/validate-invite-dto';
 import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 import { DeleteScriptsDto } from './dto/delete-scripts-dto';
 import { VisitorDto } from './dto/visitor-dto';
-import { CreateOrEditFormDto } from '../form/dto/create-or-edit-form.dto';
-import { SubmitFormDto } from '../form/dto/submit-form.dto';
+import { CreateOrEditFormDto } from 'src/form/dto/create-or-edit-form.dto';
+import { SubmitFormDto } from 'src/form/dto/submit-form.dto';
+import { PaginationQueryParamsDto } from 'src/common/dto/pagination-query.dto';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -439,6 +440,23 @@ export class HelpDeskController {
     @JwtUserId() userId: string,
   ) {
     const result = await this.helpDeskService.getFormsBy(id, query, userId);
+    return { data: result };
+  }
+
+  @Get('spaces/:id/forms/:formId')
+  async getSubmissions(
+    @Query() query: PaginationQueryParamsDto,
+    @ParamObjectId('id') id: string,
+    @ParamObjectId('formId') formId: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.getSubmissionByForm(
+      id,
+      formId,
+      query,
+      userId,
+    );
+
     return { data: result };
   }
 

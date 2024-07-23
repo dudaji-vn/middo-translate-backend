@@ -4,9 +4,11 @@ import { Model, PipelineStage, Types } from 'mongoose';
 import { CreateOrEditFormDto } from 'src/form/dto/create-or-edit-form.dto';
 import { FormResponse } from 'src/form/schemas/form-response.schema';
 import { Form } from 'src/form/schemas/form.schema';
+import { detectLanguage, translate } from 'src/messages/utils/translate';
 import { SearchQueryParamsDto } from 'src/search/dtos';
 import { FormField } from './schemas/form-field.schema';
 import { SubmitFormDto } from './dto/submit-form.dto';
+import { PaginationQueryParamsDto } from '../common/dto/pagination-query.dto';
 
 @Injectable()
 export class FormService {
@@ -172,7 +174,7 @@ export class FormService {
     searchQuery: SearchQueryParamsDto,
     listUsingFormIds: string[],
   ) {
-    const { q, limit = 100, currentPage = 1 } = searchQuery;
+    const { q, limit = 10, currentPage = 1 } = searchQuery;
     const maxItems = 3;
 
     const query = [
@@ -273,6 +275,11 @@ export class FormService {
           createdBy: 0,
           lastEditedBy: 0,
           space: 0,
+          submissions: {
+            user: {
+              _id: 0,
+            },
+          },
         },
       },
     ];
@@ -346,6 +353,69 @@ export class FormService {
     return {
       totalPage: Math.ceil(totalPage / limit),
       items: responseData,
+    };
+  }
+
+  async getSubmissionByFormId(
+    formId: string,
+    paginationQuery: PaginationQueryParamsDto,
+    listUsingFormIds: string[],
+  ) {
+    const { limit = 100, currentPage = 1 } = paginationQuery;
+    const form = await this.formModel
+      .findOne({
+        _id: formId,
+        isDeleted: { $ne: true },
+      })
+      .populate('formFields')
+      .select('name formFields createdAt')
+      .lean();
+
+    if (!form) {
+      throw new BadRequestException('Form not found');
+    }
+
+    const totalItemsPromise = await this.formResponseModel.countDocuments({
+      form: formId,
+    });
+
+    const dataPromise = await this.formResponseModel
+      .find({ form: formId })
+      .sort({ _id: -1 })
+      .skip((currentPage - 1) * limit)
+      .limit(limit)
+      .populate('user', '-_id name tempEmail phoneNumber')
+      .populate({ path: 'answers.field', select: 'name' })
+      .lean();
+
+    const [totalItems, data] = await Promise.all([
+      totalItemsPromise,
+      dataPromise,
+    ]);
+
+    const responseData = data.map((submitItem) => {
+      const answer = submitItem.answers
+        .filter((item) => item?.field?.name)
+        .reduce((acc: any, item: any) => {
+          acc[item?.field?.name] = item.value;
+          return acc;
+        }, {});
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { answers, space, form, ...restSubItem } = submitItem;
+
+      return {
+        ...restSubItem,
+        answer,
+      };
+    });
+
+    return {
+      totalPage: Math.ceil(totalItems / limit),
+      ...form,
+      isUsing: listUsingFormIds.includes(form._id.toString()),
+      totalSubmissions: totalItems,
+      submissions: responseData,
     };
   }
 }
