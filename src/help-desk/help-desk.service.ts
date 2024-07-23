@@ -2337,9 +2337,7 @@ export class HelpDeskService {
 
     return true;
   }
-  async getDetailForm(formId: string, userId: string) {
-    const user = await this.userService.findById(userId);
-    const language = user.language;
+  async getDetailForm(formId: string, language: string) {
     return await this.formService.getDetailForm(formId, language);
   }
 

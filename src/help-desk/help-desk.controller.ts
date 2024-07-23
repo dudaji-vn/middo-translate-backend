@@ -424,12 +424,12 @@ export class HelpDeskController {
   }
 
   @Public()
-  @Get('forms/:formId/:userId')
+  @Get('forms/:formId')
   async getDetailForm(
     @ParamObjectId('formId') formId: string,
-    @ParamObjectId('userId') userId: string,
+    @Query('language') language: string,
   ) {
-    const result = await this.helpDeskService.getDetailForm(formId, userId);
+    const result = await this.helpDeskService.getDetailForm(formId, language);
     return { data: result };
   }
 
