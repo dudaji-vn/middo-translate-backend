@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, PipelineStage, Types } from 'mongoose';
 import { CreateOrEditFormDto } from 'src/form/dto/create-or-edit-form.dto';
@@ -8,7 +12,9 @@ import { detectLanguage, translate } from 'src/messages/utils/translate';
 import { SearchQueryParamsDto } from 'src/search/dtos';
 import { FormField } from './schemas/form-field.schema';
 import { SubmitFormDto } from './dto/submit-form.dto';
-import { PaginationQueryParamsDto } from '../common/dto/pagination-query.dto';
+import { PaginationQueryParamsDto } from 'src/common/dto/pagination-query.dto';
+import { SUPPORTED_LANGUAGES } from 'src/configs/language';
+import { Space } from 'src/help-desk/schemas/space.schema';
 
 @Injectable()
 export class FormService {
@@ -113,39 +119,60 @@ export class FormService {
     if (!result) {
       return null;
     }
+    const isFromSupported = SUPPORTED_LANGUAGES.find(
+      (lang) => lang.code === language,
+    );
+    if (!isFromSupported) {
+      return result;
+    }
+    if (result.thankyou && result.thankyou?.title) {
+      const title = result.thankyou.title ?? '';
+      const subTitle = result.thankyou.subTitle ?? '';
+      const sourceLang = await detectLanguage(result.thankyou.title);
+      const [titleTranslate, subTitleTranslate] = await Promise.all(
+        [title, subTitle].map((item) => translate(item, sourceLang, language)),
+      );
+      result.thankyou.title = titleTranslate || title;
+      result.thankyou.subTitle = subTitleTranslate || subTitle;
+    }
 
-    // result.formFields = await Promise.all(
-    //   result.formFields.map(async (item) => {
-    //     const sourceLabel = await detectLanguage(item.label);
-    //     const label = await translate(item.label, sourceLabel, language);
+    result.formFields = await Promise.all(
+      result.formFields.map(async (item) => {
+        const sourceLabel = await detectLanguage(item.label);
+        const label = await translate(item.label, sourceLabel, language);
+        item.options = item.options.filter(
+          (option) => option.type && option.value,
+        );
 
-    //     const sourceOptions = item.options
-    //       ? await Promise.all(
-    //           item.options.map((item) => detectLanguage(item.value)),
-    //         )
-    //       : [];
+        const sourceOptions = item.options
+          ? await Promise.all(
+              item.options.map((item) => detectLanguage(item.value)),
+            )
+          : [];
 
-    //     const options = item.options
-    //       ? await Promise.all(
-    //           item.options.map((item, index) =>
-    //             translate(item.value, sourceOptions[index], language),
-    //           ),
-    //         )
-    //       : [];
+        const sourceOptionsValue = await Promise.all(
+          item.options.map((item, index) =>
+            translate(item.value, sourceOptions[index], language),
+          ),
+        );
 
-    //     return {
-    //       ...item,
-    //       translations: {
-    //         label: {
-    //           [language]: label || item.label,
-    //         },
-    //         options: {
-    //           [language]: options || item.options,
-    //         },
-    //       },
-    //     };
-    //   }),
-    // );
+        const options = item.options
+          ? item.options.map((item, index) => {
+              return {
+                type: item.type,
+                value: sourceOptionsValue[index],
+                media: item.media,
+              };
+            })
+          : [];
+
+        return {
+          ...item,
+          label: label || item.label,
+          options: options || item.options,
+        };
+      }),
+    );
 
     return result;
   }
@@ -181,6 +208,7 @@ export class FormService {
       {
         $match: {
           name: { $regex: q, $options: 'i' },
+          isDeleted: { $ne: true },
           space: new Types.ObjectId(spaceId),
         },
       },
@@ -417,5 +445,24 @@ export class FormService {
       totalSubmissions: totalItems,
       submissions: responseData,
     };
+  }
+
+  async deleteForm(formId: string, userId: string) {
+    const form = await this.formModel
+      .findOne({
+        _id: formId,
+        isDeleted: { $ne: true },
+      })
+      .populate('space');
+    if (!form || !form?.space) {
+      throw new BadRequestException('Form not found');
+    }
+    const space = form.space as Space;
+    if (space?.owner?.toString() !== userId) {
+      throw new ForbiddenException('You do not have permission to delete form');
+    }
+    form.isDeleted = true;
+    await form.save();
+    return true;
   }
 }
