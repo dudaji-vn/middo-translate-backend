@@ -465,4 +465,12 @@ export class FormService {
     await form.save();
     return true;
   }
+  async getFormsNames(spaceId: string) {
+    return await this.formModel
+      .find({
+        space: spaceId,
+        isDeleted: { $ne: true },
+      })
+      .select('name');
+  }
 }

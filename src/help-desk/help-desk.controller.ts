@@ -485,4 +485,13 @@ export class HelpDeskController {
     );
     return { data: result };
   }
+
+  @Get('spaces/:id/forms-names')
+  async getFormNames(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.getFormsNames(id, userId);
+    return { data: result };
+  }
 }

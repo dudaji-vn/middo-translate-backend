@@ -2403,4 +2403,18 @@ export class HelpDeskService {
   async deleteForm(spaceId: string, formId: string, userId: string) {
     return await this.formService.deleteForm(formId, userId);
   }
+
+  async getFormsNames(spaceId: string, userId: string) {
+    const space = await this.spaceModel.findOne({
+      _id: spaceId,
+      status: { $ne: StatusSpace.DELETED },
+    });
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+    if (!this.isAdminSpace(space.members, userId)) {
+      throw new ForbiddenException('You do not have see forms names');
+    }
+    return await this.formService.getFormsNames(spaceId);
+  }
 }
