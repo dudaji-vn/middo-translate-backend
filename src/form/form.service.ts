@@ -1,12 +1,20 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, PipelineStage, Types } from 'mongoose';
 import { CreateOrEditFormDto } from 'src/form/dto/create-or-edit-form.dto';
 import { FormResponse } from 'src/form/schemas/form-response.schema';
 import { Form } from 'src/form/schemas/form.schema';
+import { detectLanguage, translate } from 'src/messages/utils/translate';
 import { SearchQueryParamsDto } from 'src/search/dtos';
 import { FormField } from './schemas/form-field.schema';
 import { SubmitFormDto } from './dto/submit-form.dto';
+import { PaginationQueryParamsDto } from 'src/common/dto/pagination-query.dto';
+import { SUPPORTED_LANGUAGES } from 'src/configs/language';
+import { Space } from 'src/help-desk/schemas/space.schema';
 
 @Injectable()
 export class FormService {
@@ -26,14 +34,14 @@ export class FormService {
     const { formId, name, thankyou, customize, formFields } = payload;
 
     if (!formId) {
-      // const isExist = await this.formModel.exists({
-      //   name: name,
-      //   space: spaceId,
-      //   isDeleted: { $ne: true },
-      // });
-      // if (isExist) {
-      //   throw new BadRequestException(`Form ${name} already exists`);
-      // }
+      const isExist = await this.formModel.exists({
+        name: name,
+        space: spaceId,
+        isDeleted: { $ne: true },
+      });
+      if (isExist) {
+        throw new BadRequestException(`Form ${name} already exists`);
+      }
 
       const form = await this.formModel.create({
         space: spaceId,
@@ -111,39 +119,60 @@ export class FormService {
     if (!result) {
       return null;
     }
+    const isFromSupported = SUPPORTED_LANGUAGES.find(
+      (lang) => lang.code === language,
+    );
+    if (!isFromSupported) {
+      return result;
+    }
+    if (result.thankyou && result.thankyou?.title) {
+      const title = result.thankyou.title ?? '';
+      const subTitle = result.thankyou.subTitle ?? '';
+      const sourceLang = await detectLanguage(result.thankyou.title);
+      const [titleTranslate, subTitleTranslate] = await Promise.all(
+        [title, subTitle].map((item) => translate(item, sourceLang, language)),
+      );
+      result.thankyou.title = titleTranslate || title;
+      result.thankyou.subTitle = subTitleTranslate || subTitle;
+    }
 
-    // result.formFields = await Promise.all(
-    //   result.formFields.map(async (item) => {
-    //     const sourceLabel = await detectLanguage(item.label);
-    //     const label = await translate(item.label, sourceLabel, language);
+    result.formFields = await Promise.all(
+      result.formFields.map(async (item) => {
+        const sourceLabel = await detectLanguage(item.label);
+        const label = await translate(item.label, sourceLabel, language);
+        item.options = item.options.filter(
+          (option) => option.type && option.value,
+        );
 
-    //     const sourceOptions = item.options
-    //       ? await Promise.all(
-    //           item.options.map((item) => detectLanguage(item.value)),
-    //         )
-    //       : [];
+        const sourceOptions = item.options
+          ? await Promise.all(
+              item.options.map((item) => detectLanguage(item.value)),
+            )
+          : [];
 
-    //     const options = item.options
-    //       ? await Promise.all(
-    //           item.options.map((item, index) =>
-    //             translate(item.value, sourceOptions[index], language),
-    //           ),
-    //         )
-    //       : [];
+        const sourceOptionsValue = await Promise.all(
+          item.options.map((item, index) =>
+            translate(item.value, sourceOptions[index], language),
+          ),
+        );
 
-    //     return {
-    //       ...item,
-    //       translations: {
-    //         label: {
-    //           [language]: label || item.label,
-    //         },
-    //         options: {
-    //           [language]: options || item.options,
-    //         },
-    //       },
-    //     };
-    //   }),
-    // );
+        const options = item.options
+          ? item.options.map((item, index) => {
+              return {
+                type: item.type,
+                value: sourceOptionsValue[index],
+                media: item.media,
+              };
+            })
+          : [];
+
+        return {
+          ...item,
+          label: label || item.label,
+          options: options || item.options,
+        };
+      }),
+    );
 
     return result;
   }
@@ -172,13 +201,14 @@ export class FormService {
     searchQuery: SearchQueryParamsDto,
     listUsingFormIds: string[],
   ) {
-    const { q, limit = 100, currentPage = 1 } = searchQuery;
+    const { q, limit = 10, currentPage = 1 } = searchQuery;
     const maxItems = 3;
 
     const query = [
       {
         $match: {
           name: { $regex: q, $options: 'i' },
+          isDeleted: { $ne: true },
           space: new Types.ObjectId(spaceId),
         },
       },
@@ -273,6 +303,11 @@ export class FormService {
           createdBy: 0,
           lastEditedBy: 0,
           space: 0,
+          submissions: {
+            user: {
+              _id: 0,
+            },
+          },
         },
       },
     ];
@@ -347,5 +382,95 @@ export class FormService {
       totalPage: Math.ceil(totalPage / limit),
       items: responseData,
     };
+  }
+
+  async getSubmissionByFormId(
+    formId: string,
+    paginationQuery: PaginationQueryParamsDto,
+    listUsingFormIds: string[],
+  ) {
+    const { limit = 100, currentPage = 1 } = paginationQuery;
+    const form = await this.formModel
+      .findOne({
+        _id: formId,
+        isDeleted: { $ne: true },
+      })
+      .populate('formFields')
+      .select('name formFields createdAt')
+      .lean();
+
+    if (!form) {
+      throw new BadRequestException('Form not found');
+    }
+
+    const totalItemsPromise = await this.formResponseModel.countDocuments({
+      form: formId,
+    });
+
+    const dataPromise = await this.formResponseModel
+      .find({ form: formId })
+      .sort({ _id: -1 })
+      .skip((currentPage - 1) * limit)
+      .limit(limit)
+      .populate('user', '-_id name tempEmail phoneNumber')
+      .populate({ path: 'answers.field', select: 'name' })
+      .lean();
+
+    const [totalItems, data] = await Promise.all([
+      totalItemsPromise,
+      dataPromise,
+    ]);
+
+    const responseData = data.map((submitItem) => {
+      const answer = submitItem.answers
+        .filter((item) => item?.field?.name)
+        .reduce((acc: any, item: any) => {
+          acc[item?.field?.name] = item.value;
+          return acc;
+        }, {});
+
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { answers, space, form, ...restSubItem } = submitItem;
+
+      return {
+        ...restSubItem,
+        answer,
+      };
+    });
+
+    return {
+      totalPage: Math.ceil(totalItems / limit),
+      ...form,
+      isUsing: listUsingFormIds.includes(form._id.toString()),
+      totalSubmissions: totalItems,
+      submissions: responseData,
+    };
+  }
+
+  async deleteForm(formId: string, userId: string) {
+    const form = await this.formModel
+      .findOne({
+        _id: formId,
+        isDeleted: { $ne: true },
+      })
+      .populate('space');
+    if (!form || !form?.space) {
+      throw new BadRequestException('Form not found');
+    }
+    const space = form.space as Space;
+    if (space?.owner?.toString() !== userId) {
+      throw new ForbiddenException('You do not have permission to delete form');
+    }
+    form.isDeleted = true;
+    await form.save();
+    return true;
+  }
+  async getFormsNames(spaceId: string) {
+    return await this.formModel
+      .find({
+        space: spaceId,
+        isDeleted: { $ne: true },
+      })
+      .select('name');
   }
 }

@@ -49,6 +49,14 @@ export class PositionNodeChatFlow {
   y: number;
 }
 
+export class Measured {
+  @Prop({ type: Number })
+  width: number;
+
+  @Prop({ type: Number })
+  height: number;
+}
+
 @Schema({ _id: false })
 export class NodeChatFlow {
   @Prop({ type: String })
@@ -74,6 +82,42 @@ export class NodeChatFlow {
 
   @Prop({ type: SchemaFactory.createForClass(PositionNodeChatFlow) })
   position: PositionNodeChatFlow;
+
+  @Prop({ type: Boolean })
+  draggable: boolean;
+
+  @Prop({ type: mongoose.Schema.Types.Mixed })
+  sourcePosition: any;
+
+  @Prop({ type: mongoose.Schema.Types.Mixed })
+  targetPosition?: any;
+
+  @Prop({ type: Boolean })
+  dragging?: boolean;
+
+  @Prop({ type: Boolean })
+  selectable?: boolean;
+
+  @Prop({ type: Boolean })
+  connectable?: boolean;
+
+  @Prop({ type: Boolean })
+  deletable?: boolean;
+
+  @Prop({ type: String })
+  parentId?: string;
+
+  @Prop({ type: Number })
+  zIndex?: number;
+
+  @Prop({ type: Boolean })
+  expandParent?: boolean;
+
+  @Prop({ type: Boolean })
+  focusable?: boolean;
+
+  @Prop({ type: Measured })
+  measured?: Measured;
 
   @Prop({
     type: mongoose.Schema.Types.ObjectId,

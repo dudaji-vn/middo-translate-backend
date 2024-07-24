@@ -65,6 +65,7 @@ import { Member, Script, Space, StatusSpace } from './schemas/space.schema';
 import { Visitor } from './schemas/visitor.schema';
 import { FormService } from 'src/form/form.service';
 import { SubmitFormDto } from '../form/dto/submit-form.dto';
+import { PaginationQueryParamsDto } from '../common/dto/pagination-query.dto';
 
 @Injectable()
 export class HelpDeskService {
@@ -2336,17 +2337,11 @@ export class HelpDeskService {
 
     return true;
   }
-  async getDetailForm(formId: string, userId: string) {
-    const user = await this.userService.findById(userId);
-    const language = user.language;
+  async getDetailForm(formId: string, language: string) {
     return await this.formService.getDetailForm(formId, language);
   }
 
-  async getFormsBy(
-    spaceId: string,
-    searchQuery: SearchQueryParamsDto,
-    userId: string,
-  ) {
+  private async getListUsingFormIds(spaceId: string) {
     const scripts = await this.scriptModel
       .find({
         space: spaceId,
@@ -2366,11 +2361,33 @@ export class HelpDeskService {
         .map((node) => node?.form?.toString()),
     );
 
-    const listUsingFormIds = Array.from(uniqueForms) || [];
+    return Array.from(uniqueForms) || [];
+  }
+
+  async getFormsBy(
+    spaceId: string,
+    searchQuery: SearchQueryParamsDto,
+    userId: string,
+  ) {
+    const listUsingFormIds = await this.getListUsingFormIds(spaceId);
 
     return await this.formService.getFormsBy(
       spaceId,
       searchQuery,
+      listUsingFormIds,
+    );
+  }
+
+  async getSubmissionByForm(
+    spaceId: string,
+    formId: string,
+    paginationQuery: PaginationQueryParamsDto,
+    userId: string,
+  ) {
+    const listUsingFormIds = await this.getListUsingFormIds(spaceId);
+    return await this.formService.getSubmissionByFormId(
+      formId,
+      paginationQuery,
       listUsingFormIds,
     );
   }
@@ -2381,5 +2398,23 @@ export class HelpDeskService {
       throw new BadRequestException('User not found');
     }
     return this.formService.submitForm(formId, userId, payload);
+  }
+
+  async deleteForm(spaceId: string, formId: string, userId: string) {
+    return await this.formService.deleteForm(formId, userId);
+  }
+
+  async getFormsNames(spaceId: string, userId: string) {
+    const space = await this.spaceModel.findOne({
+      _id: spaceId,
+      status: { $ne: StatusSpace.DELETED },
+    });
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+    if (!this.isAdminSpace(space.members, userId)) {
+      throw new ForbiddenException('You do not have see forms names');
+    }
+    return await this.formService.getFormsNames(spaceId);
   }
 }

@@ -30,8 +30,9 @@ import { ValidateInviteDto } from './dto/validate-invite-dto';
 import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 import { DeleteScriptsDto } from './dto/delete-scripts-dto';
 import { VisitorDto } from './dto/visitor-dto';
-import { CreateOrEditFormDto } from '../form/dto/create-or-edit-form.dto';
-import { SubmitFormDto } from '../form/dto/submit-form.dto';
+import { CreateOrEditFormDto } from 'src/form/dto/create-or-edit-form.dto';
+import { SubmitFormDto } from 'src/form/dto/submit-form.dto';
+import { PaginationQueryParamsDto } from 'src/common/dto/pagination-query.dto';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -423,12 +424,12 @@ export class HelpDeskController {
   }
 
   @Public()
-  @Get('forms/:formId/:userId')
+  @Get('forms/:formId')
   async getDetailForm(
     @ParamObjectId('formId') formId: string,
-    @ParamObjectId('userId') userId: string,
+    @Query('language') language: string,
   ) {
-    const result = await this.helpDeskService.getDetailForm(formId, userId);
+    const result = await this.helpDeskService.getDetailForm(formId, language);
     return { data: result };
   }
 
@@ -439,6 +440,34 @@ export class HelpDeskController {
     @JwtUserId() userId: string,
   ) {
     const result = await this.helpDeskService.getFormsBy(id, query, userId);
+    return { data: result };
+  }
+
+  @Get('spaces/:id/forms/:formId')
+  async getSubmissions(
+    @Query() query: PaginationQueryParamsDto,
+    @ParamObjectId('id') id: string,
+    @ParamObjectId('formId') formId: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.getSubmissionByForm(
+      id,
+      formId,
+      query,
+      userId,
+    );
+
+    return { data: result };
+  }
+
+  @Delete('spaces/:id/forms/:formId')
+  async deleteForm(
+    @ParamObjectId('id') id: string,
+    @ParamObjectId('formId') formId: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.deleteForm(id, formId, userId);
+
     return { data: result };
   }
 
@@ -454,6 +483,15 @@ export class HelpDeskController {
       userId,
       payload,
     );
+    return { data: result };
+  }
+
+  @Get('spaces/:id/forms-names')
+  async getFormNames(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.getFormsNames(id, userId);
     return { data: result };
   }
 }
