@@ -50,6 +50,9 @@ export class FormField {
   label: string;
 
   @Prop({ type: String })
+  helperText: string;
+
+  @Prop({ type: String })
   type: FormType;
 
   @Prop({ type: String })

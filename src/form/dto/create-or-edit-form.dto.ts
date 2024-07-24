@@ -44,6 +44,10 @@ export class CreateOrEditFormDto {
   name: string;
 
   @IsOptional()
+  @IsString()
+  description: string;
+
+  @IsOptional()
   @IsMongoId()
   formId: string;
 

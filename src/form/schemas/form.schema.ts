@@ -11,6 +11,9 @@ export class Form extends Document {
   @Prop({ type: String, required: true })
   name: string;
 
+  @Prop({ type: String })
+  description: string;
+
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Space', required: true })
   space: Space | string;
 
