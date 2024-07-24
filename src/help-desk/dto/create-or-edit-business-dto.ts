@@ -6,8 +6,6 @@ import {
   IsMongoId,
   IsOptional,
   IsString,
-  MinLength,
-  ValidateNested,
 } from 'class-validator';
 import { StatusBusiness } from '../schemas/help-desk-business.schema';
 import { NodeChatFlowDto } from './node-chat-dto';
