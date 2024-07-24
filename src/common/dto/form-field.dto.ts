@@ -29,6 +29,10 @@ export class FormFieldDto {
   @IsString()
   label: string;
 
+  @IsOptional()
+  @IsString()
+  helperText: string;
+
   @IsEnum(FormType)
   type: FormType;
 

@@ -31,7 +31,8 @@ export class FormService {
     userId: string,
     payload: CreateOrEditFormDto,
   ) {
-    const { formId, name, thankyou, customize, formFields } = payload;
+    const { formId, name, thankyou, customize, formFields, description } =
+      payload;
 
     if (!formId) {
       const isExist = await this.formModel.exists({
@@ -50,6 +51,7 @@ export class FormService {
         name,
         thankyou,
         customize,
+        description,
       });
 
       const insertData = formFields.map((item, index) => ({
