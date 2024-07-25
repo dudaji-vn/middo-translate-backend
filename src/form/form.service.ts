@@ -180,19 +180,33 @@ export class FormService {
   }
 
   async submitForm(formId: string, userId: string, payload: SubmitFormDto) {
-    const form = await this.formModel.findById(formId);
+    const form = await this.formModel
+      .findById(formId)
+      .populate('formFields')
+      .lean();
+
     if (!form) {
       throw new BadRequestException('Form not found');
     }
+
+    const answer = Object.keys(payload.answer).map((key) => {
+      const field = form.formFields.find((item) => item.name === key);
+      if (!field) {
+        throw new BadRequestException(
+          `'${key}' does not exist in the names of the form fields.`,
+        );
+      }
+      return {
+        field: field._id,
+        value: payload.answer[key],
+      };
+    });
 
     await this.formResponseModel.create({
       form: form,
       user: userId,
       space: form.space,
-      answers: payload.answers.map((item) => ({
-        field: item.fieldId,
-        value: item.value,
-      })),
+      answers: answer,
     });
 
     return true;
