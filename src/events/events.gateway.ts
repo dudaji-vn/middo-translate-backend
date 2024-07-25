@@ -20,7 +20,10 @@ import {
   UpdateRoomPayload,
 } from './types/room-payload.type';
 import { CallService } from 'src/call/call.service';
-import Meeting, { ParticipantMeeting, RoomType } from './interface/meeting.interface';
+import Meeting, {
+  ParticipantMeeting,
+  RoomType,
+} from './interface/meeting.interface';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { WatchingService } from 'src/watching/watching.service';
@@ -97,11 +100,11 @@ export class EventsGateway
     const userIds = Object.keys(this.clients);
     logger.info('socket connected', userIds);
     this.server.emit(socketConfig.events.client.list, userIds);
-    
+
     this.pushMeetingList({
       type: 'user',
-      id: userId.toString()
-    })
+      id: userId.toString(),
+    });
   }
 
   @SubscribeMessage(socketConfig.events.chat.join)
@@ -206,6 +209,10 @@ export class EventsGateway
       message,
       clientTempId,
     });
+    this.server.to(roomId).emit(socketConfig.events.message.unread_update, {
+      message,
+      readBy: message.readBy,
+    });
   }
   @OnEvent(socketConfig.events.message.update)
   async handleUpdateMessage({ roomId, message }: NewMessagePayload) {
@@ -216,6 +223,12 @@ export class EventsGateway
       return;
     }
     this.server.to(roomId).emit(socketConfig.events.message.update, message);
+    if (message.readBy) {
+      this.server.to(roomId).emit(socketConfig.events.message.unread_update, {
+        message,
+        readBy: message.readBy,
+      });
+    }
   }
   @OnEvent(socketConfig.events.message.remove)
   async handleRemoveMessage({ message }: NewMessagePayload) {
@@ -288,51 +301,60 @@ export class EventsGateway
         (p: ParticipantMeeting) => p.user._id === user._id.toString(),
       );
       if (isUserJoined && this.meetings[callId]?.room?.type == 'HELP_DESK') {
-        this.server.to(client.id).emit(socketConfig.events.meeting.block, roomId);
+        this.server
+          .to(client.id)
+          .emit(socketConfig.events.meeting.block, roomId);
         return;
       }
       const whiteList = this.meetings[callId].whiteList;
-      if(whiteList && !whiteList.includes(user._id.toString())) {
-        this.server.to(client.id).emit(socketConfig.events.meeting.block, roomId);
+      if (whiteList && !whiteList.includes(user._id.toString())) {
+        this.server
+          .to(client.id)
+          .emit(socketConfig.events.meeting.block, roomId);
         return;
       }
-      if(this.meetings[callId]?.room?.type == 'HELP_DESK' && whiteList && whiteList.includes(user._id.toString())){
+      if (
+        this.meetings[callId]?.room?.type == 'HELP_DESK' &&
+        whiteList &&
+        whiteList.includes(user._id.toString())
+      ) {
         this.meetings[callId].whiteList = undefined;
       }
-      this.meetings[callId].participants.push({ 
-        socketId: client.id, 
+      this.meetings[callId].participants.push({
+        socketId: client.id,
         user: {
           _id: user._id.toString(),
           name: user.name,
           avatar: user.avatar,
           status: user.status,
-        } 
+        },
       });
-      
+
       let startTime = this.meetings[callId].startTime;
       if (!startTime) {
         startTime = new Date();
         this.meetings[callId].startTime = startTime;
         this.callService.callStart({ callId, time: startTime });
       }
-      
     } else {
-      let roomData = await this.roomService.findById(roomId);
-      let participantsIds = roomData?.participants.map((p: any) => p._id.toString());
+      const roomData = await this.roomService.findById(roomId);
+      const participantsIds = roomData?.participants.map((p: any) =>
+        p._id.toString(),
+      );
       let roomType: RoomType = 'NORMAL';
-      if(roomData?.isHelpDesk) roomType = 'HELP_DESK'
-      if(roomData?.isAnonymous) roomType = 'ANONYMOUS'
+      if (roomData?.isHelpDesk) roomType = 'HELP_DESK';
+      if (roomData?.isAnonymous) roomType = 'ANONYMOUS';
       this.meetings[callId] = {
         participants: [
-          { 
-            socketId: client.id, 
+          {
+            socketId: client.id,
             user: {
               _id: user._id.toString(),
               name: user.name,
               avatar: user.avatar,
               status: user.status,
-            }
-          }
+            },
+          },
         ],
         room: {
           _id: roomId,
@@ -344,10 +366,12 @@ export class EventsGateway
     }
     this.pushMeetingList({
       type: 'room',
-      id: roomId
-    })
+      id: roomId,
+    });
     this.socketToRoom[client.id] = callId;
-    const userInThisRoom: ParticipantMeeting[] = this.meetings[callId].participants.filter(
+    const userInThisRoom: ParticipantMeeting[] = this.meetings[
+      callId
+    ].participants.filter(
       (user: ParticipantMeeting) => user.socketId !== client.id,
     );
     client.join(callId);
@@ -384,12 +408,12 @@ export class EventsGateway
       });
     }
     // call is roomId => send notify to all user in room
-    if(['direct', 'group', undefined].includes(payload.type)) {
+    if (['direct', 'group', undefined].includes(payload.type)) {
       this.server
-      .to(payload.call._id)
-      .emit(socketConfig.events.call.list_waiting_call, {
-        users: payload.users,
-      });
+        .to(payload.call._id)
+        .emit(socketConfig.events.call.list_waiting_call, {
+          users: payload.users,
+        });
       setTimeout(() => {
         const userIds = payload.users.map((p) => p._id);
         this.server
@@ -402,15 +426,15 @@ export class EventsGateway
     }
 
     // Add whiteList to prevent another user join to call
-    if(payload.type === 'help_desk') {
-      this.meetings[payload.call._id].whiteList = ids.map(id => id.toString());
+    if (payload.type === 'help_desk') {
+      this.meetings[payload.call._id].whiteList = ids.map((id) =>
+        id.toString(),
+      );
       this.pushMeetingList({
         type: 'room',
         id: payload.call?.roomId,
-      })
+      });
     }
-
-    
   }
 
   // Decline call
@@ -492,8 +516,8 @@ export class EventsGateway
       directUserId?: string;
     },
   ) {
-    let receiver: string | string[] = payload.roomId
-    if(payload.directUserId) {
+    let receiver: string | string[] = payload.roomId;
+    if (payload.directUserId) {
       receiver = this.clients[payload.directUserId]?.socketIds || [];
     }
     this.server
@@ -680,13 +704,18 @@ export class EventsGateway
         .to(callId)
         .emit(socketConfig.events.call.end_doodle, nameOfUser);
     }
-    const memberLeave = meeting.participants.find((p) => p.socketId === client.id);
+    const memberLeave = meeting.participants.find(
+      (p) => p.socketId === client.id,
+    );
     delete this.socketToRoom[client.id];
-    const roomId = this.meetings[callId].room._id
+    const roomId = this.meetings[callId].room._id;
     client.leave(callId);
     this.server.emit(socketConfig.events.call.leave, client.id);
-    if(meeting.room.type === 'HELP_DESK' && memberLeave?.user.status == UserStatus.ANONYMOUS) {
-      this.endMeeting(callId)
+    if (
+      meeting.room.type === 'HELP_DESK' &&
+      memberLeave?.user.status == UserStatus.ANONYMOUS
+    ) {
+      this.endMeeting(callId);
       return;
     }
     meeting.participants = meeting.participants.filter(
@@ -695,26 +724,24 @@ export class EventsGateway
     this.meetings[callId] = meeting;
     // Check if room is empty then delete room
     if (meeting?.participants?.length === 0) {
-      this.endMeeting(callId)
+      this.endMeeting(callId);
       return;
     }
     this.pushMeetingList({
       type: 'room',
-      id: roomId
-    })
+      id: roomId,
+    });
   }
 
   private async endMeeting(callId: string) {
-    const roomId = this.meetings[callId]?.room?._id
+    const roomId = this.meetings[callId]?.room?._id;
     delete this.meetings[callId];
     this.callService.endCall(callId);
     this.pushMeetingList({
-
       type: 'room',
-      id: roomId
-    })
+      id: roomId,
+    });
   }
-
 
   @OnEvent(socketConfig.events.call.update) // Update call event
   handleUpdateCall(@MessageBody() call: any) {
@@ -727,56 +754,72 @@ export class EventsGateway
     this.leaveCall(client);
   }
 
-  private async pushMeetingList({ type, id }: {
-    type: 'user' | 'room',
-    id: string
-  }){
-    const response: Record<string, {
-      participantsIdJoined: string[],
-      whiteList: string[] | undefined
-    }> = {};
+  private async pushMeetingList({
+    type,
+    id,
+  }: {
+    type: 'user' | 'room';
+    id: string;
+  }) {
+    const response: Record<
+      string,
+      {
+        participantsIdJoined: string[];
+        whiteList: string[] | undefined;
+      }
+    > = {};
     switch (type) {
       case 'user':
         for (const key in this.meetings) {
           const meeting = this.meetings[key];
           const isHaveMe = meeting.room.participantIds.includes(id);
-          if(isHaveMe) {
+          if (isHaveMe) {
             response[meeting.room._id] = {
               participantsIdJoined: meeting.participants.map((p) => p.user._id),
               whiteList: meeting.whiteList,
-            }
+            };
           }
         }
         const userSocketIds = this.clients[id]?.socketIds || [];
-        this.server.to(userSocketIds).emit(socketConfig.events.meeting.list, response);
+        this.server
+          .to(userSocketIds)
+          .emit(socketConfig.events.meeting.list, response);
         break;
       case 'room':
-        let roomData = await this.roomService.findById(id);
-        if(!roomData) return;
+        const roomData = await this.roomService.findById(id);
+        if (!roomData) return;
         // Get user socket id of room
-        let roomParticipantIds: string[] = roomData.participants.map((p: any) => p._id.toString());
-        let roomParticipantOnlineSocketIds: string[] = [];
+        const roomParticipantIds: string[] = roomData.participants.map(
+          (p: any) => p._id.toString(),
+        );
+        const roomParticipantOnlineSocketIds: string[] = [];
         for (const participantId of roomParticipantIds) {
           const socketIds = this.clients[participantId]?.socketIds || [];
           roomParticipantOnlineSocketIds.push(...socketIds);
         }
-        const roomMeetings: Meeting[] = Object.values(this.meetings).filter((m) => m.room._id === id);
-        if(roomMeetings.length > 0) {
+        const roomMeetings: Meeting[] = Object.values(this.meetings).filter(
+          (m) => m.room._id === id,
+        );
+        if (roomMeetings.length > 0) {
           for (const meeting of roomMeetings) {
             response[meeting.room._id] = {
               participantsIdJoined: meeting.participants.map((p) => p.user._id),
               whiteList: meeting.whiteList,
-            }
+            };
           }
-          this.server.to(roomParticipantOnlineSocketIds).emit(socketConfig.events.meeting.update, response);
-        } else { // If do not have meeting of room => meeting ended
-          this.server.to(roomParticipantOnlineSocketIds).emit(socketConfig.events.meeting.end, id);
+          this.server
+            .to(roomParticipantOnlineSocketIds)
+            .emit(socketConfig.events.meeting.update, response);
+        } else {
+          // If do not have meeting of room => meeting ended
+          this.server
+            .to(roomParticipantOnlineSocketIds)
+            .emit(socketConfig.events.meeting.end, id);
         }
         break;
       default:
         break;
     }
-    
   }
   // End events for call
 
@@ -892,12 +935,11 @@ export class EventsGateway
       .map((id) => this.clients[id.toString()]?.socketIds || [])
       .flat();
     console.log('socketIds', socketIds);
-    if(socketIds.length > 0){
+    if (socketIds.length > 0) {
       this.server
         .to(socketIds)
         .emit(socketConfig.events.space.notification.new, data);
     }
-    
   }
 
   //Remove member
@@ -912,12 +954,11 @@ export class EventsGateway
     const socketIds = receiverIds
       .map((id) => this.clients[id.toString()]?.socketIds || [])
       .flat();
-    if(socketIds.length > 0) {
+    if (socketIds.length > 0) {
       this.server
-      .to(socketIds)
-      .emit(socketConfig.events.space.member.remove, data);
+        .to(socketIds)
+        .emit(socketConfig.events.space.member.remove, data);
     }
-    
   }
 
   @OnEvent(socketConfig.events.user.relationship.update)
@@ -943,10 +984,9 @@ export class EventsGateway
     const socketIds = receiverIds
       .map((id) => this.clients[id.toString()]?.socketIds || [])
       .flat();
-      if (socketIds.length > 0) {
-        this.server.to(socketIds).emit(socketConfig.events.space.update, data);
-      }
-    
+    if (socketIds.length > 0) {
+      this.server.to(socketIds).emit(socketConfig.events.space.update, data);
+    }
   }
 
   //App notification
@@ -968,7 +1008,6 @@ export class EventsGateway
         .to(socketIds)
         .emit(socketConfig.events.app.notification.new, data);
     }
-   
   }
   //Station
   @OnEvent(socketConfig.events.station.update)
@@ -982,9 +1021,9 @@ export class EventsGateway
     const socketIds = receiverIds
       .map((id) => this.clients[id.toString()]?.socketIds || [])
       .flat();
-      if (socketIds.length > 0) {
-        this.server.to(socketIds).emit(socketConfig.events.station.update, data);
-      }
+    if (socketIds.length > 0) {
+      this.server.to(socketIds).emit(socketConfig.events.station.update, data);
+    }
   }
 
   @OnEvent(socketConfig.events.station.member.remove)
@@ -998,10 +1037,11 @@ export class EventsGateway
     const socketIds = receiverIds
       .map((id) => this.clients[id.toString()]?.socketIds || [])
       .flat();
-      if (socketIds.length > 0) {
-        this.server.to(socketIds).emit(socketConfig.events.station.member.remove, data);
-      }
-    
+    if (socketIds.length > 0) {
+      this.server
+        .to(socketIds)
+        .emit(socketConfig.events.station.member.remove, data);
+    }
   }
 }
 

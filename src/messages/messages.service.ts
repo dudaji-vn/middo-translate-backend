@@ -1929,4 +1929,16 @@ export class MessagesService {
   async isAccessAnonymousRoom(roomId: string, userId: string) {
     return await this.roomsService.isAccessAnonymousRoom(roomId, userId);
   }
+
+  async countUnreadMessages(roomId: string, userId: string) {
+    const room = await this.roomsService.findByIdAndUserId(roomId, userId);
+    const count = await this.messageModel.countDocuments({
+      room: room._id,
+      readBy: { $ne: userId },
+      deleteFor: { $nin: [userId] },
+      isForwarded: { $ne: true },
+      parent: { $exists: false },
+    });
+    return count;
+  }
 }

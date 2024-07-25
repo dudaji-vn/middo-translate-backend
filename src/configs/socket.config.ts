@@ -8,6 +8,7 @@ export const socketConfig = {
     message: {
       new: 'message.new',
       update: 'message.update',
+      unread_update: 'message.unread_update',
       remove: 'message.remove',
       reply: {
         new: 'message.reply.new',
