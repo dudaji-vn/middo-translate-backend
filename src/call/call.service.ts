@@ -270,6 +270,26 @@ export class CallService {
       token
     };
   }
+  async loggedUserAndJoinAnonymousCall(userId: string, callId: string) {
+    const user = await this.userService.findById(userId);
+    if (!user) {
+      return { status: STATUS.USER_NOT_IN_ROOM };
+    }
+    const call = await this.callModel.findOne({
+      _id: callId,
+      endTime: null,
+    });
+    if (!call) {
+      return { status: STATUS.CALL_NOT_FOUND };
+    }
+    await this.roomService.addAnonymousParticipant(
+      call.roomId.toString(),
+      user._id.toString(),
+    );
+    return {
+      call,
+    };
+  }
   async getCallById(callId: string) {
     return await this.callModel.findOne({
       _id: callId,

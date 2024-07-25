@@ -5,7 +5,7 @@ import { UserJoinDto } from './dto/user-join.dto';
 
 @Controller('call')
 export class CallController {
-  constructor(private readonly callService: CallService) {}
+  constructor(private readonly callService: CallService) { }
 
   @Post('anonymous')
   async joinAnonymousVideoCall(@JwtUserId() userId: string) {
@@ -17,6 +17,15 @@ export class CallController {
   @Post('user-join')
   async createUserAndJoinAnonymousVideoCall(@Body() payload: UserJoinDto) {
     const result = await this.callService.createUserAndJoinCall(payload);
+    return { data: result };
+  }
+
+  @Post('logged-user-join')
+  async loggedUserJoinAnonymousVideoCall(
+    @JwtUserId() userId: string, 
+    @Body() { callId }: { callId: string; }
+  ) {
+    const result = await this.callService.loggedUserAndJoinAnonymousCall(userId, callId);
     return { data: result };
   }
 
