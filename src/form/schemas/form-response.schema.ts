@@ -17,8 +17,8 @@ export class Answer {
   })
   field: FormField;
 
-  @Prop({ type: String })
-  value: string;
+  @Prop({ type: mongoose.Schema.Types.Mixed })
+  value: any;
 }
 @Schema({
   timestamps: true,

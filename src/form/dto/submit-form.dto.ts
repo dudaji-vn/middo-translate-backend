@@ -1,31 +1,14 @@
 import { Type } from 'class-transformer';
-import {
-  ArrayMinSize,
-  IsArray,
-  IsMongoId,
-  IsOptional,
-  IsString,
-  ValidateNested,
-} from 'class-validator';
-import { FormFieldDto } from 'src/common/dto/form-field.dto';
-import { IsArrayUnique } from 'src/common/validators';
+import { IsDefined, IsObject, ValidateNested } from 'class-validator';
 
 export class AnswerDto {
-  @IsMongoId()
-  fieldId: string;
-
-  @IsString()
-  @IsOptional()
-  value: string;
+  [key: string]: string;
 }
 
 export class SubmitFormDto {
-  @IsArray()
-  @ArrayMinSize(1)
+  @IsDefined()
+  @IsObject()
   @ValidateNested({ each: true })
   @Type(() => AnswerDto)
-  @IsArrayUnique('fieldId', {
-    message: 'Each form field fieldId must be unique',
-  })
-  answers: AnswerDto[];
+  answer: AnswerDto;
 }
