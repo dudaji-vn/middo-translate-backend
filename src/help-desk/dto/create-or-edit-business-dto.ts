@@ -6,14 +6,13 @@ import {
   IsMongoId,
   IsOptional,
   IsString,
-  MinLength,
-  ValidateNested,
 } from 'class-validator';
 import { StatusBusiness } from '../schemas/help-desk-business.schema';
+import { NodeChatFlowDto } from './node-chat-dto';
 
 export class ChatFlowDto {
   edges: any;
-  nodes: any;
+  nodes: NodeChatFlowDto[];
 }
 export class CreateOrEditBusinessDto {
   @ApiProperty()
