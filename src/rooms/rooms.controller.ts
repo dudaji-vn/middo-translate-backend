@@ -439,6 +439,20 @@ export class RoomsController {
     return { message: 'Read all messages in room', data: null };
   }
 
+  @Get(':id/unread-messages/count')
+  async countUnreadMessages(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const count = await this.messagesService.countUnreadMessages(id, userId);
+    return {
+      data: {
+        count,
+      },
+      message: 'Count unread messages',
+    };
+  }
+
   @Post('stations/:stationId')
   async createStationRoom(
     @Body() createRoomDto: CreateRoomDto,
