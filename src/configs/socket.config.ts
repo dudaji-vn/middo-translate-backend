@@ -27,6 +27,7 @@ export const socketConfig = {
       delete: 'room.delete',
       new: 'room.new',
       delete_contact: 'room.delete_contact',
+      waiting_update: 'room.waiting_update',
     },
     inbox: {
       new: 'inbox.new',
