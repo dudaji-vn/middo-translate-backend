@@ -145,7 +145,10 @@ export class FormService {
       (lang) => lang.code === language,
     );
     if (!isFromSupported) {
-      return result;
+      return {
+        isSubmitted: !!isSubmitForm,
+        ...result,
+      };
     }
     if (result.thankyou && result.thankyou?.title) {
       const title = result.thankyou.title ?? '';
