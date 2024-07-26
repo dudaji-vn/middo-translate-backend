@@ -13,6 +13,9 @@ import {
   ApnsConfig,
 } from 'firebase-admin/lib/messaging/messaging-api';
 import { Room, RoomStatus } from 'src/rooms/schemas/room.schema';
+import { socketConfig } from 'src/configs/socket.config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
 
 @Injectable()
 export class NotificationService {
@@ -24,6 +27,7 @@ export class NotificationService {
     @InjectModel(Notification.name)
     private notificationModel: Model<Notification>,
     private watchingService: WatchingService,
+    private eventEmitter: EventEmitter2,
   ) {}
   async notifyToExtensionMobile({
     extensionTokens,
@@ -260,6 +264,10 @@ export class NotificationService {
         user: userId,
       });
     }
+    this.eventEmitter.emit(socketConfig.events.room.update, {
+      roomId,
+      participants: [userId],
+    } as UpdateRoomPayload);
   }
 
   async toggleStationNotification(stationId: string, userId: string) {
