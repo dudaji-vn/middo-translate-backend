@@ -15,6 +15,7 @@ import { SubmitFormDto } from './dto/submit-form.dto';
 import { PaginationQueryParamsDto } from 'src/common/dto/pagination-query.dto';
 import { SUPPORTED_LANGUAGES } from 'src/configs/language';
 import { Space } from 'src/help-desk/schemas/space.schema';
+import { DetailFormRequestDto } from './dto/detail-form-request.dto';
 
 @Injectable()
 export class FormService {
@@ -122,8 +123,17 @@ export class FormService {
 
     return true;
   }
-
-  async getDetailForm(formId: string, language: string) {
+  async isSubmitForm(formId: string, userId: string) {
+    return await this.formResponseModel.exists({
+      form: formId,
+      user: userId,
+    });
+  }
+  async getDetailForm(payload: DetailFormRequestDto) {
+    const { formId, userId, language } = payload;
+    const isSubmitForm = userId
+      ? await this.isSubmitForm(formId, userId)
+      : false;
     const result = await this.formModel
       .findById(formId)
       .populate('formFields')
@@ -186,7 +196,10 @@ export class FormService {
       }),
     );
 
-    return result;
+    return {
+      isSubmitted: !!isSubmitForm,
+      ...result,
+    };
   }
 
   async submitForm(formId: string, userId: string, payload: SubmitFormDto) {
