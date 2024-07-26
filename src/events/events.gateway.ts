@@ -157,6 +157,15 @@ export class EventsGateway
       .flat();
     this.server.to(socketIds).emit(socketConfig.events.inbox.new, room);
   }
+  @OnEvent(socketConfig.events.room.waiting_update)
+  async handleWaitingRoom(room: Room) {
+    const socketIds = room.participants
+      .map((p) => this.clients[p._id.toString()]?.socketIds || [])
+      .flat();
+    this.server
+      .to(socketIds)
+      .emit(socketConfig.events.room.waiting_update, room);
+  }
 
   @OnEvent(socketConfig.events.room.update)
   async handleUpdateRoom({ data, participants, roomId }: UpdateRoomPayload) {

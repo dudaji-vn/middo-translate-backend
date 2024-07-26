@@ -142,7 +142,6 @@ export class RoomsService {
     }
     newRoom.isGroup = isGroup;
     newRoom.admin = admin;
-    console.log(newRoom);
     const room = await this.roomModel.create(newRoom);
     const responseRoom = await room.populate([
       {
@@ -163,6 +162,7 @@ export class RoomsService {
       },
     ]);
     this.eventEmitter.emit(socketConfig.events.room.new, room);
+    this.eventEmitter.emit(socketConfig.events.room.waiting_update, room);
     return responseRoom;
   }
 
@@ -186,6 +186,7 @@ export class RoomsService {
       participants: room.participants,
       status: roomStatus || RoomStatus.ACTIVE,
     });
+    this.eventEmitter.emit(socketConfig.events.room.waiting_update, room);
   }
 
   async reject(roomId: string, userId: string) {
@@ -205,6 +206,7 @@ export class RoomsService {
       waitingUsers: room.waitingUsers,
       rejectedUsers: room.rejectedUsers,
     });
+    this.eventEmitter.emit(socketConfig.events.room.waiting_update, room);
   }
 
   async delete(id: string, userId: string) {
@@ -279,8 +281,9 @@ export class RoomsService {
       },
       {
         status: RoomStatus.WAITING,
-        waitingUsers: [...room.waitingUsers, otherUser, userId],
-        participants: [],
+        waitingUsers: [...room.waitingUsers, otherUser],
+        participants: [userId],
+        admin: userId,
       },
     );
     const newRoom = await this.findByIdAndUserId(roomId, userId);
@@ -1710,5 +1713,29 @@ export class RoomsService {
         'User has no permission to access this room',
       );
     }
+  }
+
+  async countWaitingRooms(userId: string) {
+    const query: FilterQuery<Room> = {
+      status: {
+        $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED],
+      },
+      deleteFor: { $nin: [userId] },
+      archiveFor: { $nin: [userId] },
+      isHelpDesk: { $ne: true },
+      isAnonymous: { $ne: true },
+    };
+    Object.assign(query, {
+      $or: [
+        { waitingUsers: { $in: [userId] } },
+        {
+          $and: [
+            { participants: { $in: [userId] } },
+            { status: RoomStatus.WAITING },
+          ],
+        },
+      ],
+    });
+    return await this.roomModel.countDocuments(query);
   }
 }

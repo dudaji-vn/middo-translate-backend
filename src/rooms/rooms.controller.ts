@@ -487,4 +487,14 @@ export class RoomsController {
     }
     return { data: room, message: 'Station room created' };
   }
+  @Get('waiting/count')
+  async countWaitingRooms(@JwtUserId() userId: string) {
+    const count = await this.roomsService.countWaitingRooms(userId);
+    return {
+      data: {
+        count,
+      },
+      message: 'Count waiting rooms',
+    };
+  }
 }
