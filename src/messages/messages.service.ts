@@ -47,12 +47,15 @@ import {
   translate,
 } from './utils/translate';
 import { Station } from 'src/stations/schemas/station.schema';
+import { FormService } from 'src/form/form.service';
+import { Form } from 'src/form/schemas/form.schema';
 
 @Injectable()
 export class MessagesService {
   constructor(
     private readonly usersService: UsersService,
     private readonly roomsService: RoomsService,
+    private readonly formService: FormService,
     private readonly notificationService: NotificationService,
     private readonly eventEmitter: EventEmitter2,
     @InjectModel(Message.name) private messageModel: Model<Message>,
@@ -284,6 +287,13 @@ export class MessagesService {
         );
       }
     }
+    if (createdMessage.type === MessageType.FLOW_FORM) {
+      if (!createMessageDto.formId) {
+        throw new BadRequestException('formId is required with type flow-form');
+      }
+      const form = await this.formService.findById(createMessageDto.formId);
+      createdMessage.form = form;
+    }
 
     createdMessage.room = room;
     createdMessage.readBy = [user._id];
@@ -340,6 +350,10 @@ export class MessagesService {
       {
         path: 'room',
         select: selectPopulateField<Room>(['_id']),
+      },
+      {
+        path: 'form',
+        select: selectPopulateField<Form>(['_id', 'name']),
       },
     ]);
 
@@ -1020,7 +1034,8 @@ export class MessagesService {
         ],
       })
       .populate('mentions', selectPopulateField<User>(['_id', 'name', 'email']))
-      .populate('script', selectPopulateField<Script>(['name', 'isDeleted']));
+      .populate('script', selectPopulateField<Script>(['name', 'isDeleted']))
+      .populate('form', selectPopulateField<Form>(['_id', 'name']));
 
     const endCursor =
       messages.length > 0 ? String(messages[messages.length - 1]._id) : '';

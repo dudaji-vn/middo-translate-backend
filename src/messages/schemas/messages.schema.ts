@@ -5,6 +5,7 @@ import { Room } from 'src/rooms/schemas/room.schema';
 import { User } from 'src/users/schemas/user.schema';
 import { NodeChatFlowDto } from 'src/help-desk/dto/node-chat-dto';
 import { Script } from 'src/help-desk/schemas/space.schema';
+import { Form } from 'src/form/schemas/form.schema';
 
 @Schema({ _id: false }) // _id: false because this is a subdocument
 export class Reaction extends Document {
@@ -36,6 +37,7 @@ export enum MessageType {
   NOTIFICATION = 'notification',
   ACTION = 'action',
   FLOW_ACTIONS = 'flow-actions',
+  FLOW_FORM = 'flow-form',
 }
 
 export enum MediaTypes {
@@ -181,6 +183,9 @@ export class Message {
 
   @Prop({ type: [String], default: [] })
   editHistory: string[];
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Form' })
+  form: Form;
 }
 
 export const MessageSchema = SchemaFactory.createForClass(Message);

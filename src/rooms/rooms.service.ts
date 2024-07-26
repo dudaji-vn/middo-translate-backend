@@ -5,6 +5,7 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
@@ -1698,5 +1699,16 @@ export class RoomsService {
         },
       ],
     });
+  }
+  async checkIsAccessAnonymousRoom(roomId: string, userId: string) {
+    const isAccessAnonymousRoom = await this.isAccessAnonymousRoom(
+      roomId,
+      userId,
+    );
+    if (!isAccessAnonymousRoom) {
+      throw new UnauthorizedException(
+        'User has no permission to access this room',
+      );
+    }
   }
 }
