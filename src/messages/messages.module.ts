@@ -10,6 +10,7 @@ import { UsersModule } from 'src/users/users.module';
 import { Call, CallSchema } from 'src/call/schemas/call.schema';
 import { CallModule } from 'src/call/call.module';
 import { PinMessage, PinMessageSchema } from './schemas/pin-messages.schema';
+import { FormModule } from 'src/form/form.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { PinMessage, PinMessageSchema } from './schemas/pin-messages.schema';
     ]),
     NotificationModule,
     UsersModule,
+    FormModule,
     forwardRef(() => RoomsModule),
     forwardRef(() => CallModule),
   ],

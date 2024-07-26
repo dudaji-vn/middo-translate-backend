@@ -7,7 +7,7 @@ import {
   SenderType,
 } from '../schemas/messages.schema';
 
-import { IsMongoId, ValidateNested } from 'class-validator';
+import { IsMongoId, IsOptional, ValidateNested } from 'class-validator';
 
 export class CreateMessageDto {
   content?: string;
@@ -29,4 +29,8 @@ export class CreateMessageDto {
   @ValidateNested({ each: true })
   @Type(() => NodeChatFlowDto)
   actions?: NodeChatFlowDto[];
+
+  @IsOptional()
+  @IsMongoId()
+  formId?: string;
 }

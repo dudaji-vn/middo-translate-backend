@@ -26,6 +26,16 @@ export class FormService {
     @InjectModel(FormResponse.name)
     private formResponseModel: Model<FormResponse>,
   ) {}
+  async findById(id: string) {
+    const form = await this.formModel.findOne({
+      _id: id,
+      isDeleted: { $ne: true },
+    });
+    if (!form) {
+      throw new BadRequestException(`form ${id} not found`);
+    }
+    return form;
+  }
   async createOrEditForm(
     spaceId: string,
     userId: string,

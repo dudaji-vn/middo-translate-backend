@@ -7,6 +7,7 @@ import {
   Patch,
   Post,
   Query,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
 import { ListQueryParamsCursorDto, QueryRoomsDto } from 'src/common/dto';
@@ -136,6 +137,7 @@ export class RoomsController {
     @ParamObjectId('id') id: string,
     @Query('userId') userId: string,
   ) {
+    await this.roomsService.checkIsAccessAnonymousRoom(id, userId);
     const room = await this.roomsService.findByIdAndUserId(id, userId, {
       checkExpiredAt: true,
     });
@@ -149,6 +151,7 @@ export class RoomsController {
     @Query() query: ListQueryParamsCursorDto,
     @Query('userId') userId: string,
   ): Promise<Response<Pagination<Message, CursorPaginationInfo>>> {
+    await this.roomsService.checkIsAccessAnonymousRoom(id, userId);
     const data = await this.messagesService.findByRoomIdWithCursorPaginate(
       id,
       userId,
