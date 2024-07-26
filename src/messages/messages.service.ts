@@ -47,6 +47,7 @@ import {
   translate,
 } from './utils/translate';
 import { Station } from 'src/stations/schemas/station.schema';
+import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
 
 @Injectable()
 export class MessagesService {
@@ -653,6 +654,10 @@ export class MessagesService {
         content,
         ...message.editHistory.map((item) => item),
       ];
+      this.eventEmitter.emit(socketConfig.events.room.update, {
+        roomId: room._id,
+        participants: room.participants.map((p) => p._id.toString()),
+      });
     }
     await message.updateOne(updateMessageDto);
 
@@ -665,6 +670,7 @@ export class MessagesService {
         editHistory: null,
       },
     });
+
     return message;
   }
 
@@ -735,7 +741,12 @@ export class MessagesService {
       case MessageType.ACTION:
         body += generateSystemMessageContent({
           action: message.action,
-          content: messageContent,
+          content:
+            messageContent +
+            message.targetUsers.reduce((acc, user) => {
+              acc += ` ${user.name}`;
+              return acc;
+            }, ''),
         });
         break;
       case MessageType.CALL:
@@ -776,8 +787,6 @@ export class MessagesService {
       }, {} as Record<string, string[]>);
 
       for (const language in groupByLanguage) {
-        console.log('language', language);
-        console.log(message.translations[language]);
         const messageContent = convert(
           message.translations[language] || message.content,
           {
