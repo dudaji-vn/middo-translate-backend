@@ -48,7 +48,7 @@ import { NotificationService } from 'src/notifications/notifications.service';
 import { calculateRate } from '../common/utils/calculate-rate';
 import { CreateClientDto } from './dto/create-client-dto';
 import { CreateOrEditBusinessDto as CreateOrEditExtensionDto } from './dto/create-or-edit-business-dto';
-import { CreateOrEditFormDto } from '../form/dto/create-or-edit-form.dto';
+import { CreateOrEditFormDto } from 'src/form/dto/create-or-edit-form.dto';
 import { CreateOrEditScriptDto } from './dto/create-or-edit-script-dto';
 import {
   CreateOrEditSpaceDto,
@@ -64,8 +64,9 @@ import { SpaceNotification } from './schemas/space-notifications.schema';
 import { Member, Script, Space, StatusSpace } from './schemas/space.schema';
 import { Visitor } from './schemas/visitor.schema';
 import { FormService } from 'src/form/form.service';
-import { SubmitFormDto } from '../form/dto/submit-form.dto';
-import { PaginationQueryParamsDto } from '../common/dto/pagination-query.dto';
+import { SubmitFormDto } from 'src/form/dto/submit-form.dto';
+import { PaginationQueryParamsDto } from 'src/common/dto/pagination-query.dto';
+import { DetailFormRequestDto } from 'src/form/dto/detail-form-request.dto';
 
 @Injectable()
 export class HelpDeskService {
@@ -2337,8 +2338,8 @@ export class HelpDeskService {
 
     return true;
   }
-  async getDetailForm(formId: string, language: string) {
-    return await this.formService.getDetailForm(formId, language);
+  async getDetailForm(payload: DetailFormRequestDto) {
+    return await this.formService.getDetailForm(payload);
   }
 
   private async getListUsingFormIds(spaceId: string) {

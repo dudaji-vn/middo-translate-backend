@@ -428,8 +428,13 @@ export class HelpDeskController {
   async getDetailForm(
     @ParamObjectId('formId') formId: string,
     @Query('language') language: string,
+    @Query('userId') userId: string,
   ) {
-    const result = await this.helpDeskService.getDetailForm(formId, language);
+    const result = await this.helpDeskService.getDetailForm({
+      formId,
+      userId,
+      language,
+    });
     return { data: result };
   }
 

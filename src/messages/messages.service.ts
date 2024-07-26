@@ -21,12 +21,15 @@ import {
   NewMessagePayload,
   ReplyMessagePayload,
 } from 'src/events/types/message-payload.type';
+import { FormService } from 'src/form/form.service';
+import { Form } from 'src/form/schemas/form.schema';
+import { DefaultTag, Script, Space } from 'src/help-desk/schemas/space.schema';
 import { NotificationService } from 'src/notifications/notifications.service';
 import { RoomsService } from 'src/rooms/rooms.service';
 import { Room, RoomStatus } from 'src/rooms/schemas/room.schema';
+import { Station } from 'src/stations/schemas/station.schema';
 import { User, UserRelationType } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import { DefaultTag, Script, Space } from 'src/help-desk/schemas/space.schema';
 import { CreateMessageDto } from './dto';
 import { ForwardMessageDto } from './dto/forward-message.dto';
 import {
@@ -46,14 +49,13 @@ import {
   multipleTranslate,
   translate,
 } from './utils/translate';
-import { Station } from 'src/stations/schemas/station.schema';
-import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
 
 @Injectable()
 export class MessagesService {
   constructor(
     private readonly usersService: UsersService,
     private readonly roomsService: RoomsService,
+    private readonly formService: FormService,
     private readonly notificationService: NotificationService,
     private readonly eventEmitter: EventEmitter2,
     @InjectModel(Message.name) private messageModel: Model<Message>,
@@ -285,6 +287,13 @@ export class MessagesService {
         );
       }
     }
+    if (createdMessage.type === MessageType.FLOW_FORM) {
+      if (!createMessageDto.formId) {
+        throw new BadRequestException('formId is required with type flow-form');
+      }
+      const form = await this.formService.findById(createMessageDto.formId);
+      createdMessage.form = form;
+    }
 
     createdMessage.room = room;
     createdMessage.readBy = [user._id];
@@ -341,6 +350,10 @@ export class MessagesService {
       {
         path: 'room',
         select: selectPopulateField<Room>(['_id']),
+      },
+      {
+        path: 'form',
+        select: selectPopulateField<Form>(['_id', 'name']),
       },
     ]);
 
@@ -1029,7 +1042,8 @@ export class MessagesService {
         ],
       })
       .populate('mentions', selectPopulateField<User>(['_id', 'name', 'email']))
-      .populate('script', selectPopulateField<Script>(['name', 'isDeleted']));
+      .populate('script', selectPopulateField<Script>(['name', 'isDeleted']))
+      .populate('form', selectPopulateField<Form>(['_id', 'name']));
 
     const endCursor =
       messages.length > 0 ? String(messages[messages.length - 1]._id) : '';
