@@ -23,8 +23,10 @@ export function convertMessageRemoved(
     message.status = MessageStatus.REMOVED;
     message.contentEnglish = 'This message was removed';
   }
-  if (message.form && formIds && formIds?.length) {
-    message.form.isSubmitted = formIds.includes(message.form?._id?.toString());
+  if (message.form && formIds) {
+    message.form.isSubmitted = !!formIds?.includes(
+      message.form?._id?.toString(),
+    );
   }
   return message;
 }
