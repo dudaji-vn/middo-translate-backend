@@ -18,7 +18,7 @@ export class ThankyouDto {
 
   @IsOptional()
   @IsString()
-  subTitle: string;
+  subtitle: string;
 
   @IsOptional()
   @IsString()

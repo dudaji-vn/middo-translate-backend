@@ -152,13 +152,13 @@ export class FormService {
     }
     if (result.thankyou && result.thankyou?.title) {
       const title = result.thankyou.title ?? '';
-      const subTitle = result.thankyou.subTitle ?? '';
+      const subtitle = result.thankyou.subtitle ?? '';
       const sourceLang = await detectLanguage(result.thankyou.title);
       const [titleTranslate, subTitleTranslate] = await Promise.all(
-        [title, subTitle].map((item) => translate(item, sourceLang, language)),
+        [title, subtitle].map((item) => translate(item, sourceLang, language)),
       );
       result.thankyou.title = titleTranslate || title;
-      result.thankyou.subTitle = subTitleTranslate || subTitle;
+      result.thankyou.subtitle = subTitleTranslate || subtitle;
     }
 
     result.formFields = await Promise.all(
@@ -510,6 +510,11 @@ export class FormService {
     form.isDeleted = true;
     await form.save();
     return true;
+  }
+
+  async deleteForms(formIds: string[]) {
+    await this.formModel.updateMany({ _id: formIds }, { isDeleted: true });
+    return null;
   }
   async getFormsNames(spaceId: string) {
     return await this.formModel
