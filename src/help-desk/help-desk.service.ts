@@ -2407,6 +2407,26 @@ export class HelpDeskService {
     return await this.formService.deleteForm(formId, userId);
   }
 
+  async deleteForms(spaceId: string, formIds: string[], userId: string) {
+    const space = await this.spaceModel.findById(spaceId);
+    if (!space) {
+      throw new BadRequestException('Space not found');
+    }
+    if (!this.isOwnerSpace(space, userId)) {
+      throw new ForbiddenException(
+        'You do not have permission to remove forms',
+      );
+    }
+    const formUsingIds = await this.getListUsingFormIds(spaceId);
+    for (const id of formIds) {
+      if (formUsingIds.includes(id)) {
+        throw new BadRequestException(`Cannot delete form is using`);
+      }
+    }
+
+    return await this.formService.deleteForms(formIds);
+  }
+
   async getFormsNames(spaceId: string, userId: string) {
     const space = await this.spaceModel.findOne({
       _id: spaceId,

@@ -33,6 +33,7 @@ import { VisitorDto } from './dto/visitor-dto';
 import { CreateOrEditFormDto } from 'src/form/dto/create-or-edit-form.dto';
 import { SubmitFormDto } from 'src/form/dto/submit-form.dto';
 import { PaginationQueryParamsDto } from 'src/common/dto/pagination-query.dto';
+import { DeleteFormsDto } from '../form/dto/delete-forms.dto';
 
 @ApiTags('help-desk')
 @Controller('help-desk')
@@ -472,6 +473,17 @@ export class HelpDeskController {
     @JwtUserId() userId: string,
   ) {
     const result = await this.helpDeskService.deleteForm(id, formId, userId);
+
+    return { data: result };
+  }
+
+  @Delete('spaces/:id/forms')
+  async deleteForms(
+    @ParamObjectId('id') id: string,
+    @Body() { formIds }: DeleteFormsDto,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.helpDeskService.deleteForms(id, formIds, userId);
 
     return { data: result };
   }

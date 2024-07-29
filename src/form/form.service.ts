@@ -94,8 +94,8 @@ export class FormService {
         form: formId,
       });
 
-      const formFieldUpdates = formFields.map((newField) => {
-        const newFieldWithForm = { ...newField, form: formId };
+      const formFieldUpdates = formFields.map((newField, index) => {
+        const newFieldWithForm = { ...newField, form: formId, order: index };
         if (newField._id) {
           return this.formFieldModel.findByIdAndUpdate(
             newField._id,
