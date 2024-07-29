@@ -487,7 +487,7 @@ export class UsersService {
 
   async checkRelationship(userId: string, targetId: string) {
     if (userId === targetId) {
-      return UserRelationType.NONE;
+      return UserRelationType.ME;
     }
     const user = await this.findById(userId);
     const target = await this.findById(targetId);

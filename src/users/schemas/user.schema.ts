@@ -9,6 +9,7 @@ export type UserDocument = HydratedDocument<User>;
 export enum UserRelationType {
   BLOCKED = 'blocked',
   BLOCKING = 'blocking',
+  ME = 'me',
   NONE = 'none',
 }
 
