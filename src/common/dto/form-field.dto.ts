@@ -31,7 +31,7 @@ export class FormFieldDto {
 
   @IsOptional()
   @IsString()
-  helperText: string;
+  placeholder: string;
 
   @IsEnum(FormType)
   type: FormType;

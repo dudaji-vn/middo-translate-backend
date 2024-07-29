@@ -8,7 +8,7 @@ export class ThankyouSchema {
   image: string;
 
   @Prop({ type: String })
-  subTitle: string;
+  subtitle: string;
 
   @Prop({ type: String })
   title: string;

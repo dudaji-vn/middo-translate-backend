@@ -2398,7 +2398,9 @@ export class HelpDeskService {
     if (!user) {
       throw new BadRequestException('User not found');
     }
-    return this.formService.submitForm(formId, userId, payload);
+    await this.formService.submitForm(formId, userId, payload);
+    await this.messagesService.update(payload.messageId, {});
+    return true;
   }
 
   async deleteForm(spaceId: string, formId: string, userId: string) {

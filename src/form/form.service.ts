@@ -4,7 +4,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, PipelineStage, Types } from 'mongoose';
+import { Model, ObjectId, PipelineStage, Types } from 'mongoose';
 import { CreateOrEditFormDto } from 'src/form/dto/create-or-edit-form.dto';
 import { FormResponse } from 'src/form/schemas/form-response.schema';
 import { Form } from 'src/form/schemas/form.schema';
@@ -152,13 +152,13 @@ export class FormService {
     }
     if (result.thankyou && result.thankyou?.title) {
       const title = result.thankyou.title ?? '';
-      const subTitle = result.thankyou.subTitle ?? '';
+      const subtitle = result.thankyou.subtitle ?? '';
       const sourceLang = await detectLanguage(result.thankyou.title);
       const [titleTranslate, subTitleTranslate] = await Promise.all(
-        [title, subTitle].map((item) => translate(item, sourceLang, language)),
+        [title, subtitle].map((item) => translate(item, sourceLang, language)),
       );
       result.thankyou.title = titleTranslate || title;
-      result.thankyou.subTitle = subTitleTranslate || subTitle;
+      result.thankyou.subtitle = subTitleTranslate || subtitle;
     }
 
     result.formFields = await Promise.all(
@@ -206,6 +206,10 @@ export class FormService {
   }
 
   async submitForm(formId: string, userId: string, payload: SubmitFormDto) {
+    const isSubmitForm = await this.isSubmitForm(formId, userId);
+    if (isSubmitForm) {
+      throw new BadRequestException('User has submitted form');
+    }
     const form = await this.formModel
       .findById(formId)
       .populate('formFields')
@@ -507,6 +511,11 @@ export class FormService {
     await form.save();
     return true;
   }
+
+  async deleteForms(formIds: string[]) {
+    await this.formModel.updateMany({ _id: formIds }, { isDeleted: true });
+    return null;
+  }
   async getFormsNames(spaceId: string) {
     return await this.formModel
       .find({
@@ -514,5 +523,18 @@ export class FormService {
         isDeleted: { $ne: true },
       })
       .select('name');
+  }
+
+  async getListFormSubmittedByUserAndSpace(
+    userId: string | ObjectId,
+    spaceId: string | ObjectId,
+  ) {
+    const response = await this.formResponseModel
+      .find({
+        space: spaceId,
+        user: userId,
+      })
+      .distinct('form');
+    return response.map((item) => item.toString());
   }
 }

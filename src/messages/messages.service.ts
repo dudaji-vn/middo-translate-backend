@@ -1043,16 +1043,25 @@ export class MessagesService {
       })
       .populate('mentions', selectPopulateField<User>(['_id', 'name', 'email']))
       .populate('script', selectPopulateField<Script>(['name', 'isDeleted']))
-      .populate('form', selectPopulateField<Form>(['_id', 'name']));
+      .populate('form', selectPopulateField<Form>(['_id', 'name']))
+      .lean();
 
     const endCursor =
       messages.length > 0 ? String(messages[messages.length - 1]._id) : '';
 
     const hasNextPage = messages.length === limit;
+    let formUsingIds = [];
+    if (room.space) {
+      formUsingIds = await this.formService.getListFormSubmittedByUserAndSpace(
+        userId,
+        (room.space as Space)._id,
+      );
+    }
 
     return {
       items: messages.map(
-        (message) => convertMessageRemoved(message, userId) as Message,
+        (message) =>
+          convertMessageRemoved(message, userId, formUsingIds) as Message,
       ),
       pageInfo: {
         endCursor,

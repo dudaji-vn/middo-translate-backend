@@ -49,6 +49,8 @@ export class Form extends Document {
     type: Boolean,
   })
   isDeleted: boolean;
+
+  isSubmitted?: boolean;
 }
 
 export const FormSchema = SchemaFactory.createForClass(Form);

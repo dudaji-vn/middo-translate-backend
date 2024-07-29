@@ -50,7 +50,7 @@ export class FormField extends Document {
   label: string;
 
   @Prop({ type: String })
-  helperText: string;
+  placeholder: string;
 
   @Prop({ type: String })
   type: FormType;
