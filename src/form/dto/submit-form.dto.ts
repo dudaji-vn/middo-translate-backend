@@ -3,6 +3,7 @@ import {
   IsDefined,
   IsMongoId,
   IsObject,
+  IsOptional,
   ValidateNested,
 } from 'class-validator';
 
@@ -17,6 +18,7 @@ export class SubmitFormDto {
   @Type(() => AnswerDto)
   answer: AnswerDto;
 
+  @IsOptional()
   @IsMongoId()
   messageId: string;
 }

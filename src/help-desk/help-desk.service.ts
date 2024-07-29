@@ -2399,7 +2399,10 @@ export class HelpDeskService {
       throw new BadRequestException('User not found');
     }
     await this.formService.submitForm(formId, userId, payload);
-    await this.messagesService.update(payload.messageId, {});
+    if (payload.messageId) {
+      await this.messagesService.update(payload.messageId, {});
+    }
+
     return true;
   }
 
