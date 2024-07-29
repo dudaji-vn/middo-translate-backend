@@ -4,7 +4,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, PipelineStage, Types } from 'mongoose';
+import { Model, ObjectId, PipelineStage, Types } from 'mongoose';
 import { CreateOrEditFormDto } from 'src/form/dto/create-or-edit-form.dto';
 import { FormResponse } from 'src/form/schemas/form-response.schema';
 import { Form } from 'src/form/schemas/form.schema';
@@ -206,6 +206,10 @@ export class FormService {
   }
 
   async submitForm(formId: string, userId: string, payload: SubmitFormDto) {
+    const isSubmitForm = await this.isSubmitForm(formId, userId);
+    if (isSubmitForm) {
+      throw new BadRequestException('User has submitted form');
+    }
     const form = await this.formModel
       .findById(formId)
       .populate('formFields')
@@ -514,5 +518,18 @@ export class FormService {
         isDeleted: { $ne: true },
       })
       .select('name');
+  }
+
+  async getListFormSubmittedByUserAndSpace(
+    userId: string | ObjectId,
+    spaceId: string | ObjectId,
+  ) {
+    const response = await this.formResponseModel
+      .find({
+        space: spaceId,
+        user: userId,
+      })
+      .distinct('form');
+    return response.map((item) => item.toString());
   }
 }
