@@ -7,6 +7,7 @@ import {
 export function convertMessageRemoved(
   message: Message | undefined,
   userId: string,
+  formIds?: string[],
 ): Message | undefined {
   if (!message) {
     return undefined;
@@ -21,6 +22,9 @@ export function convertMessageRemoved(
     message.type = MessageType.TEXT;
     message.status = MessageStatus.REMOVED;
     message.contentEnglish = 'This message was removed';
+  }
+  if (message.form && formIds && formIds?.length) {
+    message.form.isSubmitted = formIds.includes(message.form?._id?.toString());
   }
   return message;
 }
