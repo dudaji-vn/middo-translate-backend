@@ -1042,7 +1042,7 @@ export class MessagesService {
       messages.length > 0 ? String(messages[messages.length - 1]._id) : '';
 
     const hasNextPage = messages.length === limit;
-    let formUsingIds = [];
+    let formUsingIds: string[] = [];
     if (room.space) {
       formUsingIds = await this.formService.getListFormSubmittedByUserAndSpace(
         userId,
