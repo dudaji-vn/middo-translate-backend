@@ -1952,6 +1952,22 @@ export class MessagesService {
     );
   }
 
+  async markAsReadAllChildMessages(parentId: string, userId: string) {
+    return this.messageModel.updateMany(
+      { parent: parentId },
+      { $addToSet: { readBy: userId } },
+    );
+  }
+
+  async countUnreadChildMessages(parentId: string, userId: string) {
+    return this.messageModel.countDocuments({
+      parent: parentId,
+      readBy: { $ne: userId },
+      deleteFor: { $nin: [userId] },
+      isForwarded: { $ne: true },
+    });
+  }
+
   async forgeDeleteMessageByRoomId(roomId: string) {
     return await this.messageModel.deleteMany({
       room: roomId,

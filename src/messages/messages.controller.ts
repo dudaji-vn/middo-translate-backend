@@ -263,4 +263,32 @@ export class MessagesController {
       data: data,
     };
   }
+
+  @Patch(':id/reply/mark-all-as-read')
+  async markAsReadAllChild(
+    @ParamObjectId() id: string,
+    @JwtUserId() userId: string,
+  ) {
+    await this.messagesService.markAsReadAllChildMessages(id, userId);
+    return {
+      data: null,
+      message: 'Child messages marked as read',
+    };
+  }
+  @Get(':id/reply/unread-count')
+  async getUnreadCount(
+    @ParamObjectId() id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const count = await this.messagesService.countUnreadChildMessages(
+      id,
+      userId,
+    );
+    return {
+      data: {
+        count,
+      },
+      message: 'Unread count found',
+    };
+  }
 }
