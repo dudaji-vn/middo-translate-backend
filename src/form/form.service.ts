@@ -65,11 +65,15 @@ export class FormService {
         description,
       });
 
-      const insertData = formFields.map((item, index) => ({
-        form: form._id,
-        order: index,
-        ...item,
-      }));
+      const insertData = formFields.map((item, index) => {
+        const { _id, ...restData } = item;
+        console.log({ _id });
+        return {
+          form: form._id,
+          order: index,
+          ...restData,
+        };
+      });
 
       const data = await this.formFieldModel.insertMany(insertData);
 
@@ -85,12 +89,21 @@ export class FormService {
         throw new BadRequestException('Form not found');
       }
 
-      const formIds = formFields
+      const formFieldIds = formFields
         .map((item) => item?._id?.toString())
         .filter(Boolean);
 
+      const fieldsByForm = await this.formFieldModel
+        .find({
+          form: formId,
+          _id: { $in: formFieldIds },
+        })
+        .lean();
+      if (fieldsByForm.length !== formFieldIds.length) {
+        throw new BadRequestException('Exist invalid field id.');
+      }
       await this.formFieldModel.deleteMany({
-        _id: { $nin: formIds },
+        _id: { $nin: formFieldIds },
         form: formId,
       });
 
