@@ -502,7 +502,6 @@ export class EventsGateway
       isShareScreen: boolean;
     },
   ) {
-    console.log('returnSignal', payload);
     this.server
       .to(payload.callerId)
       .emit(socketConfig.events.call.receive_return_signal, {
@@ -521,11 +520,11 @@ export class EventsGateway
     payload: {
       userId: string;
       status: boolean;
-      roomId: string;
+      callId: string;
       directUserId?: string;
     },
   ) {
-    let receiver: string | string[] = payload.roomId;
+    let receiver: string | string[] = payload.callId;
     if (payload.directUserId) {
       receiver = this.clients[payload.directUserId]?.socketIds || [];
     }
@@ -534,7 +533,7 @@ export class EventsGateway
       .emit(socketConfig.events.call.call_status.mic_change, {
         userId: payload.userId,
         status: payload.status,
-        roomId: payload.roomId,
+        callId: payload.callId,
       });
   }
 
