@@ -313,6 +313,7 @@ export class FormService {
                 name: 1,
                 phoneNumber: 1,
                 tempEmail: 1,
+                language: 1,
               },
             },
           ],
@@ -471,7 +472,7 @@ export class FormService {
       .sort({ _id: -1 })
       .skip((currentPage - 1) * limit)
       .limit(limit)
-      .populate('user', '-_id name tempEmail phoneNumber')
+      .populate('user', '-_id name tempEmail phoneNumber language')
       .populate({ path: 'answers.field', select: 'name' })
       .lean();
 
