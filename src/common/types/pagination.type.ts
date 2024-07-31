@@ -15,4 +15,6 @@ export type PageInfo = {
 export type CursorPaginationInfo = {
   endCursor: string;
   hasNextPage: boolean;
+  hasPrevPage?: boolean;
+  startCursor?: string;
 };

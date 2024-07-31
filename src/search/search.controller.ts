@@ -20,7 +20,8 @@ import { Keyword } from './schemas/search.schema';
 import { Message } from 'src/messages/schemas/messages.schema';
 import { Room } from 'src/rooms/schemas/room.schema';
 import { SearchQueryParamsCursorDto } from './dtos/search-query-params-cusor.dto';
-
+import { ApiTags } from '@nestjs/swagger';
+@ApiTags('Search')
 @Controller('search')
 export class SearchController {
   constructor(private readonly searchService: SearchService) {}
@@ -84,6 +85,18 @@ export class SearchController {
   ): Promise<Response<User[]>> {
     query.limit = query.limit || 20;
     const users = await this.searchService.searchUsers(query);
+    return {
+      data: users,
+      message: 'Users found',
+    };
+  }
+
+  @Get('users/username')
+  async searchByUserName(
+    @Query() query: SearchQueryParamsDto,
+  ): Promise<Response<User[]>> {
+    query.limit = query.limit || 20;
+    const users = await this.searchService.searchByUsername(query);
     return {
       data: users,
       message: 'Users found',

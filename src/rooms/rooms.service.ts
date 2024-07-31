@@ -5,6 +5,7 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
@@ -49,6 +50,8 @@ import * as moment from 'moment';
 import { envConfig } from 'src/configs/env.config';
 import { pivotChartByType } from 'src/common/utils/date-report';
 import { StationsService } from 'src/stations/stations.service';
+import { QueryRoomsDto } from 'src/common/dto';
+import { Station } from 'src/stations/schemas/station.schema';
 
 const userSelectFieldsString = selectPopulateField<User>([
   '_id',
@@ -139,7 +142,6 @@ export class RoomsService {
     }
     newRoom.isGroup = isGroup;
     newRoom.admin = admin;
-    console.log(newRoom);
     const room = await this.roomModel.create(newRoom);
     const responseRoom = await room.populate([
       {
@@ -160,6 +162,7 @@ export class RoomsService {
       },
     ]);
     this.eventEmitter.emit(socketConfig.events.room.new, room);
+    this.eventEmitter.emit(socketConfig.events.room.waiting_update, room);
     return responseRoom;
   }
 
@@ -183,6 +186,7 @@ export class RoomsService {
       participants: room.participants,
       status: roomStatus || RoomStatus.ACTIVE,
     });
+    this.eventEmitter.emit(socketConfig.events.room.waiting_update, room);
   }
 
   async reject(roomId: string, userId: string) {
@@ -202,6 +206,7 @@ export class RoomsService {
       waitingUsers: room.waitingUsers,
       rejectedUsers: room.rejectedUsers,
     });
+    this.eventEmitter.emit(socketConfig.events.room.waiting_update, room);
   }
 
   async delete(id: string, userId: string) {
@@ -276,8 +281,9 @@ export class RoomsService {
       },
       {
         status: RoomStatus.WAITING,
-        waitingUsers: [...room.waitingUsers, otherUser, userId],
-        participants: [],
+        waitingUsers: [...room.waitingUsers, otherUser],
+        participants: [userId],
+        admin: userId,
       },
     );
     const newRoom = await this.findByIdAndUserId(roomId, userId);
@@ -336,6 +342,7 @@ export class RoomsService {
   ) {
     const room = await this.roomModel
       .findOne({
+        station: { $exists: false },
         ...(stationId && { station: stationId }),
         participants: {
           $all: participantIds,
@@ -355,7 +362,16 @@ export class RoomsService {
     return room;
   }
 
-  async findByIdAndUserId(id: string, userId: string, checkExpiredAt = false) {
+  async findByIdAndUserId(
+    id: string,
+    userId: string,
+    params?: {
+      checkExpiredAt?: boolean;
+      stationId?: string;
+    },
+  ) {
+    const stationId = params?.stationId;
+    const checkExpiredAt = params?.checkExpiredAt;
     const user = await this.usersService.findById(userId);
     let room = await this.roomModel.findOne({
       _id: id,
@@ -374,13 +390,21 @@ export class RoomsService {
           $all: participantIds,
           $size: participantIds.length,
         },
+        station: { $exists: false },
         status: RoomStatus.ACTIVE,
+        ...(stationId && {
+          station: stationId,
+        }),
       });
     }
     // CASE: Delete contact P2P
     if (!room) {
       const participantIds = [...new Set([userId, id])];
       room = await this.roomModel.findOne({
+        station: { $exists: false },
+        ...(stationId && {
+          station: stationId,
+        }),
         $or: [
           {
             waitingUsers: {
@@ -405,6 +429,9 @@ export class RoomsService {
         );
         room.participants = participants;
         room.status = RoomStatus.TEMPORARY;
+        if (stationId) {
+          room.station = stationId as any;
+        }
         room.admin = user;
       } catch (error) {
         throw new NotFoundException('Room not found');
@@ -535,6 +562,7 @@ export class RoomsService {
       deleteFor: { $nin: [userId] },
       archiveFor: { $nin: [userId] },
       isHelpDesk: { $ne: true },
+      isAnonymous: { $ne: true },
       station: { $exists: false },
       ...(status && { status }),
       ...(countries?.length && {
@@ -733,9 +761,14 @@ export class RoomsService {
           'targetUsers',
           'sender',
         ]),
-      ).populate(
+      )
+      .populate(
         selectPopulateField<Room>(['space']),
-        selectPopulateField<Space>(['name']),
+        selectPopulateField<Space>(['name', 'avatar']),
+      )
+      .populate(
+        selectPopulateField<Room>(['station']),
+        selectPopulateField<Station>(['name', 'avatar']),
       );
     return room;
   }
@@ -846,9 +879,10 @@ export class RoomsService {
       ...data,
       isSetName: data.name ? true : false,
     });
+    const isHaveNameKey = Object.keys(data).includes('name');
     return {
       room: newRoom,
-      isRemoveName: room.name && !data.name,
+      isRemoveName: room.name && isHaveNameKey && !data.name,
     };
   }
 
@@ -945,10 +979,14 @@ export class RoomsService {
         ...(notGroup ? { isGroup: false } : {}),
         waitingUsers: { $nin: [userId] },
         status: RoomStatus.ACTIVE,
-        isHelpDesk: { $ne: true },
-        ...(query?.type === 'help-desk'
-          ? { isHelpDesk: true, space: { $exists: true, $eq: query.spaceId } }
-          : {}),
+        space: { $exists: false },
+        station: { $exists: false },
+        ...(query?.spaceId && {
+          space: { $exists: true, $eq: query.spaceId },
+        }),
+        ...(query?.stationId && {
+          station: { $exists: true, $eq: query.stationId },
+        }),
       })
       .sort({ newMessageAt: -1 })
       .limit(10)
@@ -990,6 +1028,7 @@ export class RoomsService {
     if (!room) {
       const participantIds = [...new Set([userId, id])];
       room = await this.roomModel.findOne({
+        station: { $exists: false },
         participants: {
           $all: participantIds,
           $size: participantIds.length,
@@ -1069,21 +1108,27 @@ export class RoomsService {
       });
     }
   }
-  async getPinnedRooms(userId: string, spaceId: string) {
+  async getPinnedRooms(userId: string, query: QueryRoomsDto) {
+    const { spaceId, stationId } = query;
     const user = await this.usersService.findById(userId);
     const rooms = await this.roomModel
       .find({
         _id: {
           $in: user.pinRoomIds,
         },
-        isHelpDesk: { $ne: true },
+        space: { $exists: false },
+        station: { $exists: false },
         status: RoomStatus.ACTIVE,
         participants: userId,
         deleteFor: { $nin: [userId] },
         archiveFor: { $nin: [userId] },
-        ...(spaceId
-          ? { isHelpDesk: true, space: { $exists: true, $eq: spaceId } }
-          : {}),
+        ...(spaceId && {
+          isHelpDesk: true,
+          space: { $exists: true, $eq: spaceId },
+        }),
+        ...(stationId && {
+          station: { $exists: true, $eq: stationId },
+        }),
       })
       .populate({
         path: 'lastMessage',
@@ -1182,7 +1227,20 @@ export class RoomsService {
 
     return room;
   }
-  async updateReadByLastMessageInRoom(roomId: ObjectId, userId: string) {
+
+  async createAnonymousRoom(creatorId: string, name: string) {
+    const user = await this.usersService.findById(creatorId);
+    return await this.roomModel.create({
+      admin: creatorId,
+      participants: [user],
+      isAnonymous: true,
+      name: name,
+    });
+  }
+  async updateReadByLastMessageInRoom(
+    roomId: ObjectId | string,
+    userId: string,
+  ) {
     return await this.roomModel.findByIdAndUpdate(
       roomId,
       {
@@ -1586,5 +1644,98 @@ export class RoomsService {
       readBy: { $ne: new mongoose.Types.ObjectId(userId) },
       deleteFor: { $ne: new mongoose.Types.ObjectId(userId) },
     });
+  }
+
+  async getCurrentScriptBySpace(spaceId: ObjectId) {
+    const business = await this.helpDeskBusinessModel
+      .findOne({ space: spaceId })
+      .lean();
+    if (!business || !business.currentScript) {
+      return null;
+    }
+    return business?.currentScript;
+  }
+  async existRoomByIdAndUserId(roomId: string, userId: string) {
+    return await this.roomModel.exists({ _id: roomId, participants: userId });
+  }
+
+  async addAnonymousParticipant(id: string, userId: string) {
+    const isExist = await this.roomModel.findOne({
+      _id: id,
+      isAnonymous: true,
+    });
+    if (!isExist) {
+      throw new BadRequestException('room is not exist');
+    }
+
+    return await this.roomModel.findByIdAndUpdate(
+      id,
+      {
+        $addToSet: { participants: userId },
+      },
+      { new: true },
+    );
+  }
+
+  async forgeDeleteRoomAndUserInRoom(id: string) {
+    const room = await this.roomModel.findById(id);
+    if (!room) {
+      throw new NotFoundException('Room not found');
+    }
+    const participants = room.participants.map((p) => p.toString());
+    // Delete all participants
+    await this.usersService.forgeDeleteManyAnonymousUser(participants);
+    return await this.roomModel.deleteOne({
+      _id: id,
+    });
+  }
+  async isAccessAnonymousRoom(roomId: string, userId: string) {
+    return await this.roomModel.exists({
+      _id: roomId,
+      participants: userId,
+      $or: [
+        {
+          isAnonymous: true,
+        },
+        {
+          isHelpDesk: true,
+        },
+      ],
+    });
+  }
+  async checkIsAccessAnonymousRoom(roomId: string, userId: string) {
+    const isAccessAnonymousRoom = await this.isAccessAnonymousRoom(
+      roomId,
+      userId,
+    );
+    if (!isAccessAnonymousRoom) {
+      throw new UnauthorizedException(
+        'User has no permission to access this room',
+      );
+    }
+  }
+
+  async countWaitingRooms(userId: string) {
+    const query: FilterQuery<Room> = {
+      status: {
+        $nin: [RoomStatus.DELETED, RoomStatus.ARCHIVED],
+      },
+      deleteFor: { $nin: [userId] },
+      archiveFor: { $nin: [userId] },
+      isHelpDesk: { $ne: true },
+      isAnonymous: { $ne: true },
+    };
+    Object.assign(query, {
+      $or: [
+        { waitingUsers: { $in: [userId] } },
+        {
+          $and: [
+            { participants: { $in: [userId] } },
+            { status: RoomStatus.WAITING },
+          ],
+        },
+      ],
+    });
+    return await this.roomModel.countDocuments(query);
   }
 }

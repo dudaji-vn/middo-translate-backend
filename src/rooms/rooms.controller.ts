@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -6,9 +7,10 @@ import {
   Patch,
   Post,
   Query,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
-import { ListQueryParamsCursorDto } from 'src/common/dto';
+import { ListQueryParamsCursorDto, QueryRoomsDto } from 'src/common/dto';
 import { CursorPaginationInfo, Pagination, Response } from 'src/common/types';
 import { CreateRoomDto } from './dto';
 import { RoomsService } from './rooms.service';
@@ -26,11 +28,16 @@ import {
 } from './dto/update-room.dto';
 import { HelpDeskService } from 'src/help-desk/help-desk.service';
 import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
+import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 
+import { StationsService } from 'src/stations/stations.service';
+@ApiBearerAuth()
+@ApiTags('Rooms')
 @Controller('rooms')
 export class RoomsController {
   constructor(
     private readonly roomsService: RoomsService,
+    private readonly stationService: StationsService,
     private readonly messagesService: MessagesService,
     private readonly helpDeskService: HelpDeskService,
   ) {}
@@ -106,9 +113,9 @@ export class RoomsController {
   @Get('pin')
   async getPinRooms(
     @JwtUserId() userId: string,
-    @Query('spaceId') spaceId: string,
+    @Query() query: QueryRoomsDto,
   ): Promise<Response<Room[]>> {
-    const rooms = await this.roomsService.getPinnedRooms(userId, spaceId);
+    const rooms = await this.roomsService.getPinnedRooms(userId, query);
     return { message: 'Rooms found', data: rooms };
   }
 
@@ -116,8 +123,11 @@ export class RoomsController {
   async getRoomById(
     @ParamObjectId('id') id: string,
     @JwtUserId() userId: string,
+    @Query('stationId') stationId: string,
   ): Promise<Response<Room>> {
-    const room = await this.roomsService.findByIdAndUserId(id, userId);
+    const room = await this.roomsService.findByIdAndUserId(id, userId, {
+      stationId: stationId,
+    });
     return { data: room, message: 'Room found' };
   }
 
@@ -127,7 +137,10 @@ export class RoomsController {
     @ParamObjectId('id') id: string,
     @Query('userId') userId: string,
   ) {
-    const room = await this.roomsService.findByIdAndUserId(id, userId, true);
+    await this.roomsService.checkIsAccessAnonymousRoom(id, userId);
+    const room = await this.roomsService.findByIdAndUserId(id, userId, {
+      checkExpiredAt: true,
+    });
     return { data: room, message: 'Room found' };
   }
 
@@ -138,6 +151,7 @@ export class RoomsController {
     @Query() query: ListQueryParamsCursorDto,
     @Query('userId') userId: string,
   ): Promise<Response<Pagination<Message, CursorPaginationInfo>>> {
+    await this.roomsService.checkIsAccessAnonymousRoom(id, userId);
     const data = await this.messagesService.findByRoomIdWithCursorPaginate(
       id,
       userId,
@@ -145,7 +159,9 @@ export class RoomsController {
     );
     return { data, message: 'Room found' };
   }
-
+  @ApiParam({ name: 'id', required: true, description: 'Room id' })
+  @ApiQuery({ name: 'limit', required: false, description: 'Limit' })
+  @ApiQuery({ name: 'next', required: false, description: 'Next' })
   @Get(':id/messages')
   async getMessages(
     @ParamObjectId('id') id: string,
@@ -155,6 +171,22 @@ export class RoomsController {
     const data = await this.messagesService.findByRoomIdWithCursorPaginate(
       id,
       userId,
+      query,
+    );
+    return { data, message: 'Room found' };
+  }
+
+  @Get(':id/messages/:messageId')
+  async getMessagesAroundMessage(
+    @ParamObjectId('id') id: string,
+    @ParamObjectId('messageId') messageId: string,
+    @JwtUserId() userId: string,
+    @Query() query: { limit: number },
+  ): Promise<Response<Pagination<Message, CursorPaginationInfo>>> {
+    const data = await this.messagesService.findByIdAndRoomIdWithCursorPaginate(
+      id,
+      userId,
+      messageId,
       query,
     );
     return { data, message: 'Room found' };
@@ -395,12 +427,52 @@ export class RoomsController {
     return { message: 'Contact deleted', data: null };
   }
 
+  @Patch(':id/read-all-messages')
+  async readAllMessages(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ): Promise<Response<null>> {
+    const existRoomByIdAndUserId =
+      await this.roomsService.existRoomByIdAndUserId(id, userId);
+    if (!existRoomByIdAndUserId) {
+      throw new BadRequestException('Room not found');
+    }
+    await this.roomsService.updateReadByLastMessageInRoom(id, userId);
+    await this.messagesService.updateReadAllMessagesInRoom(id, userId);
+    return { message: 'Read all messages in room', data: null };
+  }
+
+  @Get(':id/unread-messages/count')
+  async countUnreadMessages(
+    @ParamObjectId('id') id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const count = await this.messagesService.countUnreadMessages(id, userId);
+    return {
+      data: {
+        count,
+      },
+      message: 'Count unread messages',
+    };
+  }
+
   @Post('stations/:stationId')
   async createStationRoom(
     @Body() createRoomDto: CreateRoomDto,
     @JwtUserId() userId: string,
     @ParamObjectId('stationId') stationId: string,
   ): Promise<Response<Room>> {
+    const { participants } = createRoomDto;
+
+    const isMemberByParticipants =
+      await this.stationService.isMemberByParticipants(stationId, participants);
+
+    if (!isMemberByParticipants) {
+      throw new BadRequestException(
+        'There are participants who are not members in this station',
+      );
+    }
+
     const room = await this.roomsService.create(
       createRoomDto,
       userId,
@@ -414,5 +486,15 @@ export class RoomsController {
       });
     }
     return { data: room, message: 'Station room created' };
+  }
+  @Get('waiting/count')
+  async countWaitingRooms(@JwtUserId() userId: string) {
+    const count = await this.roomsService.countWaitingRooms(userId);
+    return {
+      data: {
+        count,
+      },
+      message: 'Count waiting rooms',
+    };
   }
 }

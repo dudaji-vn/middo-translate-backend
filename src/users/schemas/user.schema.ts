@@ -9,6 +9,7 @@ export type UserDocument = HydratedDocument<User>;
 export enum UserRelationType {
   BLOCKED = 'blocked',
   BLOCKING = 'blocking',
+  ME = 'me',
   NONE = 'none',
 }
 
@@ -115,7 +116,7 @@ export class User {
   stations: Station[];
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Station.name })
-  defaultStation: ObjectId;
+  defaultStation: ObjectId | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

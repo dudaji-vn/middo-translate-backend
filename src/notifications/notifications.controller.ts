@@ -5,7 +5,8 @@ import { SubscribeDto } from './dto/subscribe.dto';
 import { CheckSubscribedDto } from './dto/check-subscribed.dto';
 import { Response } from 'src/common/types';
 import { ToggleRoomNotificationDto } from './dto/toggle-room-notification';
-
+import { ApiTags } from '@nestjs/swagger';
+@ApiTags('Notifications')
 @Controller('notifications')
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
@@ -101,5 +102,35 @@ export class NotificationController {
         isMuted,
       },
     };
+  }
+
+  @Post('stations/:stationId/check')
+  async checkStationNotification(
+    @ParamObjectId('stationId') roomId: string,
+    @JwtUserId() userId: string,
+  ): Promise<
+    Response<{
+      isMuted: boolean;
+    }>
+  > {
+    const isMuted = await this.notificationService.checkIsUserIgnoringStation(
+      roomId,
+      userId,
+    );
+    return {
+      message: 'Notification toggled',
+      data: {
+        isMuted,
+      },
+    };
+  }
+
+  @Post('stations/:stationId/toggle')
+  async toggleStationNotification(
+    @JwtUserId() userId: string,
+    @ParamObjectId('stationId') stationId: string,
+  ): Promise<Response<null>> {
+    await this.notificationService.toggleStationNotification(stationId, userId);
+    return { message: 'Station notification toggled', data: null };
   }
 }

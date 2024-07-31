@@ -5,22 +5,33 @@ import {
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectModel } from '@nestjs/mongoose';
+import { convert } from 'html-to-text';
 import mongoose, { FilterQuery, Model, Types } from 'mongoose';
+import { Call } from 'src/call/schemas/call.schema';
 import {
   CursorPaginationInfo,
   ListQueryParamsCursor,
   Pagination,
 } from 'src/common/types';
 import { selectPopulateField } from 'src/common/utils';
+import { logger } from 'src/common/utils/logger';
+import { envConfig } from 'src/configs/env.config';
 import { socketConfig } from 'src/configs/socket.config';
 import {
   NewMessagePayload,
   ReplyMessagePayload,
 } from 'src/events/types/message-payload.type';
+import { FormService } from 'src/form/form.service';
+import { Form } from 'src/form/schemas/form.schema';
+import { DefaultTag, Script, Space } from 'src/help-desk/schemas/space.schema';
+import { NotificationService } from 'src/notifications/notifications.service';
 import { RoomsService } from 'src/rooms/rooms.service';
+import { Room, RoomStatus } from 'src/rooms/schemas/room.schema';
+import { Station } from 'src/stations/schemas/station.schema';
 import { User, UserRelationType } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
 import { CreateMessageDto } from './dto';
+import { ForwardMessageDto } from './dto/forward-message.dto';
 import {
   ActionTypes,
   MediaTypes,
@@ -30,28 +41,21 @@ import {
   Reaction,
   SenderType,
 } from './schemas/messages.schema';
-import { convertMessageRemoved } from './utils/convert-message-removed';
-import { NotificationService } from 'src/notifications/notifications.service';
-import { envConfig } from 'src/configs/env.config';
-import { ForwardMessageDto } from './dto/forward-message.dto';
-import { Room, RoomStatus } from 'src/rooms/schemas/room.schema';
-import { Call } from 'src/call/schemas/call.schema';
 import { PinMessage } from './schemas/pin-messages.schema';
-import { convert } from 'html-to-text';
+import { convertMessageRemoved } from './utils/convert-message-removed';
 import { generateSystemMessageContent } from './utils/generate-action-message-content';
 import {
   detectLanguage,
   multipleTranslate,
   translate,
 } from './utils/translate';
-import { logger } from 'src/common/utils/logger';
-import { DefaultTag, Space } from '../help-desk/schemas/space.schema';
 
 @Injectable()
 export class MessagesService {
   constructor(
     private readonly usersService: UsersService,
     private readonly roomsService: RoomsService,
+    private readonly formService: FormService,
     private readonly notificationService: NotificationService,
     private readonly eventEmitter: EventEmitter2,
     @InjectModel(Message.name) private messageModel: Model<Message>,
@@ -87,11 +91,16 @@ export class MessagesService {
           'name',
           'isGroup',
           'participants',
+          'station',
         ]),
         populate: [
           {
             path: 'participants',
             select: selectPopulateField<User>(['_id', 'avatar', 'name']),
+          },
+          {
+            path: 'station',
+            select: selectPopulateField<Station>(['name']),
           },
         ],
       },
@@ -139,7 +148,10 @@ export class MessagesService {
       },
       {
         path: 'call',
-        select: selectPopulateField<Call>(['endTime', '_id', 'type']),
+        populate: {
+          path: 'participants',
+          select: selectPopulateField<User>(['_id', 'name', 'status']),
+        },
       },
       {
         path: 'mentions',
@@ -275,6 +287,13 @@ export class MessagesService {
         );
       }
     }
+    if (createdMessage.type === MessageType.FLOW_FORM) {
+      if (!createMessageDto.formId) {
+        throw new BadRequestException('formId is required with type flow-form');
+      }
+      const form = await this.formService.findById(createMessageDto.formId);
+      createdMessage.form = form;
+    }
 
     createdMessage.room = room;
     createdMessage.readBy = [user._id];
@@ -291,6 +310,14 @@ export class MessagesService {
         room.space &&
         room.space.bot
       ) {
+        const currentScript = await this.roomsService.getCurrentScriptBySpace(
+          room.space,
+        );
+
+        if (currentScript) {
+          createdMessage.script = currentScript;
+        }
+
         createdMessage.sender = room.space.bot;
         createdMessage.readBy = [];
       }
@@ -323,6 +350,10 @@ export class MessagesService {
       {
         path: 'room',
         select: selectPopulateField<Room>(['_id']),
+      },
+      {
+        path: 'form',
+        select: selectPopulateField<Form>(['_id', 'name']),
       },
     ]);
 
@@ -368,6 +399,7 @@ export class MessagesService {
       lastMessage: newMessageWithSender,
       newMessageAt: new Date(),
       status: roomNewStatus,
+      readBy: createMessageDto.senderType === SenderType.BOT ? [] : [senderId],
       deleteFor: [],
       archiveFor: [],
     });
@@ -527,7 +559,13 @@ export class MessagesService {
           'language',
         ]),
       )
-      .populate('call', selectPopulateField<Call>(['endTime', '_id', 'type']))
+      .populate({
+        path: 'call',
+        populate: {
+          path: 'participants',
+          select: selectPopulateField<User>(['_id', 'name', 'status']),
+        },
+      })
       .populate('parent', selectPopulateField<Message>(['_id']))
       .populate(
         'reactions.user',
@@ -629,6 +667,10 @@ export class MessagesService {
         content,
         ...message.editHistory.map((item) => item),
       ];
+      this.eventEmitter.emit(socketConfig.events.room.update, {
+        roomId: room._id,
+        participants: room.participants.map((p) => p._id.toString()),
+      });
     }
     await message.updateOne(updateMessageDto);
 
@@ -641,6 +683,7 @@ export class MessagesService {
         editHistory: null,
       },
     });
+
     return message;
   }
 
@@ -652,6 +695,10 @@ export class MessagesService {
     if (!room) {
       throw new NotFoundException('Room not found');
     }
+    if (room.station) {
+      title = room.station?.name;
+      featurePath = `stations/${room?.station?._id}/conversations`;
+    }
     if (room.isHelpDesk) {
       const roomWithSpace: any = await room.populate('space');
       title = `${envConfig.app.extension_name} -  ${roomWithSpace.space?.name}`;
@@ -661,7 +708,21 @@ export class MessagesService {
           body = ` ${message.sender.name} left the conversation`;
           break;
         default:
-          body = `${message.sender.name} from ${room?.fromDomain}`;
+          {
+            const anonymousUser = room.participants.find(
+              (p) => p.status === 'anonymous',
+            );
+            body = `${message.sender.name} sent message to ${anonymousUser?.name}`;
+            console.log('anonymousUser', anonymousUser);
+            console.log('message.sender', message.sender);
+            if (
+              message.sender._id.toString() === anonymousUser?._id.toString()
+            ) {
+              body = `${message.sender.name} ${
+                room?.fromDomain ? `from ${room?.fromDomain}` : ''
+              }`;
+            }
+          }
           break;
       }
     }
@@ -693,7 +754,12 @@ export class MessagesService {
       case MessageType.ACTION:
         body += generateSystemMessageContent({
           action: message.action,
-          content: messageContent,
+          content:
+            messageContent +
+            message.targetUsers.reduce((acc, user) => {
+              acc += ` ${user.name}`;
+              return acc;
+            }, ''),
         });
         break;
       case MessageType.CALL:
@@ -734,8 +800,6 @@ export class MessagesService {
       }, {} as Record<string, string[]>);
 
       for (const language in groupByLanguage) {
-        console.log('language', language);
-        console.log(message.translations[language]);
         const messageContent = convert(
           message.translations[language] || message.content,
           {
@@ -772,9 +836,15 @@ export class MessagesService {
     });
   }
   async sendReplyMessageNotification(message: Message) {
-    const title = envConfig.app.name;
+    let featurePath = 'talk';
+    let title = envConfig.app.name;
     let body = message.sender.name + ' replied in a discussion';
     const parentMessage = await this.findById(message.parent._id.toString());
+    const parentMessageWithRoomStation = parentMessage?.room?.station;
+    if (parentMessageWithRoomStation) {
+      title = parentMessageWithRoomStation?.name;
+      featurePath = `stations/${parentMessageWithRoomStation?._id}/conversations`;
+    }
     const messageContent = convert(message.content);
     switch (message.type) {
       case MessageType.TEXT:
@@ -839,7 +909,7 @@ export class MessagesService {
       (id) => !userIgnoredNotification.includes(id),
     );
 
-    const link = `${envConfig.app.url}/talk/${roomId}?r_tab=discussion&ms_id=${message.parent._id}`;
+    const link = `${envConfig.app.url}/${featurePath}/${roomId}?r_tab=discussion&ms_id=${message.parent._id}`;
     this.notificationService.sendNotification({
       userIds: targetUserIds,
       title,
@@ -860,22 +930,170 @@ export class MessagesService {
     userId: string,
     params: ListQueryParamsCursor,
   ): Promise<Pagination<Message, CursorPaginationInfo>> {
-    let { cursor = new this.messageModel()._id, limit = 10 } = params;
-
-    if (!cursor) cursor = new this.messageModel()._id;
-    if (!limit) limit = 10;
+    const { limit = 10, direction = 'backward' } = params;
+    let { cursor } = params;
+    if (!cursor) {
+      if (direction === 'backward')
+        cursor = new this.messageModel()._id.toString();
+      else {
+        cursor =
+          (await this.messageModel
+            .findOne({ room: roomId })
+            .sort({ createAt: -1 })
+            .limit(1)
+            .then((m) => m?._id.toString())) ||
+          new this.messageModel()._id.toString();
+        console.log('cursor', cursor);
+      }
+    }
 
     const room = await this.roomsService.findByIdAndUserId(roomId, userId);
     const query: FilterQuery<Message> = {
       room: room._id,
-      _id: { $lt: cursor },
+      deleteFor: { $nin: [userId] },
+      isForwarded: { $ne: true },
+      parent: { $exists: false },
+      _id: direction === 'forward' ? { $gt: cursor } : { $lt: cursor },
+    };
+
+    const sortDirection = direction === 'forward' ? 1 : -1;
+
+    const messages = await this.messageModel
+      .find(query)
+      .sort({ _id: sortDirection })
+      .limit(limit)
+      .populate('room', selectPopulateField<Room>(['_id']))
+      .populate(
+        'sender',
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
+      )
+      .populate(
+        'targetUsers',
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
+      )
+      .populate({
+        path: 'call',
+        populate: {
+          path: 'participants',
+          select: selectPopulateField<User>(['_id', 'name', 'status']),
+        },
+      })
+      .populate(
+        'reactions.user',
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'email',
+          'avatar',
+          'language',
+          'username',
+        ]),
+      )
+      .populate({
+        path: 'forwardOf',
+        select: selectPopulateField<Message>([
+          '_id',
+          'content',
+          'contentEnglish',
+          'type',
+          'media',
+          'sender',
+          'targetUsers',
+          'reactions',
+          'forwardOf',
+          'room',
+        ]),
+        populate: [
+          {
+            path: 'sender',
+            select: selectPopulateField<User>([
+              '_id',
+              'name',
+              'avatar',
+              'email',
+              'language',
+            ]),
+          },
+          {
+            path: 'room',
+            select: selectPopulateField<Room>([
+              '_id',
+              'name',
+              'participants',
+              'isGroup',
+            ]),
+            populate: {
+              path: 'participants',
+              select: selectPopulateField<User>(['_id']),
+            },
+          },
+        ],
+      })
+      .populate('mentions', selectPopulateField<User>(['_id', 'name', 'email']))
+      .populate('script', selectPopulateField<Script>(['name', 'isDeleted']))
+      .populate('form', selectPopulateField<Form>(['_id', 'name']))
+      .lean();
+
+    const endCursor =
+      messages.length > 0 ? String(messages[messages.length - 1]._id) : '';
+
+    const hasNextPage = messages.length === limit;
+    let formUsingIds: string[] = [];
+    if (room.space) {
+      formUsingIds = await this.formService.getListFormSubmittedByUserAndSpace(
+        userId,
+        (room.space as Space)._id,
+      );
+    }
+
+    return {
+      items: messages.map(
+        (message) =>
+          convertMessageRemoved(message, userId, formUsingIds) as Message,
+      ),
+      pageInfo: {
+        endCursor,
+        hasNextPage,
+      },
+    };
+  }
+
+  async findByIdAndRoomIdWithCursorPaginate(
+    roomId: string,
+    userId: string,
+    messageId: string,
+    params: {
+      limit?: number;
+    },
+  ): Promise<Pagination<Message, CursorPaginationInfo>> {
+    const room = await this.roomsService.findByIdAndUserId(roomId, userId);
+    const limit = Math.floor((params.limit || 10) / 2);
+    const message = await this.findById(messageId);
+
+    const query: FilterQuery<Message> = {
+      room: room._id,
       deleteFor: { $nin: [userId] },
       isForwarded: { $ne: true },
       parent: { $exists: false },
     };
 
-    const messages = await this.messageModel
-      .find(query)
+    const prevMessages = await this.messageModel
+      .find({
+        ...query,
+        _id: { $lt: message._id },
+      })
       .sort({ _id: -1 })
       .limit(limit)
       .populate('room', selectPopulateField<Room>(['_id']))
@@ -899,7 +1117,13 @@ export class MessagesService {
           'language',
         ]),
       )
-      .populate('call')
+      .populate({
+        path: 'call',
+        populate: {
+          path: 'participants',
+          select: selectPopulateField<User>(['_id', 'name', 'status']),
+        },
+      })
       .populate(
         'reactions.user',
         selectPopulateField<User>([
@@ -911,63 +1135,74 @@ export class MessagesService {
           'username',
         ]),
       )
-      .populate([
-        {
-          path: 'forwardOf',
-          select: selectPopulateField<Message>([
-            '_id',
-            'content',
-            'contentEnglish',
-            'type',
-            'media',
-            'sender',
-            'targetUsers',
-            'reactions',
-            'forwardOf',
-            'room',
-          ]),
-          populate: [
-            {
-              path: 'sender',
-              select: selectPopulateField<User>([
-                '_id',
-                'name',
-                'avatar',
-                'email',
-                'language',
-              ]),
-            },
-            {
-              path: 'room',
-              select: selectPopulateField<Room>([
-                '_id',
-                'name',
-                'participants',
-                'isGroup',
-              ]),
-              populate: [
-                {
-                  path: 'participants',
-                  select: selectPopulateField<User>(['_id']),
-                },
-              ],
-            },
-          ],
-        },
-      ])
+      .populate({
+        path: 'forwardOf',
+        select: selectPopulateField<Message>(['_id']),
+      });
+
+    const nextMessages = await this.messageModel
+      .find({
+        ...query,
+        _id: { $gt: message._id },
+      })
+      .sort({ _id: 1 })
+      .limit(limit)
+      .populate('room', selectPopulateField<Room>(['_id']))
       .populate(
-        'mentions',
-        selectPopulateField<User>(['_id', 'name', 'email']),
-      );
+        'sender',
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
+      )
+      .populate(
+        'targetUsers',
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
+      )
+      .populate({
+        path: 'call',
+        populate: {
+          path: 'participants',
+          select: selectPopulateField<User>(['_id', 'name', 'status']),
+        },
+      })
+      .populate(
+        'reactions.user',
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'email',
+          'avatar',
+          'language',
+          'username',
+        ]),
+      )
+      .populate({
+        path: 'forwardOf',
+        select: selectPopulateField<Message>(['_id']),
+      });
+
+    const messages = [...nextMessages.reverse(), message, ...prevMessages];
 
     return {
-      items: messages.map((message) => {
-        return convertMessageRemoved(message, userId) as Message;
-      }),
+      items: messages.map(
+        (message) => convertMessageRemoved(message, userId) as Message,
+      ),
       pageInfo: {
         endCursor:
           messages.length > 0 ? String(messages[messages.length - 1]._id) : '',
-        hasNextPage: messages.length === limit,
+        startCursor: messages.length > 0 ? String(messages[0]._id) : '',
+        hasNextPage: prevMessages.length === limit,
+        hasPrevPage: nextMessages.length === limit,
       },
     };
   }
@@ -1208,6 +1443,7 @@ export class MessagesService {
   }
 
   async react(id: string, userId: string, emoji: string) {
+    let title = envConfig.app.name;
     const message = await this.messageModel
       .findById(id)
       .populate(
@@ -1221,10 +1457,24 @@ export class MessagesService {
           'username',
         ]),
       )
-      .populate('room', selectPopulateField<Room>(['_id', 'isHelpDesk']))
+      .populate({
+        path: 'room',
+        select: selectPopulateField<Room>(['_id', 'isHelpDesk', 'station']),
+        populate: [
+          {
+            path: 'station',
+            select: selectPopulateField<Station>(['_id', 'name']),
+          },
+        ],
+      })
       .populate('parent');
     if (!message) {
       throw new Error('Message not found');
+    }
+
+    const station = message?.room?.station;
+    if (station?.name) {
+      title = station.name;
     }
     const reactions = message.reactions;
 
@@ -1254,13 +1504,14 @@ export class MessagesService {
       newReaction.user = user;
       newReaction.emoji = emoji;
       message.reactions.push(newReaction);
+
       if (message.sender._id.toString() !== userId) {
         const link = `${envConfig.app.url}/${
-          message.room.isHelpDesk ? 'business/conversations' : 'talk'
+          station?._id ? `stations/${station?._id}/conversations` : 'talk'
         }/${message.room._id}`;
         this.notificationService.sendNotification({
           userIds: [message.sender._id.toString()],
-          title: envConfig.app.name,
+          title: title,
           body: `${user.name} reacted to your message`,
           roomId: message.room._id.toString(),
           link,
@@ -1407,6 +1658,10 @@ export class MessagesService {
             },
             {
               path: 'call',
+              populate: {
+                path: 'participants',
+                select: selectPopulateField<User>(['_id', 'name', 'status']),
+              },
             },
             {
               path: 'mentions',
@@ -1434,6 +1689,48 @@ export class MessagesService {
       };
     });
     return pinMessagesWithRemoved;
+  }
+
+  async getMessageByCallId(callId: string) {
+    const message = await this.messageModel.findOne({ call: callId }).populate([
+      {
+        path: 'sender',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+        ]),
+      },
+      {
+        path: 'room',
+        select: selectPopulateField<Room>([
+          '_id',
+          'name',
+          'participants',
+          'isGroup',
+        ]),
+        populate: [
+          {
+            path: 'participants',
+            select: selectPopulateField<User>(['_id']),
+          },
+        ],
+      },
+      {
+        path: 'call',
+        populate: {
+          path: 'participants',
+          select: selectPopulateField<User>(['_id', 'name', 'status']),
+        },
+      },
+      {
+        path: 'mentions',
+        select: selectPopulateField<User>(['_id', 'name', 'email']),
+      },
+    ]);
+    return message;
   }
 
   async initHelpDeskConversation(
@@ -1527,6 +1824,7 @@ export class MessagesService {
     return this.messageModel
       .find({
         removedFor: { $nin: userId },
+        deleteFor: { $nin: [userId] },
         isForwarded: { $ne: true },
         parent: { $exists: false },
         $or: [
@@ -1646,4 +1944,49 @@ export class MessagesService {
       sourceLang,
     };
   };
+
+  async updateReadAllMessagesInRoom(roomId: string, userId: string) {
+    return this.messageModel.updateMany(
+      { room: roomId },
+      { $addToSet: { readBy: userId } },
+    );
+  }
+
+  async markAsReadAllChildMessages(parentId: string, userId: string) {
+    return this.messageModel.updateMany(
+      { parent: parentId },
+      { $addToSet: { readBy: userId } },
+    );
+  }
+
+  async countUnreadChildMessages(parentId: string, userId: string) {
+    return this.messageModel.countDocuments({
+      parent: parentId,
+      readBy: { $ne: userId },
+      deleteFor: { $nin: [userId] },
+      isForwarded: { $ne: true },
+    });
+  }
+
+  async forgeDeleteMessageByRoomId(roomId: string) {
+    return await this.messageModel.deleteMany({
+      room: roomId,
+    });
+  }
+
+  async isAccessAnonymousRoom(roomId: string, userId: string) {
+    return await this.roomsService.isAccessAnonymousRoom(roomId, userId);
+  }
+
+  async countUnreadMessages(roomId: string, userId: string) {
+    const room = await this.roomsService.findByIdAndUserId(roomId, userId);
+    const count = await this.messageModel.countDocuments({
+      room: room._id,
+      readBy: { $ne: userId },
+      deleteFor: { $nin: [userId] },
+      isForwarded: { $ne: true },
+      parent: { $exists: false },
+    });
+    return count;
+  }
 }

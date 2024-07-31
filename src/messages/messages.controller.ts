@@ -6,6 +6,7 @@ import {
   Query,
   Patch,
   Get,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { MessagesService } from './messages.service';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
@@ -19,7 +20,8 @@ import { convertMessageRemoved } from './utils/convert-message-removed';
 import { CreateHelpDeskMessageDto } from './dto/create-help-desk-message.dto';
 import { UpdateContentDto } from './dto/update-content.dto';
 import { EndConversationDto } from './dto/end-conversation-dto';
-
+import { ApiTags } from '@nestjs/swagger';
+@ApiTags('Messages')
 @Controller('messages')
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
@@ -224,12 +226,19 @@ export class MessagesController {
       message: 'Message created',
     };
   }
-
   @Public()
   @Post('help-desk')
   async helpDeskCreate(
     @Body() createMessageDto: CreateHelpDeskMessageDto,
   ): Promise<Response<Message>> {
+    const { roomId, userId } = createMessageDto;
+    const isAccessAnonymousRoom =
+      await this.messagesService.isAccessAnonymousRoom(roomId, userId);
+    if (!isAccessAnonymousRoom) {
+      throw new UnauthorizedException(
+        'User has no permission to access this room',
+      );
+    }
     if (!createMessageDto.senderType) {
       createMessageDto.senderType = SenderType.ANONYMOUS;
     }
@@ -252,6 +261,34 @@ export class MessagesController {
     const data = await this.messagesService.endConversation(roomId, senderId);
     return {
       data: data,
+    };
+  }
+
+  @Patch(':id/reply/mark-all-as-read')
+  async markAsReadAllChild(
+    @ParamObjectId() id: string,
+    @JwtUserId() userId: string,
+  ) {
+    await this.messagesService.markAsReadAllChildMessages(id, userId);
+    return {
+      data: null,
+      message: 'Child messages marked as read',
+    };
+  }
+  @Get(':id/reply/unread-count')
+  async getUnreadCount(
+    @ParamObjectId() id: string,
+    @JwtUserId() userId: string,
+  ) {
+    const count = await this.messagesService.countUnreadChildMessages(
+      id,
+      userId,
+    );
+    return {
+      data: {
+        count,
+      },
+      message: 'Unread count found',
     };
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { messaging } from 'firebase-admin';
 import { Model } from 'mongoose';
@@ -12,15 +12,22 @@ import {
   AndroidConfig,
   ApnsConfig,
 } from 'firebase-admin/lib/messaging/messaging-api';
+import { Room, RoomStatus } from 'src/rooms/schemas/room.schema';
+import { socketConfig } from 'src/configs/socket.config';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { UpdateRoomPayload } from 'src/events/types/room-payload.type';
 
 @Injectable()
 export class NotificationService {
   constructor(
     @InjectModel(RoomNotification.name)
     private roomNotificationModel: Model<RoomNotification>,
+    @InjectModel(Room.name)
+    private roomModel: Model<Room>,
     @InjectModel(Notification.name)
     private notificationModel: Model<Notification>,
     private watchingService: WatchingService,
+    private eventEmitter: EventEmitter2,
   ) {}
   async notifyToExtensionMobile({
     extensionTokens,
@@ -257,6 +264,46 @@ export class NotificationService {
         user: userId,
       });
     }
+    this.eventEmitter.emit(socketConfig.events.room.update, {
+      roomId,
+      participants: [userId],
+    } as UpdateRoomPayload);
+  }
+
+  async toggleStationNotification(stationId: string, userId: string) {
+    try {
+      const roomIds = await this.roomModel
+        .find({
+          station: stationId,
+          status: RoomStatus.ACTIVE,
+          deleteFor: { $nin: [userId] },
+        })
+        .distinct('_id');
+
+      if (!roomIds || roomIds.length === 0) {
+        throw new BadRequestException('Station is not contain rooms');
+      }
+
+      const roomNotifications = await this.roomNotificationModel.find({
+        room: { $in: roomIds },
+        user: userId,
+      });
+
+      if (roomNotifications && roomNotifications.length > 0) {
+        await this.roomNotificationModel.deleteMany({
+          room: { $in: roomIds },
+          user: userId,
+        });
+      } else {
+        const newNotifications = roomIds.map((roomId) => ({
+          room: roomId,
+          user: userId,
+        }));
+        await this.roomNotificationModel.insertMany(newNotifications);
+      }
+    } catch (error) {
+      throw new Error('Error toggling station notification');
+    }
   }
 
   async getUsersIgnoringRoom(roomId: string) {
@@ -272,5 +319,24 @@ export class NotificationService {
       user: userId,
     });
     return !!notification;
+  }
+
+  async checkIsUserIgnoringStation(stationId: string, userId: string) {
+    const roomIds = await this.roomModel
+      .find({
+        station: stationId,
+        status: RoomStatus.ACTIVE,
+        deleteFor: { $nin: [userId] },
+      })
+      .distinct('_id');
+
+    if (!roomIds || roomIds.length === 0) {
+      throw new BadRequestException('Station is not contain rooms');
+    }
+    const notification = await this.roomNotificationModel.find({
+      room: { $in: roomIds },
+      user: userId,
+    });
+    return notification?.length === roomIds.length;
   }
 }

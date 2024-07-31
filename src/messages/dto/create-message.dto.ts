@@ -7,7 +7,7 @@ import {
   SenderType,
 } from '../schemas/messages.schema';
 
-import { IsMongoId, ValidateNested } from 'class-validator';
+import { IsMongoId, IsOptional, ValidateNested } from 'class-validator';
 
 export class CreateMessageDto {
   content?: string;
@@ -23,11 +23,14 @@ export class CreateMessageDto {
   forwardOfId?: string;
   callId?: string;
   mentions?: string[];
-  businessUserId?: string;
   action?: ActionTypes;
   senderType?: SenderType;
 
   @ValidateNested({ each: true })
   @Type(() => NodeChatFlowDto)
   actions?: NodeChatFlowDto[];
+
+  @IsOptional()
+  @IsMongoId()
+  formId?: string;
 }

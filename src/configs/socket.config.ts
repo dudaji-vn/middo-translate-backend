@@ -8,6 +8,7 @@ export const socketConfig = {
     message: {
       new: 'message.new',
       update: 'message.update',
+      unread_update: 'message.unread_update',
       remove: 'message.remove',
       reply: {
         new: 'message.reply.new',
@@ -26,6 +27,7 @@ export const socketConfig = {
       delete: 'room.delete',
       new: 'room.new',
       delete_contact: 'room.delete_contact',
+      waiting_update: 'room.waiting_update',
     },
     inbox: {
       new: 'inbox.new',
@@ -108,12 +110,12 @@ export const socketConfig = {
       update: 'station.update',
       member: {
         remove: 'station.member.remove',
-        leave: 'station.member.leave',
-        update: 'station.member.update',
       },
     },
     app: {
-      notification: 'app.notification',
+      notification: {
+        new: 'app.notification.new',
+      },
     },
   },
 };

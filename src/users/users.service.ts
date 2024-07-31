@@ -1,6 +1,6 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, ObjectId, Types } from 'mongoose';
+import { Model, ObjectId, PipelineStage, Types } from 'mongoose';
 import { FindParams } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
 import {
@@ -21,6 +21,8 @@ import { EventEmitter2 } from '@nestjs/event-emitter';
 import { socketConfig } from 'src/configs/socket.config';
 import { SearchQueryParams } from 'src/search/types';
 import { Station } from 'src/stations/schemas/station.schema';
+import { queryClients } from 'src/common/utils/query-report';
+import { generateSlug } from 'src/common/utils/generate-slug';
 
 @Injectable()
 export class UsersService {
@@ -56,7 +58,7 @@ export class UsersService {
     }
     return user;
   }
-  async find({ q, limit, type }: FindParams): Promise<User[]> {
+  async find({ q, limit, stationId }: FindParams): Promise<User[]> {
     const users = await this.userModel
       .find({
         $or: [
@@ -64,16 +66,11 @@ export class UsersService {
           {
             username: { $regex: q, $options: 'i' },
           },
-          {
-            ...(type === 'help-desk'
-              ? { tempEmail: { $regex: q, $options: 'i' } }
-              : { email: { $regex: q, $options: 'i' } }),
-          },
         ],
-        status:
-          type === 'help-desk'
-            ? { $in: [UserStatus.ANONYMOUS, UserStatus.ACTIVE] }
-            : UserStatus.ACTIVE,
+        status: UserStatus.ACTIVE,
+        ...(stationId && {
+          stations: stationId,
+        }),
       })
       .limit(limit)
       .select({
@@ -85,10 +82,25 @@ export class UsersService {
         pinRoomIds: true,
       })
       .lean();
-    return users.map((item) => ({
-      ...item,
-      email: type === 'help-desk' ? item.tempEmail : item.email,
-    }));
+    return users;
+  }
+
+  async findByUsername({ q, limit, stationId }: FindParams): Promise<User[]> {
+    const users = await this.userModel
+      .find({
+        username: q,
+        status: UserStatus.ACTIVE,
+      })
+      .limit(limit)
+      .select({
+        name: true,
+        username: true,
+        avatar: true,
+        email: true,
+        pinRoomIds: true,
+      })
+      .lean();
+    return users;
   }
   async findById(id: ObjectId | string) {
     const user = await this.userModel
@@ -312,74 +324,38 @@ export class UsersService {
       throw error;
     }
   }
-  async findByBusiness({
+  async getClientsByUser({
     q,
     limit = 5,
-    businessId,
+    spaceId,
     userId,
     currentPage = 1,
   }: FindParams & {
-    businessId: string;
+    spaceId: string;
     userId: string;
   }): Promise<UserHelpDeskResponse> {
-    const totalItemsPromise = this.userModel.countDocuments({
-      business: new Types.ObjectId(businessId),
-      $or: [
-        { name: { $regex: q, $options: 'i' } },
-        { username: { $regex: q, $options: 'i' } },
-        {
-          tempEmail: { $regex: q, $options: 'i' },
-        },
-        {
-          phoneNumber: { $regex: q, $options: 'i' },
-        },
-      ],
+    const query = queryClients({
+      params: {
+        spaceId,
+        q,
+      },
     });
-    const query = [
-      {
-        $match: {
-          business: new Types.ObjectId(businessId),
-          $or: [
-            { name: { $regex: q, $options: 'i' } },
-            { username: { $regex: q, $options: 'i' } },
-            {
-              tempEmail: { $regex: q, $options: 'i' },
-            },
-            {
-              phoneNumber: { $regex: q, $options: 'i' },
-            },
-          ],
-        },
-      },
-      {
-        $lookup: {
-          from: 'rooms',
-          let: { userId: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $in: ['$$userId', '$participants'],
-                },
-                isHelpDesk: true,
-                admin: new Types.ObjectId(userId),
-              },
-            },
-          ],
-          as: 'room',
-        },
-      },
+    const totalItemsPromise = this.userModel.aggregate([
+      ...query,
+      { $count: 'totalCount' },
+    ]);
 
+    const queryCurrentData = [
+      {
+        $sort: {
+          'room.createdAt': -1,
+        },
+      } as PipelineStage,
       {
         $skip: (currentPage - 1) * limit,
       },
       {
         $limit: limit,
-      },
-      {
-        $addFields: {
-          room: { $arrayElemAt: ['$room', 0] },
-        },
       },
       {
         $project: {
@@ -391,14 +367,19 @@ export class UsersService {
         },
       },
     ];
-    const dataPromise = this.userModel.aggregate(query) as any;
+    const dataPromise = this.userModel.aggregate([
+      ...query,
+      ...queryCurrentData,
+    ]);
+
     const [totalItems, data] = await Promise.all([
       totalItemsPromise,
       dataPromise,
     ]);
 
+    const totalPage = totalItems[0]?.totalCount || 0;
     return {
-      totalPage: Math.ceil(totalItems / limit),
+      totalPage: Math.ceil(totalPage / limit),
       items: data,
     };
   }
@@ -506,7 +487,7 @@ export class UsersService {
 
   async checkRelationship(userId: string, targetId: string) {
     if (userId === targetId) {
-      return UserRelationType.NONE;
+      return UserRelationType.ME;
     }
     const user = await this.findById(userId);
     const target = await this.findById(targetId);
@@ -572,5 +553,36 @@ export class UsersService {
       throw new HttpException(`User ${userId} not found`, 404);
     }
     return user;
+  }
+
+  async removeStationFromUser(stationId: string) {
+    await this.userModel.updateMany(
+      { defaultStation: stationId },
+      { defaultStation: null },
+    );
+
+    await this.userModel.updateMany(
+      { stations: stationId },
+      { $pull: { stations: stationId } },
+    );
+    return null;
+  }
+
+  async createAnonymousUser(name: string, language: string) {
+    const slug = generateSlug();
+    return await this.userModel.create({
+      status: UserStatus.ANONYMOUS,
+      email: `${slug}@gmail.com`,
+      username: `${slug}`,
+      name: name,
+      language: language,
+    });
+  }
+
+  async forgeDeleteManyAnonymousUser(ids: string[]) {
+    return await this.userModel.deleteMany({
+      _id: { $in: ids },
+      status: UserStatus.ANONYMOUS,
+    });
   }
 }
