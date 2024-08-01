@@ -52,6 +52,7 @@ import { pivotChartByType } from 'src/common/utils/date-report';
 import { StationsService } from 'src/stations/stations.service';
 import { QueryRoomsDto } from 'src/common/dto';
 import { Station } from 'src/stations/schemas/station.schema';
+import { NotificationService } from 'src/notifications/notifications.service';
 
 const userSelectFieldsString = selectPopulateField<User>([
   '_id',
@@ -69,6 +70,7 @@ export class RoomsService {
     private readonly usersService: UsersService,
     private readonly stationService: StationsService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly notificationService: NotificationService,
     @InjectModel(Room.name) private readonly roomModel: Model<Room>,
     @InjectModel(HelpDeskBusiness.name)
     private readonly helpDeskBusinessModel: Model<HelpDeskBusiness>,
@@ -669,6 +671,10 @@ export class RoomsService {
       endCursor: rooms[rooms.length - 1]?.newMessageAt?.toISOString(),
       hasNextPage: rooms.length === limit,
     };
+
+    const roomsIdTurnOffNotification =
+      await this.notificationService.getRoomIdsUserIsIgnoring(userId);
+
     if (type === 'help-desk' || type === 'unread-help-desk') {
       const space = rooms[0]?.space as Space;
       if (rooms.length > 0 && !this.isAccessRoomBySpace(space, userId)) {
@@ -686,6 +692,7 @@ export class RoomsService {
             space: (room.space as Space)._id,
             isPinned: user?.pinRoomIds?.includes(room._id.toString()) || false,
             lastMessage: convertMessageRemoved(room.lastMessage, userId),
+            isMuted: roomsIdTurnOffNotification.includes(room._id.toString()),
           };
         }),
         pageInfo,
@@ -696,6 +703,7 @@ export class RoomsService {
       items: rooms.map((room) => ({
         ...room.toObject(),
         isPinned: user?.pinRoomIds?.includes(room._id.toString()) || false,
+        isMuted: roomsIdTurnOffNotification.includes(room._id.toString()),
         lastMessage: convertMessageRemoved(room.lastMessage, userId),
         ...(type === 'archived' && { status: RoomStatus.ARCHIVED }),
       })),
