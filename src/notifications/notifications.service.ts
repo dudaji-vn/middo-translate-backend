@@ -42,7 +42,6 @@ export class NotificationService {
     android?: AndroidConfig;
     apns?: ApnsConfig;
   }) {
-    console.log('EXT-tokens::>', extensionTokens);
     try {
       if (extensionTokens.length) {
         const response = await messaging().sendEachForMulticast({
@@ -338,5 +337,11 @@ export class NotificationService {
       user: userId,
     });
     return notification?.length === roomIds.length;
+  }
+  async getRoomIdsUserIsIgnoring(userId: string) {
+    const roomNotifications = await this.roomNotificationModel.find({
+      user: userId,
+    });
+    return roomNotifications.map((n) => n.room.toString());
   }
 }

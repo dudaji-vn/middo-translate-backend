@@ -7,28 +7,27 @@ import {
   Patch,
   Post,
   Query,
-  UnauthorizedException,
 } from '@nestjs/common';
+import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { JwtUserId, ParamObjectId, Public } from 'src/common/decorators';
 import { ListQueryParamsCursorDto, QueryRoomsDto } from 'src/common/dto';
 import { CursorPaginationInfo, Pagination, Response } from 'src/common/types';
-import { CreateRoomDto } from './dto';
-import { RoomsService } from './rooms.service';
-import { Room } from './schemas/room.schema';
+import { HelpDeskService } from 'src/help-desk/help-desk.service';
 import { MessagesService } from 'src/messages/messages.service';
 import {
   ActionTypes,
   Message,
   MessageType,
 } from 'src/messages/schemas/messages.schema';
+import { CreateRoomDto } from './dto';
+import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
 import {
   ChangeTagRoomDto,
   UpdateRoomDto,
   UpdateRoomStatusDto,
 } from './dto/update-room.dto';
-import { HelpDeskService } from 'src/help-desk/help-desk.service';
-import { CreateHelpDeskRoomDto } from './dto/create-help-desk-room';
-import { ApiBearerAuth, ApiParam, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { RoomsService } from './rooms.service';
+import { Room } from './schemas/room.schema';
 
 import { StationsService } from 'src/stations/stations.service';
 @ApiBearerAuth()
