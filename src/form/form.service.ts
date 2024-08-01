@@ -144,6 +144,14 @@ export class FormService {
   }
   async getDetailForm(payload: DetailFormRequestDto) {
     const { formId, userId, language } = payload;
+    const actions = {
+      next: 'Next',
+      prev: 'Prev',
+      submit: 'Submit',
+      requireMessage: 'This answer is required!',
+      requireOptionMessage: `Please add your answer for 'other' option!`,
+      close: 'Close form',
+    };
     const isSubmitForm = userId
       ? await this.isSubmitForm(formId, userId)
       : false;
@@ -160,15 +168,25 @@ export class FormService {
     if (!isFromSupported) {
       return {
         isSubmitted: !!isSubmitForm,
+        actions,
         ...result,
       };
     }
-    if (result.thankyou && result.thankyou?.title) {
-      const title = result.thankyou.title ?? '';
-      const subtitle = result.thankyou.subtitle ?? '';
-      const sourceLang = await detectLanguage(result.thankyou.title);
+    if (result.name) {
+      const sourceLang = await detectLanguage(result.name);
+      result.name = await translate(result.name, sourceLang, language);
+    }
+    if (result.thankyou) {
+      const title = result.thankyou?.title ?? '';
+      const subtitle = result.thankyou?.subtitle ?? '';
+
+      const sourceLang = await Promise.all(
+        [title, subtitle].map((item) => detectLanguage(item)),
+      );
       const [titleTranslate, subTitleTranslate] = await Promise.all(
-        [title, subtitle].map((item) => translate(item, sourceLang, language)),
+        [title, subtitle].map((item, index) =>
+          translate(item, sourceLang[index], language),
+        ),
       );
       result.thankyou.title = titleTranslate || title;
       result.thankyou.subtitle = subTitleTranslate || subtitle;
@@ -204,16 +222,42 @@ export class FormService {
             })
           : [];
 
+        const placeholder = await translate(
+          item.placeholder,
+          sourceLabel,
+          language,
+        );
+
         return {
           ...item,
           label: label || item.label,
+          placeholder: placeholder || item.placeholder,
           options: options || item.options,
         };
       }),
     );
+    const [next, prev, submit, requireMessage, requireOptionMessage, close] =
+      await Promise.all(
+        [
+          actions.next,
+          actions.prev,
+          actions.submit,
+          actions.requireMessage,
+          actions.requireOptionMessage,
+          actions.close,
+        ].map((text) => translate(text, 'en', language)),
+      );
 
     return {
       isSubmitted: !!isSubmitForm,
+      actions: {
+        next: next,
+        prev: prev,
+        submit: submit,
+        requireMessage: requireMessage,
+        requireOptionMessage: requireOptionMessage,
+        close: close,
+      },
       ...result,
     };
   }
@@ -313,6 +357,7 @@ export class FormService {
                 name: 1,
                 phoneNumber: 1,
                 tempEmail: 1,
+                language: 1,
               },
             },
           ],
@@ -471,7 +516,7 @@ export class FormService {
       .sort({ _id: -1 })
       .skip((currentPage - 1) * limit)
       .limit(limit)
-      .populate('user', '-_id name tempEmail phoneNumber')
+      .populate('user', '-_id name tempEmail phoneNumber language')
       .populate({ path: 'answers.field', select: 'name' })
       .lean();
 
