@@ -150,6 +150,7 @@ export class FormService {
       submit: 'Submit',
       requireMessage: 'This answer is required!',
       requireOptionMessage: `Please add your answer for 'other' option!`,
+      close: 'Close form',
     };
     const isSubmitForm = userId
       ? await this.isSubmitForm(formId, userId)
@@ -171,12 +172,21 @@ export class FormService {
         ...result,
       };
     }
-    if (result.thankyou && result.thankyou?.title) {
-      const title = result.thankyou.title ?? '';
-      const subtitle = result.thankyou.subtitle ?? '';
-      const sourceLang = await detectLanguage(result.thankyou.title);
+    if (result.name) {
+      const sourceLang = await detectLanguage(result.name);
+      result.name = await translate(result.name, sourceLang, language);
+    }
+    if (result.thankyou) {
+      const title = result.thankyou?.title ?? '';
+      const subtitle = result.thankyou?.subtitle ?? '';
+
+      const sourceLang = await Promise.all(
+        [title, subtitle].map((item) => detectLanguage(item)),
+      );
       const [titleTranslate, subTitleTranslate] = await Promise.all(
-        [title, subtitle].map((item) => translate(item, sourceLang, language)),
+        [title, subtitle].map((item, index) =>
+          translate(item, sourceLang[index], language),
+        ),
       );
       result.thankyou.title = titleTranslate || title;
       result.thankyou.subtitle = subTitleTranslate || subtitle;
@@ -226,7 +236,7 @@ export class FormService {
         };
       }),
     );
-    const [next, prev, submit, requireMessage, requireOptionMessage] =
+    const [next, prev, submit, requireMessage, requireOptionMessage, close] =
       await Promise.all(
         [
           actions.next,
@@ -234,6 +244,7 @@ export class FormService {
           actions.submit,
           actions.requireMessage,
           actions.requireOptionMessage,
+          actions.close,
         ].map((text) => translate(text, 'en', language)),
       );
 
@@ -245,6 +256,7 @@ export class FormService {
         submit: submit,
         requireMessage: requireMessage,
         requireOptionMessage: requireOptionMessage,
+        close: close,
       },
       ...result,
     };
