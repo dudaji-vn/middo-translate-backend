@@ -230,7 +230,7 @@ export class FormService {
         next: next,
         prev: prev,
         submit: submit,
-        require_message: requireMessage,
+        requireMessage: requireMessage,
       },
       ...result,
     };
