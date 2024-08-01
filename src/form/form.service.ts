@@ -204,16 +204,34 @@ export class FormService {
             })
           : [];
 
+        const placeholder = await translate(
+          item.placeholder,
+          sourceLabel,
+          language,
+        );
+
         return {
           ...item,
           label: label || item.label,
+          placeholder: placeholder || item.placeholder,
           options: options || item.options,
         };
       }),
     );
+    const [next, prev, submit, requireMessage] = await Promise.all(
+      ['Next', 'Prev', 'Submit', 'This answer is required!'].map((text) =>
+        translate(text, 'en', language),
+      ),
+    );
 
     return {
       isSubmitted: !!isSubmitForm,
+      actions: {
+        next: next,
+        prev: prev,
+        submit: submit,
+        require_message: requireMessage,
+      },
       ...result,
     };
   }
