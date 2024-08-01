@@ -144,6 +144,13 @@ export class FormService {
   }
   async getDetailForm(payload: DetailFormRequestDto) {
     const { formId, userId, language } = payload;
+    const actions = {
+      next: 'Next',
+      prev: 'Prev',
+      submit: 'Submit',
+      requireMessage: 'This answer is required!',
+      requireOptionMessage: `Please add your answer for 'other' option!`,
+    };
     const isSubmitForm = userId
       ? await this.isSubmitForm(formId, userId)
       : false;
@@ -160,6 +167,7 @@ export class FormService {
     if (!isFromSupported) {
       return {
         isSubmitted: !!isSubmitForm,
+        actions,
         ...result,
       };
     }
@@ -218,11 +226,16 @@ export class FormService {
         };
       }),
     );
-    const [next, prev, submit, requireMessage] = await Promise.all(
-      ['Next', 'Prev', 'Submit', 'This answer is required!'].map((text) =>
-        translate(text, 'en', language),
-      ),
-    );
+    const [next, prev, submit, requireMessage, requireOptionMessage] =
+      await Promise.all(
+        [
+          actions.next,
+          actions.prev,
+          actions.submit,
+          actions.requireMessage,
+          actions.requireOptionMessage,
+        ].map((text) => translate(text, 'en', language)),
+      );
 
     return {
       isSubmitted: !!isSubmitForm,
@@ -231,6 +244,7 @@ export class FormService {
         prev: prev,
         submit: submit,
         requireMessage: requireMessage,
+        requireOptionMessage: requireOptionMessage,
       },
       ...result,
     };
