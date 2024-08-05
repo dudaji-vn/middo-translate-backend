@@ -1989,4 +1989,27 @@ export class MessagesService {
     });
     return count;
   }
+  async updateFormMessage(
+    id: string,
+    updateMessageDto: Partial<Message> & {
+      enContent?: string;
+      mentions?: string[];
+    },
+  ) {
+    const message = await this.messageModel.findById(id);
+    if (!message) {
+      throw new Error('Message not found');
+    }
+
+    this.eventEmitter.emit(socketConfig.events.message.form.update, {
+      roomId: String(message?.room),
+      message: {
+        _id: message._id,
+        ...updateMessageDto,
+        editHistory: null,
+      },
+    });
+
+    return message;
+  }
 }

@@ -1051,6 +1051,12 @@ export class EventsGateway
         .emit(socketConfig.events.station.member.remove, data);
     }
   }
+  @OnEvent(socketConfig.events.message.form.update)
+  async handleUpdateFormMessage({ roomId, message }: NewMessagePayload) {
+    this.server
+      .to(roomId)
+      .emit(socketConfig.events.message.form.update, message);
+  }
 }
 
 const findUserIdBySocketId = (clients: any, socketId: string) => {

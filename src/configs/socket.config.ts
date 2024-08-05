@@ -18,6 +18,9 @@ export const socketConfig = {
         remove: 'message.reply.remove',
         count: 'message.reply.count',
       },
+      form: {
+        update: 'message.form.update',
+      },
       pin: 'message.pin',
     },
     room: {
