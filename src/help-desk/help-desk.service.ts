@@ -2400,7 +2400,7 @@ export class HelpDeskService {
     }
     await this.formService.submitForm(formId, userId, payload);
     if (payload.messageId) {
-      await this.messagesService.update(payload.messageId, {});
+      await this.messagesService.updateFormMessage(payload.messageId, {});
     }
 
     return true;
