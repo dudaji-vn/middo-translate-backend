@@ -500,7 +500,7 @@ export class FormService {
         isDeleted: { $ne: true },
       })
       .populate('formFields')
-      .select('name formFields createdAt')
+      .select('name formFields createdAt customize')
       .lean();
 
     if (!form) {
