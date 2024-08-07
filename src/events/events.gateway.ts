@@ -518,7 +518,6 @@ export class EventsGateway
     @ConnectedSocket() client: Socket,
     @MessageBody()
     payload: {
-      userId: string;
       status: boolean;
       callId: string;
       directUserId?: string;
@@ -531,7 +530,7 @@ export class EventsGateway
     this.server
       .to(receiver)
       .emit(socketConfig.events.call.call_status.mic_change, {
-        userId: payload.userId,
+        socketId: client.id,
         status: payload.status,
         callId: payload.callId,
       });
