@@ -1,0 +1,13 @@
+@SERVER_URL = http://localhost:8080
+@ACCESS_TOKEN = 
+POST  {{SERVER_URL}}/api/bots
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  "name":"Summaray",
+  "avatar":"https://res.cloudinary.com/middo-vn/image/upload/v1709710107/dixosv3hdwjpve0hqwmz.png",
+  "endpoint":"httsqwwwwg",
+  "description":"sss"
+  
+}

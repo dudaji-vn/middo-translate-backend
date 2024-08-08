@@ -1,14 +1,16 @@
-import { Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post } from '@nestjs/common';
 import { BotsService } from './bots.service';
 import { ParamObjectId } from '../common/decorators';
+import { CreateBotDto } from './dto/create-bot.dto';
 
 @Controller('bots')
 export class BotsController {
   constructor(private readonly botsService: BotsService) {}
 
   @Post()
-  createBot() {
-    return 'Create bot feature';
+  async createBot(@Body() payload: CreateBotDto) {
+    const result = await this.botsService.createBot(payload);
+    return { data: result };
   }
 
   @Get(':id/content/:teamId')

@@ -1,6 +1,14 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, ObjectId, PipelineStage, Types } from 'mongoose';
+import {
+  ClientSession,
+  CreateOptions,
+  Model,
+  ObjectId,
+  PipelineStage,
+  SessionOption,
+  Types,
+} from 'mongoose';
 import { FindParams } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
 import {
@@ -596,5 +604,9 @@ export class UsersService {
         status: UserStatus.ACTIVE,
       })
       .lean();
+  }
+
+  initUser(info: Partial<User>) {
+    return new this.userModel(info);
   }
 }

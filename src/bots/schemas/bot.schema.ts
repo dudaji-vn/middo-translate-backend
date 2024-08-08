@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose from 'mongoose';
 import { Team } from 'src/stations/schemas/team.schema';
 import { Station } from 'src/stations/schemas/station.schema';
+import { User } from 'src/users/schemas/user.schema';
 
 export enum ScopeType {
   ALL = 'all',
@@ -30,17 +31,24 @@ export class Bot {
   _id: mongoose.Schema.Types.ObjectId;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true })
-  user: string;
+  user: User;
 
   @Prop({
     type: String,
     required: true,
+    unique: true,
   })
   name: string;
 
   @Prop({
     type: String,
+  })
+  avatar: string;
+
+  @Prop({
+    type: String,
     required: true,
+    unique: true,
   })
   endpoint: string;
 
