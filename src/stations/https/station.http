@@ -7,14 +7,23 @@ Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
 
 {
-  "name":"Linh station",
-  "avatar":"hrkrkr",
-  "backgroundImage":"sss",
+  "name":"Linh station1",
+  "avatar":"https://res.cloudinary.com/middo-vn/image/upload/v1709710107/dixosv3hdwjpve0hqwmz.png",
+  "backgroundImage":"https://res.cloudinary.com/middo-vn/image/upload/v1709710107/dixosv3hdwjpve0hqwmz.png",
+  "teams":[
+    {"name":"Team1"},
+    {"name":"Team2"}
+  ],
   "members":[
-    
     {
-      "email":"linh@dudaji.vn"
+      "usernameOrEmail":"wwa",
+      "teamName":"Team2"
+    },
+    {
+      "usernameOrEmail":"19521750@gm.uit.edu.vn",
+      "teamName":"Team1"
     }
+   
   ]
 }
 
