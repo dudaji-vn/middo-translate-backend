@@ -585,4 +585,16 @@ export class UsersService {
       status: UserStatus.ANONYMOUS,
     });
   }
+
+  async findByListUsername(listUsername: string[]) {
+    if (!listUsername.length) {
+      return [];
+    }
+    return await this.userModel
+      .find({
+        username: { $in: listUsername },
+        status: UserStatus.ACTIVE,
+      })
+      .lean();
+  }
 }
