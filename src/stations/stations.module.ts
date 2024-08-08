@@ -10,12 +10,14 @@ import {
   InvitationStation,
   InvitationStationSchema,
 } from './schemas/invitation-station.schema';
+import { Team, TeamSchema } from './schemas/team.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: Station.name, schema: StationSchema },
       { name: InvitationStation.name, schema: InvitationStationSchema },
+      { name: Team.name, schema: TeamSchema },
     ]),
     AppNotificationsModule,
     UsersModule,
