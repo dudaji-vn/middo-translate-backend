@@ -1,27 +1,11 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose from 'mongoose';
-import { Team } from 'src/stations/schemas/team.schema';
-import { Station } from 'src/stations/schemas/station.schema';
+
 import { User } from 'src/users/schemas/user.schema';
 
-export enum ScopeType {
-  ALL = 'all',
-  ADMIN = 'admin',
-  SPECIFIC = 'specific',
-}
-
-export class Scope {
-  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Station' })
-  station: Station;
-
-  @Prop({ type: ScopeType, default: ScopeType.ADMIN })
-  type: ScopeType;
-
-  @Prop({
-    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Team' }],
-    default: [],
-  })
-  teams: Team[];
+export enum BotStatus {
+  DELETED = 'deleted',
+  ACTIVE = 'active',
 }
 
 @Schema({
@@ -58,11 +42,8 @@ export class Bot {
   })
   description: string;
 
-  @Prop({
-    type: [{ type: Scope }],
-    default: [],
-  })
-  scopes: Scope[];
+  @Prop({ type: String, default: BotStatus.ACTIVE })
+  status: BotStatus;
 }
 
 export const BotSchema = SchemaFactory.createForClass(Bot);

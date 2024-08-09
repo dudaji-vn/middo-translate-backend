@@ -27,7 +27,7 @@ export class Member {
   user?: User | string;
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Team' })
-  team?: Team | string;
+  team?: Team;
 
   @Prop({ type: String })
   email: string;
