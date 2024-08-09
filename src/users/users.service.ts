@@ -1,6 +1,14 @@
 import { HttpException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model, ObjectId, PipelineStage, Types } from 'mongoose';
+import {
+  ClientSession,
+  CreateOptions,
+  Model,
+  ObjectId,
+  PipelineStage,
+  SessionOption,
+  Types,
+} from 'mongoose';
 import { FindParams } from 'src/common/types';
 import { SetupInfoDto } from './dto/setup-info.dto';
 import {
@@ -584,5 +592,21 @@ export class UsersService {
       _id: { $in: ids },
       status: UserStatus.ANONYMOUS,
     });
+  }
+
+  async findByListUsername(listUsername: string[]) {
+    if (!listUsername.length) {
+      return [];
+    }
+    return await this.userModel
+      .find({
+        username: { $in: listUsername },
+        status: UserStatus.ACTIVE,
+      })
+      .lean();
+  }
+
+  initUser(info: Partial<User>) {
+    return new this.userModel(info);
   }
 }

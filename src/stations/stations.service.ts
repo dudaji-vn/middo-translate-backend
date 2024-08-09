@@ -6,9 +6,9 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { InjectModel } from '@nestjs/mongoose';
+import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import * as moment from 'moment';
-import { Model, ObjectId, Types } from 'mongoose';
+import mongoose, { Model, ObjectId, Types } from 'mongoose';
 import { AppNotificationsService } from 'src/app-notifications/app-notifications.service';
 import { generateSlug } from 'src/common/utils/generate-slug';
 import { socketConfig } from 'src/configs/socket.config';
@@ -29,6 +29,8 @@ import {
 import { MemberDto, MemberWithUserDto } from './dto/member.dto';
 import { RoomStatus } from 'src/rooms/schemas/room.schema';
 import { InvitationStation } from './schemas/invitation-station.schema';
+import { isValidEmail } from 'src/common/utils';
+import { DEFAULT_ADMIN_NAME, Team, TeamRole } from './schemas/team.schema';
 
 @Injectable()
 export class StationsService {
@@ -37,70 +39,140 @@ export class StationsService {
     private stationModel: Model<Station>,
     @InjectModel(InvitationStation.name)
     private invitationStationModel: Model<InvitationStation>,
+    @InjectModel(Team.name)
+    private teamModel: Model<Team>,
     private userService: UsersService,
     private appNotificationsService: AppNotificationsService,
     private readonly eventEmitter: EventEmitter2,
     private readonly mailService: MailService,
+    @InjectConnection() private readonly connection: mongoose.Connection,
   ) {}
 
+  async findById(stationId: string) {
+    const station = await this.stationModel.findById(stationId);
+    if (!station) {
+      throw new BadRequestException('Station not found');
+    }
+    return station;
+  }
+
   async createStation(userId: string, station: CreateOrEditStationDto) {
-    const user = await this.userService.findById(userId);
-    if (!user) {
-      throw new BadRequestException('User not found');
-    }
+    const transactionSession = await this.connection.startSession();
+    transactionSession.startTransaction();
+    try {
+      const createdStation = new this.stationModel();
+      const user = await this.userService.findById(userId);
+      if (!user) {
+        throw new BadRequestException('User not found');
+      }
 
-    const me = {
-      email: user.email,
-      role: ROLE.ADMIN,
-      verifyToken: '',
-      status: MemberStatus.JOINED,
-      joinedAt: new Date(),
-      user: userId,
-    };
-    if (!station.members) {
-      station.members = [];
-    }
-    const uniqueEmails = new Set();
-    station.members = station.members
-      .filter((item) => item.email !== me.email)
-      .filter((member) => {
-        if (!uniqueEmails.has(member.email)) {
-          uniqueEmails.add(member.email);
-          return true;
+      if (!station.members) {
+        station.members = [];
+      }
+      let listTeams: Team[] = [];
+
+      if (station.teams) {
+        const isExistAdmin = station.teams.find(
+          (team) =>
+            team.name?.toUpperCase() === DEFAULT_ADMIN_NAME.toUpperCase(),
+        );
+        if (!isExistAdmin) {
+          station.teams.unshift({
+            name: DEFAULT_ADMIN_NAME,
+          });
         }
-        return false;
-      });
 
-    const members = station.members.map((item) =>
-      this.convertMemberDtoToMember(item),
-    );
+        const insertTeams = station.teams.map((item) => ({
+          station: createdStation._id,
+          name: item.name,
+          role:
+            item.name === DEFAULT_ADMIN_NAME ? TeamRole.ADMIN : TeamRole.MEMBER,
+          isDeletable: item.name === DEFAULT_ADMIN_NAME ? false : true,
+        }));
 
-    const stationData = await this.stationModel.create({
-      owner: user._id,
-      avatar: station.avatar,
-      backgroundImage: station.backgroundImage,
-      members: [me, ...members],
-      name: station.name,
-    });
+        listTeams = await this.teamModel.insertMany(insertTeams, {
+          session: transactionSession,
+        });
+        createdStation.teams = listTeams;
+      }
+      const me: Member = {
+        email: user.email,
+        role: ROLE.ADMIN,
+        verifyToken: '',
+        status: MemberStatus.JOINED,
+        joinedAt: new Date(),
+        user: userId,
+        team: listTeams.find((item) => item.role === TeamRole.ADMIN),
+      };
+      const listUsername = station.members
+        .filter((member) => !isValidEmail(member.usernameOrEmail))
+        .map((item) => item.usernameOrEmail);
 
-    await this.userService.addMemberToStation(
-      user._id.toString(),
-      stationData._id.toString(),
-    );
+      const usersByUserName = await this.userService.findByListUsername(
+        listUsername,
+      );
 
-    const memberPromises = members.map((member) =>
-      this.processMember(user, member, stationData),
-    );
-    await Promise.all(memberPromises);
-    const stationDataObject = stationData.toObject();
+      const emailsByListUsername = usersByUserName.map((item) => ({
+        usernameOrEmail: item.email,
+      }));
+      station.members = [
+        ...station.members.filter((member) =>
+          isValidEmail(member.usernameOrEmail),
+        ),
+        ...emailsByListUsername,
+      ];
 
-    return {
-      ...stationDataObject,
-      members: stationDataObject.members.map((item) => {
-        const { verifyToken: _, ...data } = item;
-        return data;
-      }),
-    };
+      const uniqueEmails = new Set();
+      station.members = station.members
+        .filter((item) => item.usernameOrEmail !== me.email)
+        .filter((member) => {
+          if (!uniqueEmails.has(member.usernameOrEmail)) {
+            uniqueEmails.add(member.usernameOrEmail);
+            return true;
+          }
+          return false;
+        });
+
+      const members = station.members.map((item) =>
+        this.convertMemberDtoToMember(item, listTeams),
+      );
+      createdStation.owner = user;
+      createdStation.avatar = station.avatar;
+      createdStation.backgroundImage = station.backgroundImage;
+      createdStation.members = [me, ...members];
+      createdStation.name = station.name;
+      await createdStation.save({ session: transactionSession });
+
+      await this.userService.addMemberToStation(
+        user._id.toString(),
+        createdStation._id.toString(),
+      );
+
+      const memberPromises = members.map((member) =>
+        this.processMember(user, member, createdStation),
+      );
+      await Promise.all(memberPromises);
+      const stationDataObject = createdStation.toObject();
+
+      await transactionSession.commitTransaction();
+
+      return {
+        ...stationDataObject,
+        members: stationDataObject.members.map((item) => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { verifyToken: _, ...data } = item;
+          return data;
+        }),
+      };
+    } catch (err) {
+      if (transactionSession.inTransaction()) {
+        await transactionSession.abortTransaction();
+      }
+      console.log(err);
+      throw new Error('Server error');
+    } finally {
+      await transactionSession.endSession();
+    }
   }
   async updateStation(
     id: string,
@@ -130,6 +202,7 @@ export class StationsService {
     }
 
     await stationData.save();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { members: _, ...data } = stationData.toObject();
 
     this.eventEmitter.emit(socketConfig.events.station.update, {
@@ -209,6 +282,7 @@ export class StationsService {
       .findOne(query)
       .populate('owner', '_id name avatar username')
       .populate('members.user', '_id name avatar username')
+      .populate('members.team')
       .select('-members.verifyToken')
       .lean();
     if (!data) {
@@ -314,6 +388,7 @@ export class StationsService {
         (user) => user.status === MemberStatus.JOINED,
       );
       const isOwner = item.owner.toString() === userId;
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { members: _, ...rest } = item;
       return {
         ...rest,
@@ -341,7 +416,8 @@ export class StationsService {
     data.members.forEach((member) => {
       const user = stationData.members.find(
         (item) =>
-          item.email === member.email && item.status !== MemberStatus.DELETED,
+          item.email === member.usernameOrEmail &&
+          item.status !== MemberStatus.DELETED,
       );
       if (user?.status === MemberStatus.INVITED) {
         throw new BadRequestException(`Email ${user.email} already invited!`);
@@ -354,8 +430,8 @@ export class StationsService {
     const uniqueEmails = new Set();
     const newMembers = data.members
       .filter((member) => {
-        if (!uniqueEmails.has(member.email)) {
-          uniqueEmails.add(member.email);
+        if (!uniqueEmails.has(member.usernameOrEmail)) {
+          uniqueEmails.add(member.usernameOrEmail);
           return true;
         }
         return false;
@@ -774,7 +850,7 @@ export class StationsService {
   private createInvitationLinkUrl(stationId: string, token: string) {
     return `${envConfig.app.url}/station-invitation?stationId=${stationId}&token=${token}`;
   }
-  private isOwnerStation(station: Station, userId: string) {
+  isOwnerStation(station: Station, userId: string) {
     return station.owner?.toString() === userId.toString();
   }
 
@@ -889,13 +965,18 @@ export class StationsService {
     );
   }
 
-  convertMemberDtoToMember(item: MemberDto): Member {
+  convertMemberDtoToMember(item: MemberDto, teams?: Team[]): Member {
     const token = `${generateSlug()}-${generateSlug()}`;
+    let team: Team | undefined;
+    if (item.teamName && teams?.length) {
+      team = teams.find((team) => team.name === item.teamName);
+    }
     return {
-      email: item.email,
+      email: item.usernameOrEmail,
       role: ROLE.MEMBER,
       verifyToken: token,
       invitedAt: new Date(),
+      ...(team && { team: team }),
       expiredAt: moment()
         .add(envConfig.station.invite.expireIn, 'day')
         .toDate(),
@@ -919,5 +1000,14 @@ export class StationsService {
       status: MemberStatus.INVITED,
       user: item.userId,
     };
+  }
+
+  async getMyTeam(stationId: string, userId: string) {
+    const station = await this.findStationByIdAndUserId(stationId, userId);
+    const member = station.members.find(
+      (item) => (item.user as User)?._id?.toString() === userId,
+    );
+
+    return member?.team;
   }
 }

@@ -1,6 +1,7 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose from 'mongoose';
 import { User } from 'src/users/schemas/user.schema';
+import { Team } from './team.schema';
 
 export enum MemberStatus {
   INVITED = 'invited',
@@ -24,6 +25,9 @@ export class Member {
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'User' })
   user?: User | string;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: 'Team' })
+  team?: Team;
 
   @Prop({ type: String })
   email: string;

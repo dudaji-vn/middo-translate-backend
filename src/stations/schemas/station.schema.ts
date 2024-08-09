@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import mongoose from 'mongoose';
 import { User } from 'src/users/schemas/user.schema';
 import { Member, MemberSchema } from './member.schema';
+import { Team } from './team.schema';
 
 export enum StationStatus {
   DELETED = 'deleted',
@@ -41,6 +42,12 @@ export class Station {
     default: [],
   })
   members: Member[];
+
+  @Prop({
+    type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Team' }],
+    default: [],
+  })
+  teams: Team[];
 
   @Prop({ type: String, default: StationStatus.ACTIVE })
   status: StationStatus;

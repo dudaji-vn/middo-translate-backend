@@ -64,4 +64,7 @@ export const envConfig = {
       expireIn: process.env.STATION_INVITE_EXPIRE_IN || 1, //Unit day
     },
   },
+  bot: {
+    api: process.env.BOT_URL,
+  },
 };

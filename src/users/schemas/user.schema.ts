@@ -3,6 +3,7 @@ import mongoose, { HydratedDocument, ObjectId } from 'mongoose';
 import { HelpDeskBusiness } from 'src/help-desk/schemas/help-desk-business.schema';
 import { Space } from 'src/help-desk/schemas/space.schema';
 import { Station } from 'src/stations/schemas/station.schema';
+import { Bot } from 'src/bots/schemas/bot.schema';
 
 export type UserDocument = HydratedDocument<User>;
 
@@ -117,6 +118,9 @@ export class User {
 
   @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Station.name })
   defaultStation: ObjectId | null;
+
+  @Prop({ type: mongoose.Schema.Types.ObjectId, ref: Bot.name })
+  bot: ObjectId | null;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

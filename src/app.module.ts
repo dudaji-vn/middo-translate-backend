@@ -27,6 +27,7 @@ import { HelpDeskModule } from './help-desk/help-desk.module';
 import { StationsModule } from './stations/stations.module';
 import { AppNotificationsModule } from './app-notifications/app-notifications.module';
 import { FormModule } from './form/form.module';
+import { BotsModule } from './bots/bots.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { FormModule } from './form/form.module';
     StationsModule,
     AppNotificationsModule,
     FormModule,
+    BotsModule,
   ],
   controllers: [AppController, GoogleApiStatController],
   providers: [
