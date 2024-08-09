@@ -1,7 +1,8 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Query } from '@nestjs/common';
 import { BotsService } from './bots.service';
-import { ParamObjectId } from '../common/decorators';
+import { JwtUserId, ParamObjectId } from 'src/common/decorators';
 import { CreateBotDto } from './dto/create-bot.dto';
+import { AccessControlDto } from './dto/access-control.dto';
 
 @Controller('bots')
 export class BotsController {
@@ -13,11 +14,35 @@ export class BotsController {
     return { data: result };
   }
 
-  @Get(':id/content/:teamId')
-  getContent(
-    @ParamObjectId('id') id: string,
-    @ParamObjectId('teamId') teamId: string,
+  @Put('access-control')
+  async accessControl(
+    @Body() payload: AccessControlDto,
+    @JwtUserId() userId: string,
   ) {
-    return this.botsService.generateContent(id, teamId);
+    const result = await this.botsService.updateAccessControl(payload, userId);
+    return { data: result };
+  }
+
+  @Get('summarize/:botId/:stationId')
+  async getSummarizeContent(
+    @ParamObjectId('stationId') stationId: string,
+    @JwtUserId() userId: string,
+    @ParamObjectId('botId') botId: string,
+  ) {
+    const result = await this.botsService.getSummarizeContent(
+      botId,
+      stationId,
+      userId,
+    );
+    return { data: result };
+  }
+
+  @Get(':stationId')
+  async getBotsByUser(
+    @ParamObjectId('stationId') stationId: string,
+    @JwtUserId() userId: string,
+  ) {
+    const result = await this.botsService.getBotsByUser(stationId, userId);
+    return { data: result };
   }
 }
