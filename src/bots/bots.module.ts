@@ -7,6 +7,7 @@ import { BotsController } from './bots.controller';
 import { BotsService } from './bots.service';
 import { Bot, BotSchema } from './schemas/bot.schema';
 import { ScopeBot, ScopeBotSchema } from './schemas/scope-bot.schema';
+import { MessagesModule } from '../messages/messages.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { ScopeBot, ScopeBotSchema } from './schemas/scope-bot.schema';
     ]),
     UsersModule,
     StationsModule,
+    MessagesModule,
   ],
   controllers: [BotsController],
   providers: [BotsService],

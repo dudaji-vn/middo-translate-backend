@@ -6,6 +6,9 @@
 @BOT_ID= 66b4448f7036302bba784004
 
 
+@MESSAGE_ID= 66b57e2b1b2230e5cdeec4e0
+
+
 ###
 POST  {{SERVER_URL}}/api/bots
 Authorization: Bearer {{ACCESS_TOKEN}}
@@ -37,5 +40,13 @@ Content-Type: application/json
 
 
 ###
-GET {{SERVER_URL}}/api/bots/summarize/66b4448f7036302bba784004/{{STATION_ID}}
+POST  {{SERVER_URL}}/api/bots/summarize
 Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  "stationId":"{{STATION_ID}}",
+  "botId": "{{BOT_ID}}",
+  "messageId":"{{MESSAGE_ID}}"
+ 
+}

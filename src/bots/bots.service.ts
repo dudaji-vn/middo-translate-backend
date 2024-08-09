@@ -1,15 +1,22 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  StreamableFile,
+} from '@nestjs/common';
 import { InjectConnection, InjectModel } from '@nestjs/mongoose';
 import mongoose, { Model } from 'mongoose';
 import { generateSlug } from 'src/common/utils/generate-slug';
+import { MessagesService } from 'src/messages/messages.service';
 import { Team, TeamRole } from 'src/stations/schemas/team.schema';
 import { StationsService } from 'src/stations/stations.service';
 import { UserStatus } from 'src/users/schemas/user.schema';
 import { UsersService } from 'src/users/users.service';
-import { AccessControlDto } from './dto/access-control.dto';
-import { CreateBotDto } from './dto/create-bot.dto';
+import { AccessControlDto } from './dtos/access-control.dto';
+import { CreateBotDto } from './dtos/create-bot.dto';
+import { SummarizeContentDto } from './dtos/summary-content.dto';
 import { Bot } from './schemas/bot.schema';
 import { ScopeBot, ScopeType } from './schemas/scope-bot.schema';
+import { apiSummaryBot } from './utils/summary-bot';
 
 @Injectable()
 export class BotsService {
@@ -22,6 +29,7 @@ export class BotsService {
     private teamModel: Model<Team>,
     private usersService: UsersService,
     private stationsService: StationsService,
+    private messagesService: MessagesService,
     @InjectConnection() private readonly connection: mongoose.Connection,
   ) {}
   async createBot(payload: CreateBotDto) {
@@ -98,21 +106,40 @@ export class BotsService {
     );
     return true;
   }
-  async getSummarizeContent(botId: string, stationId: string, userId: string) {
-    const bot = await this.botModel.findOne({ _id: botId });
-    if (!bot) {
-      throw new BadRequestException(`Bot not found`);
-    }
+  async summarizeContent(
+    payload: SummarizeContentDto,
+    userId: string,
+  ): Promise<StreamableFile> {
+    const { botId, stationId, messageId } = payload;
     const canAccessBot = await this.canAccessBot(botId, userId, stationId);
     if (!canAccessBot) {
       throw new BadRequestException(`User cannot access this bot`);
     }
-    return 'Generate content';
+    const chatHistoryPromise = this.messagesService.getHistories(
+      messageId,
+      userId,
+    );
+    const queryPromise = this.messagesService.findByIdV2(messageId);
+
+    const [chatHistory, query] = await Promise.all([
+      chatHistoryPromise,
+      queryPromise,
+    ]);
+
+    console.log({ query, chatHistory });
+
+    // return {
+    //   query,
+    //   chatHistory,
+    // };
+    return apiSummaryBot({
+      chatHistory: chatHistory,
+      query: query,
+    });
   }
 
   async getBotsByUser(stationId: string, userId: string) {
     const team = await this.stationsService.getMyTeam(stationId, userId);
-    console.log({ team });
     if (!team) {
       return [];
     }

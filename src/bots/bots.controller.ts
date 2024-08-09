@@ -1,8 +1,10 @@
-import { Body, Controller, Get, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Put, Query, Res } from '@nestjs/common';
 import { BotsService } from './bots.service';
 import { JwtUserId, ParamObjectId } from 'src/common/decorators';
-import { CreateBotDto } from './dto/create-bot.dto';
-import { AccessControlDto } from './dto/access-control.dto';
+import { CreateBotDto } from './dtos/create-bot.dto';
+import { AccessControlDto } from './dtos/access-control.dto';
+import { SummarizeContentDto } from './dtos/summary-content.dto';
+import { Response } from 'express';
 
 @Controller('bots')
 export class BotsController {
@@ -23,18 +25,24 @@ export class BotsController {
     return { data: result };
   }
 
-  @Get('summarize/:botId/:stationId')
-  async getSummarizeContent(
-    @ParamObjectId('stationId') stationId: string,
+  @Post('summarize')
+  async summarizeContent(
+    @Body() payload: SummarizeContentDto,
     @JwtUserId() userId: string,
-    @ParamObjectId('botId') botId: string,
+    @Res() res: Response,
   ) {
-    const result = await this.botsService.getSummarizeContent(
-      botId,
-      stationId,
-      userId,
-    );
-    return { data: result };
+    res.setHeader('Content-Type', 'text/event-stream');
+
+    try {
+      const stream = await this.botsService.summarizeContent(payload, userId);
+      stream.getStream().pipe(res);
+      stream.getStream().on('end', () => {
+        res.end();
+      });
+    } catch (err) {
+      console.error('Error in summarizeContent:', err);
+      res.status(500).send('Failed to retrieve summary');
+    }
   }
 
   @Get(':stationId')

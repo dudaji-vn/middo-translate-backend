@@ -2009,7 +2009,56 @@ export class MessagesService {
         editHistory: null,
       },
     });
+  }
 
+  async getHistories(id: string, userId: string) {
+    const message = await this.findById(id);
+    const room = await this.roomsService.findByIdAndUserId(
+      message.room._id.toString(),
+      userId,
+    );
+    const query: FilterQuery<Message> = {
+      room: room._id,
+      parent: message._id,
+      deleteFor: { $nin: [userId] },
+    };
+
+    const messages = await this.messageModel
+      .find(query)
+      .populate(
+        'sender',
+        selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'email',
+          'language',
+          'username',
+        ]),
+      );
+
+    return messages.map((message) => {
+      return convertMessageRemoved(message, userId) as Message;
+    });
+  }
+
+  async findByIdV2(id: string): Promise<Message> {
+    const message = await this.messageModel.findById(id).populate([
+      {
+        path: 'sender',
+        select: selectPopulateField<User>([
+          '_id',
+          'name',
+          'avatar',
+          'language',
+          'username',
+          'email',
+        ]),
+      },
+    ]);
+    if (!message) {
+      throw new Error('Message not found');
+    }
     return message;
   }
 }
