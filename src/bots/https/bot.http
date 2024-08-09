@@ -1,5 +1,12 @@
 @SERVER_URL = http://localhost:8080
 @ACCESS_TOKEN = 
+
+@STATION_ID= 66b1cb260f9e4f9a6d13dbc0
+
+@BOT_ID= 66b4448f7036302bba784004
+
+
+###
 POST  {{SERVER_URL}}/api/bots
 Authorization: Bearer {{ACCESS_TOKEN}}
 Content-Type: application/json
@@ -11,3 +18,24 @@ Content-Type: application/json
   "description":"sss"
   
 }
+
+###
+GET {{SERVER_URL}}/api/bots/{{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
+
+###
+PUT  {{SERVER_URL}}/api/bots/access-control
+Authorization: Bearer {{ACCESS_TOKEN}}
+Content-Type: application/json
+
+{
+  "stationId":"{{STATION_ID}}",
+  "botId": "{{BOT_ID}}",
+  "scopeType":"specific",
+  "teams":["66b1cb260f9e4f9a6d13dbc2","66b1cb260f9e4f9a6d13dbc3"]
+}
+
+
+###
+GET {{SERVER_URL}}/api/bots/summarize/66b4448f7036302bba784004/{{STATION_ID}}
+Authorization: Bearer {{ACCESS_TOKEN}}
