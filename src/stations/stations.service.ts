@@ -48,6 +48,14 @@ export class StationsService {
     @InjectConnection() private readonly connection: mongoose.Connection,
   ) {}
 
+  async findById(stationId: string) {
+    const station = await this.stationModel.findById(stationId);
+    if (!station) {
+      throw new BadRequestException('Station not found');
+    }
+    return station;
+  }
+
   async createStation(userId: string, station: CreateOrEditStationDto) {
     const transactionSession = await this.connection.startSession();
     transactionSession.startTransaction();
@@ -274,6 +282,7 @@ export class StationsService {
       .findOne(query)
       .populate('owner', '_id name avatar username')
       .populate('members.user', '_id name avatar username')
+      .populate('members.team')
       .select('-members.verifyToken')
       .lean();
     if (!data) {
@@ -841,7 +850,7 @@ export class StationsService {
   private createInvitationLinkUrl(stationId: string, token: string) {
     return `${envConfig.app.url}/station-invitation?stationId=${stationId}&token=${token}`;
   }
-  private isOwnerStation(station: Station, userId: string) {
+  isOwnerStation(station: Station, userId: string) {
     return station.owner?.toString() === userId.toString();
   }
 
@@ -991,5 +1000,14 @@ export class StationsService {
       status: MemberStatus.INVITED,
       user: item.userId,
     };
+  }
+
+  async getMyTeam(stationId: string, userId: string) {
+    const station = await this.findStationByIdAndUserId(stationId, userId);
+    const member = station.members.find(
+      (item) => (item.user as User)?._id?.toString() === userId,
+    );
+
+    return member?.team;
   }
 }
