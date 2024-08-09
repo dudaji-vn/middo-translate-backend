@@ -40,10 +40,33 @@ export class CallService {
       if (!isUserInRoom) {
         return { status: STATUS.USER_NOT_IN_ROOM };
       }
-      const call = await this.callModel.findOne({
+      let call = await this.callModel.findOne({
         roomId: payload.roomId,
         endTime: null,
       });
+      if(room.isAnonymous) {
+        call = await this.callModel.findOne({
+          type: CALL_TYPE.ANONYMOUS,
+          createdBy: payload.id,
+        });
+        if(call) {
+          call.roomId  = payload.roomId
+          call.participants = [payload.id];
+          call.endTime = null;
+          await call.save();
+          this.messageService.create(
+            {
+              roomId: payload.roomId,
+              type: MessageType.CALL,
+              media: [],
+              callId: call._id.toString(),
+              clientTempId: '',
+              senderType: SenderType.ANONYMOUS
+            },
+            payload.id,
+          );
+        }
+      }
       if (call) {
         const newCall = await this.callModel.findByIdAndUpdate(
           call._id,
@@ -64,6 +87,8 @@ export class CallService {
           type: JOIN_TYPE.JOIN_ROOM,
         };
       }
+
+      // Generate room name
       let roomName = '';
       if (room) {
         if (room.name) roomName = room.name;
@@ -86,6 +111,8 @@ export class CallService {
           });
         }
       }
+
+      // Check call type
       let type = CALL_TYPE.DIRECT;
       if (room.isHelpDesk) {
         type = CALL_TYPE.HELP_DESK;
@@ -104,6 +131,8 @@ export class CallService {
         participants: [payload.id]
       };
       const newCallObj = await this.callModel.create(newCall);
+
+      // Create Call Message
       this.messageService.create(
         {
           roomId: payload.roomId,
@@ -115,6 +144,7 @@ export class CallService {
         },
         payload.id,
       );
+      
       return {
         status: STATUS.JOIN_SUCCESS,
         call: newCallObj,
@@ -176,10 +206,12 @@ export class CallService {
       if (!callId) return;
       const call = await this.callModel.findById(callId).populate('roomId', selectPopulateField<Room>(['_id']));
       if (!call) return;
-      if (call?.type == CALL_TYPE.ANONYMOUS) { // DELETE ROOM, CALL and All message of room
+      if (call?.type == CALL_TYPE.ANONYMOUS && typeof call.roomId != 'string') { // DELETE ROOM, CALL and All message of room
         await this.roomService.forgeDeleteRoomAndUserInRoom(call.roomId?._id?.toString());
         await this.messageService.forgeDeleteMessageByRoomId(call.roomId?._id?.toString());
-        await this.callModel.findByIdAndDelete(callId);
+        call.endTime = new Date();
+        call.participants = [];
+        await call.save();
         return;
       }
       call.endTime = new Date();

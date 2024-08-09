@@ -15,11 +15,11 @@ export class Call {
     ref: 'Room',
     required: true,
   })
-  roomId: Room;
+  roomId: Room | string;
   @Prop({ type: Date, default: null })
   startTime: Date;
   @Prop({ type: Date, default: null })
-  endTime: Date;
+  endTime: Date | null;
   @Prop({ type: String })
   avatar: string;
   @Prop({ type: String })
